@@ -13,6 +13,7 @@ let%expect_test "name" =
     "gc0p4Jq0M2Yt08j34c0p";
     {|"gc0p4Jq0M2Yt08j34c0p:=???|"|};
     "gc0p4Jq0M2Yt08j34c0p ";
+    "---gc0p4Jq0M2Yt08j34c0p ";
   ]
   |> List.map (( ^ ) "boundary=")
   |> List.iter print_boundary_value;
@@ -20,4 +21,5 @@ let%expect_test "name" =
     {|
     (Ok gc0p4Jq0M2Yt08j34c0p)
     (Ok gc0p4Jq0M2Yt08j34c0p:=???|)
-    (Ok gc0p4Jq0M2Yt08j34c0p) |}]
+    (Ok gc0p4Jq0M2Yt08j34c0p)
+    (Ok ---gc0p4Jq0M2Yt08j34c0p) |}]
