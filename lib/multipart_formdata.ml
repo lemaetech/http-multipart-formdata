@@ -42,59 +42,23 @@ and file = {
   body : bytes;
 }
 
-type parser = {
-  input_stream : char Stream.t;
-  mutable current_char : char option;
-}
+open Sexplib.Std
 
-type error =
-  [ `Invalid_content_type of string
-  | `Invalid_content_type_part of string
-  | `Empty_content_type ]
+type error = [ `Invalid_content_type of string | `Invalid_boundary_value ]
+[@@deriving sexp_of]
 
-let next_char t =
-  try t.current_char <- Stream.next t.input_stream |> Option.some
-  with Stream.Failure -> t.current_char <- None
+type ('a, 'e) result = ('a, 'e) Result.t = Ok of 'a | Error of 'e
+[@@deriving sexp_of]
 
+let sexp_of_result = sexp_of_result sexp_of_string sexp_of_error
 
-let peek_char t = Stream.peek t.input_stream
-
-let create input_stream = { input_stream; current_char = None }
-
-let is_alpha = function 'a' .. 'z' | 'A' .. 'Z' -> true | _ -> false
-
-let is_equal = function '=' -> true | _ -> false
-
-(*
-(* Parse as follows - Content-Type: multipart/form-data; boundary=7353230 *)
+(* Parse as follows - multipart/form-data; boundary=7353230 *)
 let parse_content_type content_type =
-  let rec parse_boundary_value s =
-    let rec loop buf stream =
-      match Stream.next stream with
-      | '"' -> parse_part_value buf stream
-      | exception Stream.Failure -> Buffer.contents
-    in
-    let buf = Buffer.create 10 in
-    let stream = Stream.of_string s in
-
-    ()
+  let parse_boundary_value s =
+    try Lexing.from_string s |> Lexer.lex_boundary |> R.ok
+    with _exn -> R.error `Invalid_boundary_value
   in
-  let find_boundary_value l =
-    let rec loop = function
-      | [] -> None
-      | s :: tl ->
-          if String.starts_with ~prefix:"boundary=" s then Some "" else loop tl
-    in
-    loop l
-  in
-  content_type |> String.split_on_char ~sep:';' |> List.map String.trim
-  |> function
-  | ("multipart/form-data" as ct) :: _tl -> R.ok ct
-  | ct :: _ -> `Invalid_content_type ct |> R.error
-  | [] -> `Empty_content_type |> R.error *)
-
-(*
-let rec parse_preamble p =
-  match (p.current_char, peek_char p) with
-  | Some '\r', Some '\n' -> next_char p
-  | _ -> () *)
+  let prefix = "multipart/form-data;" in
+  if String.starts_with ~prefix content_type then
+    String.chop_prefix ~prefix content_type |> parse_boundary_value
+  else R.error @@ `Invalid_content_type content_type

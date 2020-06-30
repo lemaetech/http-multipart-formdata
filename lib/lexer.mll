@@ -21,6 +21,5 @@ let boundary = bchars* bcharsnospace
 let sp = ['\032']
 
 rule lex_boundary = parse
-| "boundary=\"" (boundary as b) "\"" {  Result.ok b }
-| "boundary=" (boundary as b) (eof | sp+ ) { Result.ok b }
-| eof { Result.error `Invalid_boundary_value }
+| (sp*) "boundary=\"" (boundary as b) "\"" {  b }
+| (sp*) "boundary=" (boundary as b) (eof | sp+ | ';' ) { b }
