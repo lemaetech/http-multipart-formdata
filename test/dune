@@ -1,0 +1,6 @@
+(library
+ (name test)
+ (inline_tests)
+ (libraries http_multipart_formdata sexplib)
+ (preprocess
+  (pps ppx_inline_test ppx_expect ppx_sexp_conv)))
