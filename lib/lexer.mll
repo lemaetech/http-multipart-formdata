@@ -16,8 +16,10 @@ let quoted_text = bchars* bcharsnospace
 let us_ascii = ['\000'-'\127']
 let ctl = ['\000'-'\031' '\127']
 let sp = ['\032']
-let token = (us_ascii # ctl # sp # specials)*
+let crlf = '\r' '\n'
+let token = (us_ascii # ctl # sp # specials)+
 
 rule lex_boundary = parse
-| "boundary=\"" (quoted_text as b) "\"" { b }
-| "boundary=" (token as b) { b }
+| "boundary=\"" (quoted_text as b) "\"" { Result.ok b }
+| "boundary=" (token as b) (eof | sp+ ) { Result.ok b }
+| eof { Result.error `Invalid_boundary_value }
