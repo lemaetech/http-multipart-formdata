@@ -27,3 +27,9 @@ setup.log
 
 # Local OPAM switch
 _opam/
+
+# node modules
+node_modules/
+
+# vscode
+.vscode
