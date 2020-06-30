@@ -31,6 +31,6 @@ let crlf = '\r' '\n'
 let token = (us_ascii # ctl # sp # specials)+
 
 rule lex_boundary = parse
-| "boundary=\"" (quoted_text as b) "\"" { Result.ok b }
-| "boundary=" (token as b) (eof | sp+ ) { Result.ok b }
+| "boundary=\"" (quoted_text as b) "\"" {  Result.ok b }
+| "boundary=" [^'\034'] (token as b) (eof | sp+ ) { Result.ok b }
 | eof { Result.error `Invalid_boundary_value }
