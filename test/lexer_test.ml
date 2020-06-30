@@ -18,6 +18,6 @@ let%expect_test "name" =
   |> List.iter print_boundary_value;
   [%expect
     {|
-    (Ok c0p4Jq0M2Yt08j34c0p)
+    (Ok gc0p4Jq0M2Yt08j34c0p)
     (Ok gc0p4Jq0M2Yt08j34c0p:=???|)
-    (Ok c0p4Jq0M2Yt08j34c0p) |}]
+    (Ok gc0p4Jq0M2Yt08j34c0p) |}]

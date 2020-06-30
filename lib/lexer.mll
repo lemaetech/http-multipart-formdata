@@ -28,9 +28,9 @@ let us_ascii = ['\000'-'\127']
 let ctl = ['\000'-'\031' '\127']
 let sp = ['\032']
 let crlf = '\r' '\n'
-let token = (us_ascii # ctl # sp # specials)+
+let token = [^'\034'] (us_ascii # ctl # sp # specials)+
 
 rule lex_boundary = parse
 | "boundary=\"" (quoted_text as b) "\"" {  Result.ok b }
-| "boundary=" [^'\034'] (token as b) (eof | sp+ ) { Result.ok b }
+| "boundary=" (token as b) (eof | sp+ ) { Result.ok b }
 | eof { Result.error `Invalid_boundary_value }
