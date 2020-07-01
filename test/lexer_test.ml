@@ -9,14 +9,13 @@ let print_boundary_value s =
 
 let%expect_test "name" =
   [
-    "gc0p4Jq0M2Yt08j34c0p";
-    {|"gc0p4Jq0M2Yt08j34c0p:=???|"|};
-    "gc0p4Jq0M2Yt08j34c0p ";
-    "---gc0p4Jq0M2Yt08j34c0p ";
-    "---gc0p4Jq0M2Yt08j34c0p helll";
+    "multipart/form-data; boundary=gc0p4Jq0M2Yt08j34c0p";
+    {|multipart/form-data; boundary="gc0p4Jq0M2Yt08j34c0p:=???|"|};
+    "multipart/form-data; boundary=gc0p4Jq0M2Yt08j34c0p ";
+    "multipart/form-data; boundary=---gc0p4Jq0M2Yt08j34c0p ";
+    "multipart/form-data; boundary=---gc0p4Jq0M2Yt08j34c0p helll";
     "";
   ]
-  |> List.map (( ^ ) "multipart/form-data; boundary=")
   |> List.iter print_boundary_value;
   [%expect
     {|
