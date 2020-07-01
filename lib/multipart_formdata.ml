@@ -44,8 +44,7 @@ and file = {
 
 open Sexplib.Std
 
-type error = [ `Invalid_content_type of string | `Invalid_boundary_value ]
-[@@deriving sexp_of]
+type error = [ `Invalid_content_type ] [@@deriving sexp_of]
 
 type ('a, 'e) result = ('a, 'e) Result.t = Ok of 'a | Error of 'e
 [@@deriving sexp_of]
@@ -54,11 +53,7 @@ let sexp_of_result = sexp_of_result sexp_of_string sexp_of_error
 
 (* Parse as follows - multipart/form-data; boundary=7353230 *)
 let parse_content_type content_type =
-  let parse_boundary_value s =
-    try Lexing.from_string s |> Lexer.lex_boundary |> R.ok
-    with _exn -> R.error `Invalid_boundary_value
-  in
-  let prefix = "multipart/form-data;" in
-  if String.starts_with ~prefix content_type then
-    String.chop_prefix ~prefix content_type |> parse_boundary_value
-  else R.error @@ `Invalid_content_type content_type
+  try
+    let lb = Lexing.from_string content_type in
+    Parser.parse_content_type Lexer.lex_content_type lb |> R.ok
+  with _exn -> R.error @@ `Invalid_content_type

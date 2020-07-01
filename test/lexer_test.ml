@@ -13,6 +13,7 @@ let%expect_test "name" =
     {|"gc0p4Jq0M2Yt08j34c0p:=???|"|};
     "gc0p4Jq0M2Yt08j34c0p ";
     "---gc0p4Jq0M2Yt08j34c0p ";
+    "---gc0p4Jq0M2Yt08j34c0p helll";
     "";
   ]
   |> List.map (( ^ ) "multipart/form-data; boundary=")
@@ -23,4 +24,5 @@ let%expect_test "name" =
     (Ok gc0p4Jq0M2Yt08j34c0p:=???|)
     (Ok gc0p4Jq0M2Yt08j34c0p)
     (Ok ---gc0p4Jq0M2Yt08j34c0p)
-    (Error Invalid_boundary_value) |}]
+    (Ok "---gc0p4Jq0M2Yt08j34c0p helll")
+    (Error Invalid_content_type) |}]
