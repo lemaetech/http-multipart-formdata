@@ -6,5 +6,4 @@
 
 (ocamllex lexer)
 
-(menhir
- (modules parser))
+(ocamlyacc parser)

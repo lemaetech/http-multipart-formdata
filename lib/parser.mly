@@ -2,9 +2,10 @@
 %token SEMI
 %token EOF
 %token <string> BOUNDARY_VALUE
-%start <string> parse_content_type
+%type  <string> parse_content_type
+%start parse_content_type
 %%
 
 parse_content_type :
-| MULTIPART_FORMDATA SEMI b = BOUNDARY_VALUE EOF {b}
-| MULTIPART_FORMDATA SEMI b = BOUNDARY_VALUE SEMI {b}
+| MULTIPART_FORMDATA SEMI BOUNDARY_VALUE EOF {$3}
+| MULTIPART_FORMDATA SEMI BOUNDARY_VALUE SEMI {$3}
