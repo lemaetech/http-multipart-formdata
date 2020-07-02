@@ -42,14 +42,9 @@ and file = {
   body : bytes;
 }
 
-open Sexplib.Std
+type error = [ `Invalid_content_type ]
 
-type error = [ `Invalid_content_type ] [@@deriving sexp_of]
-
-type ('a, 'e) result = ('a, 'e) Result.t = Ok of 'a | Error of 'e
-[@@deriving sexp_of]
-
-let sexp_of_result = sexp_of_result sexp_of_string sexp_of_error
+let string_of_error = function `Invalid_content_type -> "Invalid_content_type"
 
 (* Parse as follows - multipart/form-data; boundary=7353230 *)
 let parse_content_type content_type =

@@ -27,6 +27,4 @@
   (dune
    (and
     :build
-    (>= 2.6.0)))
-  ppx_sexp_conv
-  sexplib))
+    (>= 2.6.0)))))

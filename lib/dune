@@ -1,8 +1,5 @@
 (library
- (name http_multipart_formdata)
- (libraries sexplib)
- (preprocess
-  (pps ppx_sexp_conv)))
+ (name http_multipart_formdata))
 
 (ocamllex lexer)
 
