@@ -14,6 +14,7 @@ let%expect_test "name" =
     "multipart/form-data; boundary=gc0p4Jq0M2Yt08j34c0p ";
     "multipart/form-data; boundary=---gc0p4Jq0M2Yt08j34c0p ";
     "multipart/form-data; boundary=---gc0p4Jq0M2Yt08j34c0p helll";
+    "multipart/form-data; boundary=---gc0p4Jq0M2Yt08j34c0p; hello=2";
     "";
   ]
   |> List.iter print_boundary_value;
@@ -24,4 +25,5 @@ let%expect_test "name" =
     (Ok gc0p4Jq0M2Yt08j34c0p)
     (Ok ---gc0p4Jq0M2Yt08j34c0p)
     (Ok "---gc0p4Jq0M2Yt08j34c0p helll")
+    (Ok ---gc0p4Jq0M2Yt08j34c0p)
     (Error Invalid_content_type) |}]
