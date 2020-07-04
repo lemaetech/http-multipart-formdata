@@ -4,7 +4,6 @@ type mode =
   | Multipart_body_header_param
 
 val lex_multipart_header : Lexing.lexbuf -> Parser.token
-
 val lex_multipart_formdata : mode ref -> Lexing.lexbuf -> Parser.token
 
 (* val lex_concat : Lexing.lexbuf -> string *)
