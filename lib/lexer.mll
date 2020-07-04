@@ -2,7 +2,7 @@
 {
   open Parser
 
-  type state =
+  type mode =
     | Multipart_formdata
     | Multipart_body_part
     | Multipart_body_header_param
@@ -21,15 +21,13 @@ let boundary = bchars* bcharsnospace
 
 (* https://www.rfc-editor.org/std/std68.txt *)
 let wsp = ['\x20' '\x09'] (* space or htab *)
-let cr = '\x0D'
-let lf = '\x0A'
-let crlf = cr lf
+let crlf = '\x0D' '\x0A'
 let lwsp = wsp | crlf wsp
 
 (* Content-Type type/subtype - https://tools.ietf.org/html/rfc6838#section-4.2 *)
 let restricted_name_first = alpha | digit
-let restricted_name_chars = alpha | digit | '!' | '#' | '$' | '&' | '-' | '^' | '_' | '.' | '+'
-let restricted_name = restricted_name_first *restricted_name_chars
+let restricted_name_chars = (alpha | digit | '!' | '#' | '$' | '&' | '-' | '^' | '_' | '.' | '+')*
+let restricted_name = restricted_name_first restricted_name_chars
 let content_type = restricted_name '/' restricted_name
 
 let dash_boundary = "--" boundary
@@ -57,40 +55,41 @@ and lex_boundary_value = parse
 | '\'' (boundary as b) '\''  { BOUNDARY_VALUE b }
 | (boundary as b) { BOUNDARY_VALUE b }
 
-and lex_multipart_formdata state = parse
-| (dash_boundary as b) lwsp* crlf
-  { state := Multipart_body_part;
+(*--- Multipart formdata ---*)
+and lex_multipart_formdata mode = parse
+| crlf (dash_boundary as b) lwsp*
+  { mode := Multipart_body_part;
     DASH_BOUNDARY b
   }
 | eof { EOF }
-| _  { lex_multipart_formdata state lexbuf} (* discard preamble/epilogue text. *)
+| _  { lex_multipart_formdata mode lexbuf} (* discard preamble/epilogue text. *)
 
-and lex_body_part state = parse
+and lex_body_part mode = parse
 | crlf (dash_boundary as b) lwsp* { DASH_BOUNDARY b }
-| crlf (dash_boundary as b) "--" lwsp* { state := Multipart_formdata; CLOSE_BOUNDARY b}
-| crlf "Content-Type" (wsp)* ':' content_type as ct
-  { state := Multipart_body_header_param;
+| crlf (dash_boundary as b) "--" lwsp* { mode := Multipart_formdata; CLOSE_BOUNDARY b}
+| crlf "Content-Type" (wsp)* ':' (wsp)* content_type as ct
+  { mode := Multipart_body_header_param;
     HEADER (`Content_type ct)
   }
-| crlf "Content-Disposition" (wsp)* ':' disposition_type as dt
-  { state := Multipart_body_header_param;
+| crlf "Content-Disposition" (wsp)* ':' (wsp)* (disposition_type as dt)
+  { mode := Multipart_body_header_param;
     HEADER (`Content_disposition dt)
   }
-| crlf field_name (wsp)* ':' (wsp)* (ascii_chars # control_chars | '\x09')* { lex_body_part state lexbuf }
-| crlf (body as b) { BODY b }
+| crlf field_name (wsp)* ':' (wsp)* (ascii_chars # control_chars | '\x09')* { lex_body_part mode lexbuf }
+| crlf body as b { BODY b }
 
-and lex_body_header state = parse
-| (attribute as a) (wsp)* '=' (wsp)* (token as v) { HEADER_PARAM (a, v)}
-| (attribute as a) (wsp)* '=' (wsp)* '"' (quoted_text* as v) '"' { HEADER_PARAM (a, v)}
+and lex_body_header_param mode = parse
+| ';' (attribute as a) (wsp)* '=' (wsp)* (token as v) { HEADER_PARAM (a, v)}
+| ';' (attribute as a) (wsp)* '=' (wsp)* '"' (quoted_text* as v) '"' { HEADER_PARAM (a, v)}
 | lwsp* crlf
-  { state := Multipart_body_part;
+  { mode := Multipart_body_part;
     CRLF
   }
 
 {
-  let lex_multipart_formdata state lb =
-    match !state with
-    | Multipart_formdata -> lex_multipart_formdata state lb
-    | Multipart_body_part -> lex_body_part state lb
-    | Multipart_body_header_param -> lex_body_header state lb
+  let lex_multipart_formdata mode lb =
+    match !mode with
+    | Multipart_formdata -> Printf.printf "Multipart_formdata\n"; lex_multipart_formdata mode lb
+    | Multipart_body_part -> Printf.printf "Multipart_body_part\n"; lex_body_part mode lb
+    | Multipart_body_header_param -> Printf.printf "Multipart_body_header_param\n"; lex_body_header_param mode lb
 }
