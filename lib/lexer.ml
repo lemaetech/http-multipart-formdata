@@ -31,9 +31,7 @@ let next t =
 
 
 let peek t =
-  if t.rd_offset < t.src_len
-  then int_of_char @@ String.unsafe_get t.src t.rd_offset
-  else Char_code.invalid
+  if t.rd_offset < t.src_len then int_of_char t.src.[t.rd_offset] else Char_code.invalid
 
 
 let create b =
