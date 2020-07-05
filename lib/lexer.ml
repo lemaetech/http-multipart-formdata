@@ -23,7 +23,7 @@ let next t =
   if t.rd_offset < t.src_len
   then (
     t.offset <- t.rd_offset;
-    let ch = int_of_char @@ String.unsafe_get t.src t.rd_offset in
+    let ch = int_of_char t.src.[t.rd_offset] in
     t.rd_offset <- t.rd_offset + 1;
     t.ch <- ch)
   else (
