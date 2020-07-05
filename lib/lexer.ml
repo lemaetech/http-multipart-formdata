@@ -17,6 +17,7 @@ module Char_code = struct
   let null = 0x00
   let invalid = -1
   let is_vchar c = c >= 0x21 && c <= 0x7E
+  let is_whitespace c = c == space || c == htab
 end
 
 let next t =
@@ -43,7 +44,7 @@ let create b =
 
 
 let rec lex_whitespace t =
-  if t.ch == Char_code.space || t.ch == Char_code.htab
+  if Char_code.is_whitespace t.ch
   then (
     next t;
     lex_whitespace t)
@@ -57,7 +58,7 @@ let lex_field_value t =
     then (
       next t;
       lex ())
-    else if t.ch = Char_code.space || t.ch = Char_code.htab
+    else if Char_code.is_whitespace t.ch
     then (
       lex_whitespace t;
       if Char_code.is_vchar @@ peek t
