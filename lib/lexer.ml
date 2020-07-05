@@ -69,10 +69,24 @@ let lex_field_value t =
         lex ()))
   in
   lex ();
-  Token.Header_field_value (String.sub t.src start_offs (t.offset - start_offs - 1))
+  let v = String.sub t.src start_offs (t.offset - start_offs) |> String.trim in
+  Token.Header_field_value v
 
 
 let lex_formdata _t = ()
 
 (* tokenizes HTTP 'Content-Type' header value, eg. multipart/form-data; boundary=7353230 *)
 let lex_multipart_header_value _t = ()
+
+(*--------------------------------------------*)
+(*----------------- Unit Tests ---------------*)
+(*--------------------------------------------*)
+
+let%expect_test _ =
+  [ "gzip, deflate"; "feed"; "text/html" ]
+  |> List.map create
+  |> List.iter (fun lexer -> lex_field_value lexer |> Token.pp Format.std_formatter);
+  [%expect
+    {|
+    (Header_field_value "gzip, deflate")(Header_field_value feed)(Header_field_value
+                                                                  text/html) |}]

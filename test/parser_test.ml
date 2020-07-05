@@ -21,7 +21,7 @@ let%expect_test "name" =
   [%expect
     {|
     gc0p4Jq0M2Yt08j34c0p
-    gc0p4Jq0M2Yt08j34c0p:=???|
+    Invalid_content_type
     gc0p4Jq0M2Yt08j34c0p
     ---gc0p4Jq0M2Yt08j34c0p
     ---gc0p4Jq0M2Yt08j34c0p helll
