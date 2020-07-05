@@ -80,7 +80,7 @@ let lex_multipart_header_value _t = ()
 (*--------------------------------------------*)
 
 let%expect_test _ =
-  [ "gzip, deflate"; "feed"; "text/html" ]
+  [ "gzip, deflate ;"; "feed  "; "text/html ; " ]
   |> List.map create
   |> List.iter (fun lexer -> lex_field_value lexer |> Token.pp Format.std_formatter);
   [%expect
