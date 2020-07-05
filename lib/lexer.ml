@@ -23,9 +23,8 @@ let next t =
   if t.rd_offset < t.src_len
   then (
     t.offset <- t.rd_offset;
-    let ch = int_of_char t.src.[t.rd_offset] in
-    t.rd_offset <- t.rd_offset + 1;
-    t.ch <- ch)
+    t.ch <- int_of_char t.src.[t.rd_offset];
+    t.rd_offset <- t.rd_offset + 1)
   else (
     t.offset <- t.src_len;
     t.ch <- Char_code.invalid)
