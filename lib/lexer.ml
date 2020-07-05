@@ -23,10 +23,8 @@ let next t =
     t.offset <- t.src_len;
     t.ch <- Char_code.invalid)
 
-
 let peek t =
   if t.rd_offset < t.src_len then int_of_char t.src.[t.rd_offset] else Char_code.invalid
-
 
 let create b =
   let t =
@@ -35,7 +33,6 @@ let create b =
   next t;
   t
 
-
 let substring t start_offs = String.sub t.src start_offs (t.offset - start_offs)
 
 let rec lex_whitespace t =
@@ -43,7 +40,6 @@ let rec lex_whitespace t =
   then (
     next t;
     lex_whitespace t)
-
 
 (*
  field-content = field-vchar [ 1*( SP / HTAB ) field-vchar ]
@@ -68,7 +64,6 @@ let lex_field_value t =
   lex ();
   substring t start_offs |> Token.header_field_value
 
-
 (* token := 1*<any (US-ASCII) CHAR except SPACE, CTLs, or tspecials> *)
 let lex_token t =
   let start_offs = t.offset in
@@ -80,7 +75,6 @@ let lex_token t =
   in
   lex ();
   substring t start_offs |> Token.token
-
 
 (* 
  https://tools.ietf.org/html/rfc5322#section-3
@@ -110,7 +104,6 @@ let lex_quoted_string _t =
   (* quoted-pair = ('\' (VCHAR / WSP)) / obs-qp *)
   ()
 
-
 let lex_header_param _t = Token.eof
 
 (* tokenizes HTTP 'Content-Type' header value, eg. multipart/form-data; boundary=7353230 *)
@@ -120,7 +113,6 @@ let lex_multipart_header_value t =
   else if t.ch == Char_code.semicolon
   then lex_header_param t
   else Token.eof
-
 
 (*--------------------------------------------*)
 (*----------------- Unit Tests ---------------*)

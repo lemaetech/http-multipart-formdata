@@ -37,7 +37,6 @@ let is_tspecials ch =
   || ch == question
   || ch == equal
 
-
 let is_control ch = (ch >= 0x00 && ch <= 0x1F) || ch == 0x7F
 let is_ascii ch = ch >= 0x00 && ch <= 0x7F
 

@@ -1,7 +1,7 @@
 version=0.14.2
 profile = janestreet
 parse-docstrings = true
-let-binding-spacing = sparse
+let-binding-spacing = compact
 # break-infix = fit-or-vertical
 # let-binding-spacing = sparse
 # break-fun-decl = fit-or-vertical

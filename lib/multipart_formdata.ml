@@ -19,7 +19,6 @@ module String = struct
     let full_len = length s in
     full_len >= prefix_len && String.equal (sub s ~pos:0 ~len:prefix_len) prefix
 
-
   let chop_prefix ~prefix s =
     let prefix_len = length prefix in
     let full_len = length s in
@@ -45,7 +44,6 @@ type error = [ `Invalid_content_type ]
 let string_of_error = function
   | `Invalid_content_type -> "Invalid_content_type"
 
-
 (* Parse as follows - multipart/form-data; boundary=7353230 *)
 let parse_content_type content_type =
   try
@@ -53,7 +51,6 @@ let parse_content_type content_type =
     Parser_old.parse_content_type Lexer_old.lex_multipart_header lb |> R.ok
   with
   | _exn -> R.error @@ `Invalid_content_type
-
 
 let parse_multipart_formdata http_body =
   try
