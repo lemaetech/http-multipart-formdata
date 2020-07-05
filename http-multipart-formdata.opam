@@ -11,6 +11,8 @@ bug-reports: "https://github.com/bikallem/http-mutlipart-formdata/issues"
 depends: [
   "ocaml" {>= "4.10.0"}
   "dune" {>= "2.6" & build & >= "2.6.0"}
+  "ppx_sexp_conv"
+  "sexplib"
 ]
 build: [
   ["dune" "subst"] {pinned}

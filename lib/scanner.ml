@@ -11,9 +11,10 @@ type t =
   ; mutable rd_offset : int (* reading offset (position after current character) *)
   }
 
-module Char_codes = struct
+module Char_code = struct
   let space = 0x20
   let null = 0x00
+  let invalid = -1
 end
 
 let next scanner =
@@ -25,18 +26,18 @@ let next scanner =
     scanner.ch <- ch)
   else (
     scanner.offset <- scanner.src_len;
-    scanner.ch <- -1)
+    scanner.ch <- Char_code.invalid)
 
 
 let peek scanner =
   if scanner.rd_offset < scanner.src_len
   then Bytes.unsafe_get scanner.src scanner.rd_offset |> int_of_char
-  else -1
+  else Char_code.invalid
 
 
 let create b =
   let scanner =
-    { src = b; src_len = Bytes.length b; ch = Char_codes.null; offset = 0; rd_offset = 0 }
+    { src = b; src_len = Bytes.length b; ch = Char_code.null; offset = 0; rd_offset = 0 }
   in
   next scanner;
   scanner

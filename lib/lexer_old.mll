@@ -1,6 +1,6 @@
 (* RFC - https://tools.ietf.org/html/rfc2046#section-5.1.1 *)
 {
-  open Parser
+  open Parser_old
 
   type mode =
     | Multipart_formdata

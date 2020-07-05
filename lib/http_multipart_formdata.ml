@@ -1,3 +1,3 @@
 module Multipart_formdata = Multipart_formdata
-module Lexer = Lexer
-module Parser = Parser
+module Lexer_old = Lexer_old
+module Parser_old = Parser_old

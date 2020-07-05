@@ -50,7 +50,7 @@ let string_of_error = function
 let parse_content_type content_type =
   try
     let lb = Lexing.from_string ~with_positions:false content_type in
-    Parser.parse_content_type Lexer.lex_multipart_header lb |> R.ok
+    Parser_old.parse_content_type Lexer_old.lex_multipart_header lb |> R.ok
   with
   | _exn -> R.error @@ `Invalid_content_type
 
@@ -58,7 +58,7 @@ let parse_content_type content_type =
 let parse_multipart_formdata http_body =
   try
     let lb = Lexing.from_string ~with_positions:false http_body in
-    let lexer = Lexer.(lex_multipart_formdata @@ ref Multipart_formdata) in
-    Parser.parse_multipart_formdata lexer lb |> R.ok
+    let lexer = Lexer_old.(lex_multipart_formdata @@ ref Multipart_formdata) in
+    Parser_old.parse_multipart_formdata lexer lb |> R.ok
   with
   | exn -> R.error @@ Printexc.to_string exn

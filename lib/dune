@@ -1,7 +1,10 @@
 (library
- (name http_multipart_formdata))
+ (name http_multipart_formdata)
+ (libraries sexplib)
+ (preprocess
+  (pps ppx_sexp_conv)))
 
-(ocamllex lexer)
+(ocamllex lexer_old)
 
 (menhir
- (modules parser))
+ (modules parser_old))
