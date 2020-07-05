@@ -111,7 +111,9 @@ let lex_multipart_header_value t =
   if Char_code.is_vchar t.ch
   then lex_field_value t
   else if t.ch == Char_code.semicolon
-  then lex_header_param t
+  then (
+    next t;
+    lex_header_param t)
   else Token.eof
 
 (*--------------------------------------------*)
