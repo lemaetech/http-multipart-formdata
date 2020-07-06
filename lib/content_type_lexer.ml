@@ -25,7 +25,6 @@ let rec lex_whitespace (lexer : lb) =
  restricted-name-chars =/ "+" ; Characters after last plus always
                               ; specify a structured syntax suffix
 *)
-
 let lex_restricted_name (lexer : lb) =
   let rec lex count =
     if
