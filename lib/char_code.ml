@@ -36,6 +36,24 @@ let question = 0x3F
 
 let equal = 0x3D
 
+let bang = 0x21
+
+let hash = 0x23
+
+let dollar = 0x24
+
+let ampersand = 0x26
+
+let minus = 0x2D
+
+let caret = 0x5E
+
+let underscore = 0x5F
+
+let is_alpha ch = (ch >= 0x41 && ch <= 0x5A) || (ch >= 0x61 && ch <= 0x7A)
+
+let is_digit ch = ch >= 0x30 && ch <= 0x39
+
 let is_vchar ch = ch >= 0x21 && ch <= 0x7E
 
 let is_whitespace ch = ch == space || ch == htab

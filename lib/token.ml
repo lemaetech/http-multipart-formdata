@@ -7,6 +7,7 @@ type t =
   | Crlf
   | Header_field_value of string
   | Token of string
+  | Restricted_name of string
   | Multipart_formdata
   | Boundary_value of string
   | Dash_bouudary_value of string
