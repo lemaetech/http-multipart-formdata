@@ -56,11 +56,15 @@ let lex_restricted_name (lexer : lb) =
 *)
 let lex_header_param _t = R.ok Token.eof
 
-(*
+(* RFC - https://tools.ietf.org/html/rfc2045#section-5.1
  content := "Content-Type" ":" type "/" subtype
             *(";" parameter)
             ; Matching of media type and subtype
             ; is ALWAYS case-insensitive.
+
+ RFC - https://tools.ietf.org/html/rfc6838#section-4.2
+ type-name = restricted-name
+ subtype-name = restricted-name
 *)
 let lex_content_type lexer =
   let open R.O in
