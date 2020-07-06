@@ -69,3 +69,8 @@ let is_whitespace ch = ch == space || ch == htab
 let is_control ch = (ch >= 0x00 && ch <= 0x1F) || ch == 0x7F
 
 let is_ascii ch = ch >= 0x00 && ch <= 0x7F
+
+let is_ctext ch =
+  (ch >= 0x21 && ch <= 0x27)
+  || (ch >= 0x2A && ch <= 0x5B)
+  || (ch >= 0x5D && ch <= 0x7E)

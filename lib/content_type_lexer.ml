@@ -3,11 +3,11 @@ open Sexplib.Std
 
 type mode = Content_type | Content_type_param
 
-type lb = mode Lexer.t
+type l = mode Lexer.t
 
 type result = (string, string) R.t [@@deriving sexp_of]
 
-let rec lex_whitespace (lexer : lb) =
+let rec lex_whitespace (lexer : l) =
   if Char_code.is_whitespace lexer.ch then (
     Lexer.next lexer;
     lex_whitespace lexer )
@@ -22,7 +22,7 @@ let rec lex_whitespace (lexer : lb) =
  restricted-name-chars =/ "+" ; Characters after last plus always
                               ; specify a structured syntax suffix
 *)
-let parse_restricted_name (lexer : lb) =
+let parse_restricted_name (lexer : l) =
   let rec parse_restricted_char count =
     if
       (count < 126 && Char_code.is_alpha lexer.ch)
@@ -47,10 +47,83 @@ let parse_restricted_name (lexer : lb) =
     Lexer.lexeme lexer |> R.ok )
   else sprintf "Expected ALPHA|DIGIT but received %03d" lexer.ch |> R.error
 
+(* RFC - https://tools.ietf.org/html/rfc5322#section-3.2.2  
+
+ FWS = ([*WSP CRLF] 1*WSP) /  obs-FWS   ; Folding white space
+*)
+let rec parse_fws (lexer : l) =
+  lex_whitespace lexer;
+  if
+    lexer.ch == Char_code.cr
+    && Lexer.peek lexer == Char_code.lf
+    && Lexer.peek2 lexer |> Char_code.is_whitespace
+  then (
+    Lexer.(
+      next lexer;
+      next lexer;
+      next lexer);
+    parse_fws lexer )
+
+(* RFC -https://tools.ietf.org/html/rfc5322#section-3.2.1
+
+ quoted-pair     =   ('\' (VCHAR / WSP)) / obs-qp
+
+ RFC - https://tools.ietf.org/html/rfc5322#section-3.2.2
+ ctext           =   %d33-39 /          ; Printable US-ASCII
+                     %d42-91 /          ;  characters not including
+                     %d93-126 /         ;  '(', ')', or '\'
+                     obs-ctext
+
+ ccontent        =   ctext / quoted-pair / comment
+
+ comment         =   '(' *([FWS] ccontent) [FWS] ')'
+
+ CFWS            =   (1*([FWS] comment) [FWS]) / FWS   
+*)
+let parse_cfws (lexer : l) =
+  parse_fws lexer;
+  let rec parse_comment () =
+    parse_fws lexer;
+    if
+      Char_code.is_ctext lexer.ch
+      || lexer.ch == Char_code.back_slash
+         && (Char_code.is_vchar lexer.ch || Char_code.is_whitespace lexer.ch)
+    then (
+      Lexer.next lexer;
+      parse_comment () )
+    else if lexer.ch == Char_code.rparen then (
+      Lexer.next lexer;
+      Lexer.lexeme lexer |> R.ok )
+    else
+      sprintf "Expected RPAREN, CTEXT or QUOTED_CHAR but received %03d" lexer.ch
+      |> R.error
+  in
+
+  if lexer.ch == Char_code.lparen then (
+    Lexer.next lexer;
+    Lexer.lex_start lexer;
+    Option.some @@ parse_comment () )
+  else None
+
+(* RFC - https://tools.ietf.org/html/rfc5322#section-3.2.4
+
+ qtext           = %d33 /             ; Printable US-ASCII
+                   %d35-91 /          ;  characters not including
+                   %d93-126 /         ;  '\' or the quote character
+                   obs-qtext
+
+ qcontent        = qtext / quoted-pair
+
+ quoted-string   = [CFWS]
+                   DQUOTE *([FWS] qcontent) [FWS] DQUOTE
+                   [CFWS]
+*)
+let parse_quoted_string _lexer = ()
+
 (* 
 
 *)
-let lex_header_param _t = R.ok Token.eof
+let parse_header_param _t = R.ok Token.eof
 
 (* RFC - https://tools.ietf.org/html/rfc2045#section-5.1
  content := "Content-Type" ":" type "/" subtype
@@ -105,42 +178,6 @@ let lex_token lexer =
     else Lexer.lexeme lexer |> Token.token |> R.ok
   in
   lex ()
-
-(* 
- https://tools.ietf.org/html/rfc5322#section-3
-
- qtext           = %d33 /             ; Printable US-ASCII
-                   %d35-91 /          ;  characters not including
-                   %d93-126 /         ;  '\' or the quote character
-                   obs-qtext
-
- qcontent        = qtext / quoted-pair
-
- quoted-string   = [CFWS]
-                   DQUOTE *([FWS] qcontent) [FWS] DQUOTE
-                   [CFWS]
-*)
-
-(* RFC - https://tools.ietf.org/html/rfc5322#section-3.2.2  
- FWS             =   ([*WSP CRLF] 1*WSP) /  obs-FWS
-                                           ; Folding white space
-*)
-let rec parse_fws (lexer : lb) =
-  lex_whitespace lexer;
-  if
-    lexer.ch == Char_code.cr
-    && Lexer.peek lexer == Char_code.lf
-    && Lexer.peek2 lexer |> Char_code.is_whitespace
-  then (
-    Lexer.(
-      next lexer;
-      next lexer;
-      next lexer);
-    parse_fws lexer )
-
-let lex_quoted_string _lexer =
-  (* quoted-pair = ('\' (VCHAR / WSP)) / obs-qp *)
-  ()
 
 (*--------------------------------------------*)
 (*----------------- Unit Tests ---------------*)
