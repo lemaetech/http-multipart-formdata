@@ -51,6 +51,11 @@ let lex_restricted_name (lexer : lb) =
     Lexer.lexeme lexer |> R.ok )
   else sprintf "Expected ALPHA|DIGIT but received %03d" lexer.ch |> R.error
 
+(* 
+
+*)
+let lex_header_param _t = R.ok Token.eof
+
 (*
  content := "Content-Type" ":" type "/" subtype
             *(";" parameter)
@@ -68,9 +73,32 @@ let lex_content_type lexer =
 
 (* token := 1*<any (US-ASCII) CHAR except SPACE, CTLs, or tspecials> *)
 let lex_token lexer =
+  let is_tspecials ch =
+    let open Char_code in
+    ch == lparen
+    || ch == rparen
+    || ch == less_than
+    || ch == greater_than
+    || ch == at
+    || ch == comma
+    || ch == semicolon
+    || ch == colon
+    || ch == back_slash
+    || ch == double_quote
+    || ch == forward_slash
+    || ch == lbracket
+    || ch == rbracket
+    || ch == question
+    || ch == equal
+  in
+  let is_token_char ch =
+    let open Char_code in
+    is_ascii ch && ch <> space && (not (is_control ch)) && not (is_tspecials ch)
+  in
   Lexer.lex_start lexer;
+
   let rec lex () =
-    if Char_code.is_token_char lexer.ch then (
+    if is_token_char lexer.ch then (
       Lexer.next lexer;
       lex () )
     else Lexer.lexeme lexer |> Token.token |> R.ok
@@ -104,8 +132,6 @@ let lex_token lexer =
 let lex_quoted_string _lexer =
   (* quoted-pair = ('\' (VCHAR / WSP)) / obs-qp *)
   ()
-
-let lex_header_param _t = R.ok Token.eof
 
 (*--------------------------------------------*)
 (*----------------- Unit Tests ---------------*)

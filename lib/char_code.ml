@@ -62,26 +62,6 @@ let is_vchar ch = ch >= 0x21 && ch <= 0x7E
 
 let is_whitespace ch = ch == space || ch == htab
 
-let is_tspecials ch =
-  ch == lparen
-  || ch == rparen
-  || ch == less_than
-  || ch == greater_than
-  || ch == at
-  || ch == comma
-  || ch == semicolon
-  || ch == colon
-  || ch == back_slash
-  || ch == double_quote
-  || ch == forward_slash
-  || ch == lbracket
-  || ch == rbracket
-  || ch == question
-  || ch == equal
-
 let is_control ch = (ch >= 0x00 && ch <= 0x1F) || ch == 0x7F
 
 let is_ascii ch = ch >= 0x00 && ch <= 0x7F
-
-let is_token_char ch =
-  is_ascii ch && ch <> space && (not (is_control ch)) && not (is_tspecials ch)
