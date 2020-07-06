@@ -64,6 +64,7 @@ let expect ch (t : 'mode t) =
 
 let accept ch (t : 'mode t) =
   if t.ch == ch then (
+    lex_start t;
     next t;
     lexeme t |> R.ok )
   else sprintf "expected '%03d' but got '%03d'" ch t.ch |> R.error

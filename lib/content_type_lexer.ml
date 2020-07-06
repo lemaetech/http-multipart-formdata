@@ -117,7 +117,7 @@ let%expect_test "lex_content_type" =
   |> List.iter (lex_content_type >> pp_result);
   [%expect
     {|
-    (Ok multipartmultipart/form-data)(Ok texttext/plain)(Ok texttext/html) |}]
+    (Ok multipart/form-data)(Ok text/plain)(Ok text/html) |}]
 
 (* let%expect_test "lex_token" = *)
 (*   [ "boundary ="; "bound\x7Fary"; "boundary"; "boundary    " ] *)
