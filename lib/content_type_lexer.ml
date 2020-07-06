@@ -22,8 +22,8 @@ let rec lex_whitespace (lexer : lb) =
  restricted-name-chars =/ "+" ; Characters after last plus always
                               ; specify a structured syntax suffix
 *)
-let lex_restricted_name (lexer : lb) =
-  let rec lex count =
+let parse_restricted_name (lexer : lb) =
+  let rec parse_restricted_char count =
     if
       (count < 126 && Char_code.is_alpha lexer.ch)
       || Char_code.is_digit lexer.ch
@@ -38,12 +38,12 @@ let lex_restricted_name (lexer : lb) =
       || lexer.ch == Char_code.plus
     then (
       Lexer.next lexer;
-      lex (count + 1) )
+      parse_restricted_char (count + 1) )
   in
   Lexer.lex_start lexer;
   if Char_code.is_alpha lexer.ch || Char_code.is_digit lexer.ch then (
     Lexer.next lexer;
-    lex 0;
+    parse_restricted_char 0;
     Lexer.lexeme lexer |> R.ok )
   else sprintf "Expected ALPHA|DIGIT but received %03d" lexer.ch |> R.error
 
@@ -65,9 +65,9 @@ let lex_header_param _t = R.ok Token.eof
 let lex_content_type lexer =
   let open R.O in
   lex_whitespace lexer;
-  let* type_ = lex_restricted_name lexer in
+  let* type_ = parse_restricted_name lexer in
   let* forward_slash = Lexer.accept Char_code.forward_slash lexer in
-  let+ subtype = lex_restricted_name lexer in
+  let+ subtype = parse_restricted_name lexer in
   lex_whitespace lexer;
   type_ ^ forward_slash ^ subtype
 
