@@ -28,6 +28,8 @@ val next : 'mode t -> unit
 
 val peek : 'mode t -> int
 
+val peek2 : 'mode t -> int
+
 val lexeme : 'mode t -> string
 
 val expect : int -> 'mode t -> (unit, string) R.t

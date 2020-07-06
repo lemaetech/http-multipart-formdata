@@ -39,6 +39,10 @@ let peek (t : 'mode t) =
   if t.rd_offset < t.src_len then int_of_char t.src.[t.rd_offset]
   else Char_code.invalid
 
+let peek2 (t : 'mode t) =
+  if t.rd_offset + 1 < t.src_len then int_of_char t.src.[t.rd_offset + 1]
+  else Char_code.invalid
+
 let create mode src =
   let t =
     {

@@ -121,14 +121,22 @@ let lex_token lexer =
                    [CFWS]
 *)
 
-(*  
+(* RFC - https://tools.ietf.org/html/rfc5322#section-3.2.2  
  FWS             =   ([*WSP CRLF] 1*WSP) /  obs-FWS
                                            ; Folding white space
 *)
-(* let lex_fws t = *)
-(*   let rec lex () = *)
-(*    lex_whitespace t; *)
-(*      if peek t == *)
+let rec parse_fws (lexer : lb) =
+  lex_whitespace lexer;
+  if
+    lexer.ch == Char_code.cr
+    && Lexer.peek lexer == Char_code.lf
+    && Lexer.peek2 lexer |> Char_code.is_whitespace
+  then (
+    Lexer.(
+      next lexer;
+      next lexer;
+      next lexer);
+    parse_fws lexer )
 
 let lex_quoted_string _lexer =
   (* quoted-pair = ('\' (VCHAR / WSP)) / obs-qp *)

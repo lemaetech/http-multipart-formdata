@@ -1,5 +1,9 @@
 let space = 0x20
 
+let cr = (* \r *) 0x0D
+
+let lf = (* \n *) 0x0A
+
 let htab = 0x09
 
 let null = 0x00
