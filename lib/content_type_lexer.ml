@@ -13,9 +13,6 @@ let rec lex_whitespace (lexer : lb) =
     lex_whitespace lexer )
 
 (* From RFC https://tools.ietf.org/html/rfc6838#section-4.2
- type-name = restricted-name
- subtype-name = restricted-name
-
  restricted-name = restricted-name-first *126restricted-name-chars
  restricted-name-first  = ALPHA / DIGIT
  restricted-name-chars  = ALPHA / DIGIT / "!" / "#" /
@@ -75,7 +72,8 @@ let lex_content_type lexer =
   lex_whitespace lexer;
   type_ ^ forward_slash ^ subtype
 
-(* token := 1*<any (US-ASCII) CHAR except SPACE, CTLs, or tspecials> *)
+(* RFC - https://tools.ietf.org/html/rfc2045#section-5.1
+   token := 1*<any (US-ASCII) CHAR except SPACE, CTLs, or tspecials> *)
 let lex_token lexer =
   let is_tspecials ch =
     let open Char_code in
