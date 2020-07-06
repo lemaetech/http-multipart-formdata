@@ -50,6 +50,10 @@ let caret = 0x5E
 
 let underscore = 0x5F
 
+let dot = 0x2E
+
+let plus = 0x2B
+
 let is_alpha ch = (ch >= 0x41 && ch <= 0x5A) || (ch >= 0x61 && ch <= 0x7A)
 
 let is_digit ch = ch >= 0x30 && ch <= 0x39

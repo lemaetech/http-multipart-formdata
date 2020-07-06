@@ -37,6 +37,8 @@ let lex_restricted_name (lexer : lb) =
       || lexer.ch == Char_code.minus
       || lexer.ch == Char_code.caret
       || lexer.ch == Char_code.underscore
+      || lexer.ch == Char_code.dot
+      || lexer.ch == Char_code.plus
     then (
       Lexer.next lexer;
       lex (count + 1) )
@@ -112,12 +114,22 @@ let lex_header_param _t = R.ok Token.eof
 let pp_result r = Sexplib.Sexp.pp_hum Format.std_formatter (sexp_of_result r)
 
 let%expect_test "lex_content_type" =
-  [ "multipart/form-data "; "   text/plain  "; "text/html ; " ]
+  [
+    "multipart/form-data ";
+    "   text/plain  ";
+    "text/html ; ";
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    "application/vnd.adobe.air-application-installer-package+zip";
+    " !!";
+  ]
   |> List.map (Lexer.create Content_type)
   |> List.iter (lex_content_type >> pp_result);
   [%expect
     {|
-    (Ok multipart/form-data)(Ok text/plain)(Ok text/html) |}]
+    (Ok multipart/form-data)(Ok text/plain)(Ok text/html)(Ok
+                                                          application/vnd.openxmlformats-officedocument.wordprocessingml.document)
+    (Ok application/vnd.adobe.air-application-installer-package+zip)(Error
+                                                                     "Expected ALPHA|DIGIT but received 033") |}]
 
 (* let%expect_test "lex_token" = *)
 (*   [ "boundary ="; "bound\x7Fary"; "boundary"; "boundary    " ] *)
