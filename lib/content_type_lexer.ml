@@ -40,7 +40,6 @@ let lex_restricted_name (lexer : lb) =
       Lexer.next lexer;
       lex (count + 1) )
   in
-
   Lexer.lex_start lexer;
   if Char_code.is_alpha lexer.ch || Char_code.is_digit lexer.ch then (
     Lexer.next lexer;
