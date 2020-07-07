@@ -48,7 +48,6 @@ let parse_restricted_name (lexer : l) =
   else sprintf "Expected ALPHA|DIGIT but received %03d" lexer.ch |> R.error
 
 (* RFC - https://tools.ietf.org/html/rfc5322#section-3.2.2  
-
  FWS = ([*WSP CRLF] 1*WSP) /  obs-FWS   ; Folding white space
 *)
 let rec parse_fws (lexer : l) =
@@ -65,7 +64,6 @@ let rec parse_fws (lexer : l) =
     parse_fws lexer )
 
 (* RFC -https://tools.ietf.org/html/rfc5322#section-3.2.1
-
  quoted-pair     =   ('\' (VCHAR / WSP)) / obs-qp
 
  RFC - https://tools.ietf.org/html/rfc5322#section-3.2.2
@@ -118,7 +116,6 @@ let parse_cfws (lexer : l) =
   parse_comments ()
 
 (* RFC - https://tools.ietf.org/html/rfc5322#section-3.2.4
-
  qtext           = %d33 /             ; Printable US-ASCII
                    %d35-91 /          ;  characters not including
                    %d93-126 /         ;  '\' or the quote character
