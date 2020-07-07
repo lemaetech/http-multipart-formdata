@@ -48,7 +48,7 @@ let parse_restricted_name (l : lexer) =
     parse_restricted_char 0;
     Lexer.lexeme l |> R.ok )
   else
-    asprintf "Expected ALPHA|DIGIT but received %a03d" Char_token.pp ch
+    asprintf "Expected ALPHA|DIGIT but received '%a'" Char_token.pp ch
     |> R.error
 
 (* RFC - https://tools.ietf.org/html/rfc5322#section-3.2.2  
@@ -217,7 +217,7 @@ let%expect_test "lex_content_type" =
     (Ok multipart/form-data)(Ok text/plain)(Ok text/html)(Ok
                                                           application/vnd.openxmlformats-officedocument.wordprocessingml.document)
     (Ok application/vnd.adobe.air-application-installer-package+zip)(Error
-                                                                     "Expected ALPHA|DIGIT but received 033") |}]
+                                                                     "Expected ALPHA|DIGIT but received '!'") |}]
 
 (* let%expect_test "lex_token" = *)
 (*   [ "boundary ="; "bound\x7Fary"; "boundary"; "boundary    " ] *)
