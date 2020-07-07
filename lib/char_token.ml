@@ -1,3 +1,7 @@
+type t = int
+
+let of_char ch = Char.code ch
+
 let space = 0x20
 
 let cr = (* \r *) 0x0D
@@ -12,7 +16,7 @@ let lparen = 0x28
 
 let rparen = 0x29
 
-let invalid = -1
+let eof = -1
 
 let less_than = 0x3C
 
@@ -74,3 +78,8 @@ let is_ctext ch =
   (ch >= 0x21 && ch <= 0x27)
   || (ch >= 0x2A && ch <= 0x5B)
   || (ch >= 0x5D && ch <= 0x7E)
+
+let pp fmt ch =
+  if is_vchar ch then Format.fprintf fmt "%c" (Char.unsafe_chr ch)
+  else if ch == eof then Format.fprintf fmt "EOF"
+  else Format.fprintf fmt "0x%03x" ch

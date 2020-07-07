@@ -3,6 +3,8 @@ let[@inline] ( >> ) f g x = g (f x)
 
 let sprintf = Printf.sprintf
 
+let asprintf = Format.asprintf
+
 module R = struct
   include Result
 

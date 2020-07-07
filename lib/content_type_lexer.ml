@@ -3,14 +3,14 @@ open Sexplib.Std
 
 type mode = Content_type | Content_type_param
 
-type l = mode Lexer.t
+type lexer = mode Lexer.t
 
 type result = (string, string) R.t [@@deriving sexp_of]
 
-let rec lex_whitespace (lexer : l) =
-  if Char_code.is_whitespace lexer.ch then (
-    Lexer.next lexer;
-    lex_whitespace lexer )
+let rec lex_whitespace (l : lexer) =
+  if Lexer.current l |> Char_token.is_whitespace then (
+    Lexer.next l;
+    lex_whitespace l )
 
 (* From RFC https://tools.ietf.org/html/rfc6838#section-4.2
  restricted-name = restricted-name-first *126restricted-name-chars
@@ -22,46 +22,50 @@ let rec lex_whitespace (lexer : l) =
  restricted-name-chars =/ "+" ; Characters after last plus always
                               ; specify a structured syntax suffix
 *)
-let parse_restricted_name (lexer : l) =
+let parse_restricted_name (l : lexer) =
   let rec parse_restricted_char count =
+    let ch = Lexer.current l in
     if
-      (count < 126 && Char_code.is_alpha lexer.ch)
-      || Char_code.is_digit lexer.ch
-      || lexer.ch == Char_code.bang
-      || lexer.ch == Char_code.hash
-      || lexer.ch == Char_code.dollar
-      || lexer.ch == Char_code.ampersand
-      || lexer.ch == Char_code.minus
-      || lexer.ch == Char_code.caret
-      || lexer.ch == Char_code.underscore
-      || lexer.ch == Char_code.dot
-      || lexer.ch == Char_code.plus
+      (count < 126 && Char_token.is_alpha ch)
+      || Char_token.is_digit ch
+      || ch == Char_token.bang
+      || ch == Char_token.hash
+      || ch == Char_token.dollar
+      || ch == Char_token.ampersand
+      || ch == Char_token.minus
+      || ch == Char_token.caret
+      || ch == Char_token.underscore
+      || ch == Char_token.dot
+      || ch == Char_token.plus
     then (
-      Lexer.next lexer;
+      Lexer.next l;
       parse_restricted_char (count + 1) )
   in
-  Lexer.lex_start lexer;
-  if Char_code.is_alpha lexer.ch || Char_code.is_digit lexer.ch then (
-    Lexer.next lexer;
+  Lexer.lex_start l;
+  let ch = Lexer.current l in
+  if Char_token.is_alpha ch || Char_token.is_digit ch then (
+    Lexer.next l;
     parse_restricted_char 0;
-    Lexer.lexeme lexer |> R.ok )
-  else sprintf "Expected ALPHA|DIGIT but received %03d" lexer.ch |> R.error
+    Lexer.lexeme l |> R.ok )
+  else
+    asprintf "Expected ALPHA|DIGIT but received %a03d" Char_token.pp ch
+    |> R.error
 
 (* RFC - https://tools.ietf.org/html/rfc5322#section-3.2.2  
  FWS = ([*WSP CRLF] 1*WSP) /  obs-FWS   ; Folding white space
 *)
-let rec parse_fws (lexer : l) =
-  lex_whitespace lexer;
+let rec parse_fws (l : lexer) =
+  lex_whitespace l;
   if
-    lexer.ch == Char_code.cr
-    && Lexer.peek lexer == Char_code.lf
-    && (Char_code.is_whitespace @@ Lexer.peek2 lexer)
+    Lexer.current l == Char_token.cr
+    && Lexer.peek l == Char_token.lf
+    && (Char_token.is_whitespace @@ Lexer.peek2 l)
   then (
     Lexer.(
-      next lexer;
-      next lexer;
-      next lexer);
-    parse_fws lexer )
+      next l;
+      next l;
+      next l);
+    parse_fws l )
 
 (* RFC -https://tools.ietf.org/html/rfc5322#section-3.2.1
  quoted-pair     =   ('\' (VCHAR / WSP)) / obs-qp
@@ -78,38 +82,39 @@ let rec parse_fws (lexer : l) =
 
  CFWS            =   (1*([FWS] comment) [FWS]) / FWS   
 *)
-let parse_cfws (lexer : l) =
+let parse_cfws (l : lexer) =
   let open R.O in
   let rec parse_comment () =
     let rec parse_ccontents () =
-      parse_fws lexer;
-      if Char_code.is_ctext lexer.ch then (
-        Lexer.lex_start lexer;
-        Lexer.next lexer;
+      parse_fws l;
+      let ch = Lexer.current l in
+      if Char_token.is_ctext ch then (
+        Lexer.lex_start l;
+        Lexer.next l;
         parse_ccontents () )
-      else if lexer.ch == Char_code.back_slash then
-        let lookahead = Lexer.peek lexer in
-        if Char_code.is_vchar lookahead || Char_code.is_whitespace lookahead
+      else if ch == Char_token.back_slash then
+        let lookahead = Lexer.peek l in
+        if Char_token.is_vchar lookahead || Char_token.is_whitespace lookahead
         then (
-          Lexer.next lexer;
-          Lexer.next lexer;
+          Lexer.next l;
+          Lexer.next l;
           parse_ccontents () )
         else
           sprintf "Invalid QUOTED_PAIR, VCHAR or WSP expected after '\'"
           |> R.error
-      else if lexer.ch == Char_code.lparen then (
-        Lexer.next lexer;
+      else if ch == Char_token.lparen then (
+        Lexer.next l;
         parse_comment () >>= parse_ccontents )
       else R.ok ()
     in
     parse_ccontents () >>= fun () ->
-    parse_fws lexer;
-    Lexer.expect Char_code.rparen lexer
+    parse_fws l;
+    Lexer.expect Char_token.rparen l
   in
   let rec parse_comments () =
-    parse_fws lexer;
-    if lexer.ch == Char_code.lparen then (
-      Lexer.next lexer;
+    parse_fws l;
+    if Lexer.current l == Char_token.lparen then (
+      Lexer.next l;
       parse_comment () >>= parse_comments )
     else R.ok ()
   in
@@ -127,7 +132,10 @@ let parse_cfws (lexer : l) =
                    DQUOTE *([FWS] qcontent) [FWS] DQUOTE
                    [CFWS]
 *)
-let parse_quoted_string _lexer = ()
+(* let parse_quoted_string lexer = *)
+(*   let rec parse_qcontents () = R.ok "" in *)
+(*   parse_cfws lexer >>= fun () -> *)
+(*   if lexer.ch == Cha *)
 
 (* 
 
@@ -144,20 +152,20 @@ let parse_header_param _t = R.ok Token.eof
  type-name = restricted-name
  subtype-name = restricted-name
 *)
-let lex_content_type lexer =
+let lex_content_type l =
   let open R.O in
-  lex_whitespace lexer;
-  let* type_ = parse_restricted_name lexer in
-  let* forward_slash = Lexer.accept Char_code.forward_slash lexer in
-  let+ subtype = parse_restricted_name lexer in
-  lex_whitespace lexer;
+  lex_whitespace l;
+  let* type_ = parse_restricted_name l in
+  let* forward_slash = Lexer.accept Char_token.forward_slash l in
+  let+ subtype = parse_restricted_name l in
+  lex_whitespace l;
   type_ ^ forward_slash ^ subtype
 
 (* RFC - https://tools.ietf.org/html/rfc2045#section-5.1
    token := 1*<any (US-ASCII) CHAR except SPACE, CTLs, or tspecials> *)
-let lex_token lexer =
+let lex_token l =
   let is_tspecials ch =
-    let open Char_code in
+    let open Char_token in
     ch == lparen
     || ch == rparen
     || ch == less_than
@@ -175,15 +183,15 @@ let lex_token lexer =
     || ch == equal
   in
   let is_token_char ch =
-    let open Char_code in
+    let open Char_token in
     is_ascii ch && ch <> space && (not (is_control ch)) && not (is_tspecials ch)
   in
-  Lexer.lex_start lexer;
+  Lexer.lex_start l;
   let rec lex () =
-    if is_token_char lexer.ch then (
-      Lexer.next lexer;
+    if is_token_char (Lexer.current l) then (
+      Lexer.next l;
       lex () )
-    else Lexer.lexeme lexer |> Token.token |> R.ok
+    else Lexer.lexeme l |> Token.token |> R.ok
   in
   lex ()
 
