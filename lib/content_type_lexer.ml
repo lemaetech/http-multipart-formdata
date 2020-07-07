@@ -56,7 +56,7 @@ let rec parse_fws (lexer : l) =
   if
     lexer.ch == Char_code.cr
     && Lexer.peek lexer == Char_code.lf
-    && Lexer.peek2 lexer |> Char_code.is_whitespace
+    && (Char_code.is_whitespace @@ Lexer.peek2 lexer)
   then (
     Lexer.(
       next lexer;
@@ -81,29 +81,41 @@ let rec parse_fws (lexer : l) =
  CFWS            =   (1*([FWS] comment) [FWS]) / FWS   
 *)
 let parse_cfws (lexer : l) =
-  parse_fws lexer;
+  let open R.O in
   let rec parse_comment () =
+    let rec parse_ccontents () =
+      parse_fws lexer;
+      if Char_code.is_ctext lexer.ch then (
+        Lexer.lex_start lexer;
+        Lexer.next lexer;
+        parse_ccontents () )
+      else if lexer.ch == Char_code.back_slash then
+        let lookahead = Lexer.peek lexer in
+        if Char_code.is_vchar lookahead || Char_code.is_whitespace lookahead
+        then (
+          Lexer.next lexer;
+          Lexer.next lexer;
+          parse_ccontents () )
+        else
+          sprintf "Invalid QUOTED_PAIR, VCHAR or WSP expected after '\'"
+          |> R.error
+      else if lexer.ch == Char_code.lparen then (
+        Lexer.next lexer;
+        parse_comment () >>= parse_ccontents )
+      else R.ok ()
+    in
+    parse_ccontents () >>= fun () ->
     parse_fws lexer;
-    if
-      Char_code.is_ctext lexer.ch
-      || lexer.ch == Char_code.back_slash
-         && (Char_code.is_vchar lexer.ch || Char_code.is_whitespace lexer.ch)
-    then (
-      Lexer.next lexer;
-      parse_comment () )
-    else if lexer.ch == Char_code.rparen then (
-      Lexer.next lexer;
-      Lexer.lexeme lexer |> R.ok )
-    else
-      sprintf "Expected RPAREN, CTEXT or QUOTED_CHAR but received %03d" lexer.ch
-      |> R.error
+    Lexer.expect Char_code.rparen lexer
   in
-
-  if lexer.ch == Char_code.lparen then (
-    Lexer.next lexer;
-    Lexer.lex_start lexer;
-    Option.some @@ parse_comment () )
-  else None
+  let rec parse_comments () =
+    parse_fws lexer;
+    if lexer.ch == Char_code.lparen then (
+      Lexer.next lexer;
+      parse_comment () >>= parse_comments )
+    else R.ok ()
+  in
+  parse_comments ()
 
 (* RFC - https://tools.ietf.org/html/rfc5322#section-3.2.4
 
@@ -170,7 +182,6 @@ let lex_token lexer =
     is_ascii ch && ch <> space && (not (is_control ch)) && not (is_tspecials ch)
   in
   Lexer.lex_start lexer;
-
   let rec lex () =
     if is_token_char lexer.ch then (
       Lexer.next lexer;
