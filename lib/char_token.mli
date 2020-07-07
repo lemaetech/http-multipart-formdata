@@ -77,3 +77,5 @@ val is_control : t -> bool
 val is_ascii : t -> bool
 
 val is_ctext : t -> bool
+
+val is_qtext : t -> bool

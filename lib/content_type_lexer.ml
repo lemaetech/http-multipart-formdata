@@ -67,6 +67,18 @@ let rec parse_fws (l : lexer) =
       next l);
     parse_fws l )
 
+let parse_quoted_pair (l : lexer) =
+  if Lexer.current l == Char_token.back_slash then
+    let lookahead = Lexer.peek l in
+    if Char_token.is_vchar lookahead || Char_token.is_whitespace lookahead then (
+      Lexer.lex_start l;
+      Lexer.next l;
+      Lexer.next l;
+      Lexer.lexeme l |> R.ok )
+    else
+      sprintf "Invalid QUOTED_PAIR, VCHAR or WSP expected after '\'" |> R.error
+  else R.ok ""
+
 (* RFC -https://tools.ietf.org/html/rfc5322#section-3.2.1
  quoted-pair     =   ('\' (VCHAR / WSP)) / obs-qp
 
@@ -93,15 +105,7 @@ let parse_cfws (l : lexer) =
         Lexer.next l;
         parse_ccontents () )
       else if ch == Char_token.back_slash then
-        let lookahead = Lexer.peek l in
-        if Char_token.is_vchar lookahead || Char_token.is_whitespace lookahead
-        then (
-          Lexer.next l;
-          Lexer.next l;
-          parse_ccontents () )
-        else
-          sprintf "Invalid QUOTED_PAIR, VCHAR or WSP expected after '\'"
-          |> R.error
+        parse_quoted_pair l >>= fun _ -> parse_ccontents ()
       else if ch == Char_token.lparen then (
         Lexer.next l;
         parse_comment () >>= parse_ccontents )
@@ -132,10 +136,28 @@ let parse_cfws (l : lexer) =
                    DQUOTE *([FWS] qcontent) [FWS] DQUOTE
                    [CFWS]
 *)
-(* let parse_quoted_string lexer = *)
-(*   let rec parse_qcontents () = R.ok "" in *)
-(*   parse_cfws lexer >>= fun () -> *)
-(*   if lexer.ch == Cha *)
+let parse_quoted_string (l : lexer) =
+  let open R.O in
+  let rec parse_qcontents qcontent =
+    parse_fws l;
+    let ch = Lexer.current l in
+    if Char_token.is_qtext ch then (
+      Lexer.lex_start l;
+      Lexer.next l;
+      qcontent ^ Lexer.lexeme l |> parse_qcontents )
+    else if ch == Char_token.back_slash then
+      parse_quoted_pair l >>= fun quoted_pair ->
+      parse_qcontents (qcontent ^ quoted_pair)
+    else R.ok ""
+  in
+
+  parse_cfws l >>= fun () ->
+  if Lexer.current l == Char_token.double_quote then (
+    Lexer.next l;
+    parse_qcontents "" >>= fun qcontent ->
+    parse_fws l;
+    Lexer.expect Char_token.double_quote l >>= fun () -> qcontent |> R.ok )
+  else R.ok ""
 
 (* 
 

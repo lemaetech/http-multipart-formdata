@@ -79,6 +79,9 @@ let is_ctext ch =
   || (ch >= 0x2A && ch <= 0x5B)
   || (ch >= 0x5D && ch <= 0x7E)
 
+let is_qtext ch =
+  ch == bang || (ch >= 0x23 && ch <= 0x5b) || (ch >= 0x5D && ch <= 0x7E)
+
 let pp fmt ch =
   if is_vchar ch then Format.fprintf fmt "%c" (Char.unsafe_chr ch)
   else if ch == eof then Format.fprintf fmt "EOF"
