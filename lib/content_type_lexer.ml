@@ -5,14 +5,17 @@ type mode = Content_type | Content_type_param
 
 type lexer = mode Lexer.t
 
-type result = (string, string) R.t [@@deriving sexp_of]
+type t = { ty : string; subtype : string; parameters : (string * string) list }
+[@@deriving sexp_of]
 
-let rec lex_whitespace (l : lexer) =
+type result = (t, string) R.t [@@deriving sexp_of]
+
+let rec parse_whitespace (l : lexer) =
   if Lexer.current l |> Char_token.is_whitespace then (
     Lexer.next l;
-    lex_whitespace l )
+    parse_whitespace l )
 
-(* From RFC https://tools.ietf.org/html/rfc6838#section-4.2
+(* https://tools.ietf.org/html/rfc6838#section-4.2
  restricted-name = restricted-name-first *126restricted-name-chars
  restricted-name-first  = ALPHA / DIGIT
  restricted-name-chars  = ALPHA / DIGIT / "!" / "#" /
@@ -51,11 +54,11 @@ let parse_restricted_name (l : lexer) =
     asprintf "Expected ALPHA|DIGIT but received '%a'" Char_token.pp ch
     |> R.error
 
-(* RFC - https://tools.ietf.org/html/rfc5322#section-3.2.2  
+(* https://tools.ietf.org/html/rfc5322#section-3.2.2  
  FWS = ([*WSP CRLF] 1*WSP) /  obs-FWS   ; Folding white space
 *)
 let rec parse_fws (l : lexer) =
-  lex_whitespace l;
+  parse_whitespace l;
   if
     Lexer.current l == Char_token.cr
     && Lexer.peek l == Char_token.lf
@@ -79,7 +82,7 @@ let parse_quoted_pair (l : lexer) =
       sprintf "Invalid QUOTED_PAIR, VCHAR or WSP expected after '\'" |> R.error
   else R.ok ""
 
-(* RFC -https://tools.ietf.org/html/rfc5322#section-3.2.1
+(* https://tools.ietf.org/html/rfc5322#section-3.2.1
  quoted-pair     =   ('\' (VCHAR / WSP)) / obs-qp
 
  RFC - https://tools.ietf.org/html/rfc5322#section-3.2.2
@@ -124,7 +127,7 @@ let parse_cfws (l : lexer) =
   in
   parse_comments ()
 
-(* RFC - https://tools.ietf.org/html/rfc5322#section-3.2.4
+(* https://tools.ietf.org/html/rfc5322#section-3.2.4
  qtext           = %d33 /             ; Printable US-ASCII
                    %d35-91 /          ;  characters not including
                    %d93-126 /         ;  '\' or the quote character
@@ -151,43 +154,21 @@ let parse_quoted_string (l : lexer) =
     else R.ok qcontent
   in
 
-  parse_cfws l >>= fun () ->
-  if Lexer.current l == Char_token.double_quote then (
-    Lexer.next l;
-    parse_qcontents "" >>= fun qcontent ->
-    parse_fws l;
-    Lexer.expect Char_token.double_quote l >>= fun () -> R.ok qcontent )
-  else R.ok ""
+  parse_qcontents "" >>= fun qcontent ->
+  parse_fws l;
+  Lexer.expect Char_token.double_quote l >>= fun () -> R.ok qcontent
 
-(* 
-
+(* https://tools.ietf.org/html/rfc2045#section-5.1
+ token := 1*<any (US-ASCII) CHAR except SPACE, CTLs, or tspecials> 
+ tspecials :=  "(" / ")" / "<" / ">" / "@" /
+               "," / ";" / ":" / "\" / <">
+               "/" / "[" / "]" / "?" / "="
+               ; Must be in quoted-string,
+               ; to use within parameter values
 *)
-let parse_header_param _t = R.ok Token.eof
-
-(* RFC - https://tools.ietf.org/html/rfc2045#section-5.1
- content := "Content-Type" ":" type "/" subtype
-            *(";" parameter)
-            ; Matching of media type and subtype
-            ; is ALWAYS case-insensitive.
-
- RFC - https://tools.ietf.org/html/rfc6838#section-4.2
- type-name = restricted-name
- subtype-name = restricted-name
-*)
-let lex_content_type l =
-  let open R.O in
-  lex_whitespace l;
-  let* type_ = parse_restricted_name l in
-  let* forward_slash = Lexer.accept Char_token.forward_slash l in
-  let+ subtype = parse_restricted_name l in
-  lex_whitespace l;
-  type_ ^ forward_slash ^ subtype
-
-(* RFC - https://tools.ietf.org/html/rfc2045#section-5.1
-   token := 1*<any (US-ASCII) CHAR except SPACE, CTLs, or tspecials> *)
-let lex_token l =
+let parse_token l =
+  let open Char_token in
   let is_tspecials ch =
-    let open Char_token in
     ch == lparen
     || ch == rparen
     || ch == less_than
@@ -205,21 +186,68 @@ let lex_token l =
     || ch == equal
   in
   let is_token_char ch =
-    let open Char_token in
     is_ascii ch && ch <> space && (not (is_control ch)) && not (is_tspecials ch)
   in
-  Lexer.lex_start l;
-  let rec lex () =
+  let rec loop () =
     if is_token_char (Lexer.current l) then (
       Lexer.next l;
-      lex () )
-    else Lexer.lexeme l |> Token.token |> R.ok
+      loop () )
+    else Lexer.lexeme l |> R.ok
   in
-  lex ()
 
-(*--------------------------------------------*)
+  Lexer.lex_start l;
+  loop ()
+
+(* https://tools.ietf.org/html/rfc2045#section-5.1
+ parameter := attribute "=" value
+ attribute := token
+              ; Matching of attributes
+              ; is ALWAYS case-insensitive.
+ value := token / quoted-string              
+*)
+let parse_parameter (l : lexer) =
+  let open R.O in
+  let* attribute = parse_token l in
+  parse_whitespace l;
+  Lexer.expect Char_token.equal l >>= fun () ->
+  parse_cfws l >>= fun () ->
+  let+ value =
+    if Lexer.current l == Char_token.double_quote then (
+      Lexer.next l;
+      parse_quoted_string l )
+    else parse_token l
+  in
+  (attribute, value)
+
+(* https://tools.ietf.org/html/rfc2045#section-5.1
+ content := "Content-Type" ":" type "/" subtype
+            *(";" parameter)
+            ; Matching of media type and subtype
+            ; is ALWAYS case-insensitive.
+
+ https://tools.ietf.org/html/rfc6838#section-4.2
+ type-name = restricted-name
+ subtype-name = restricted-name
+*)
+let lex_content_type l =
+  let open R.O in
+  let rec parse_parameters parameters =
+    if Lexer.current l == Char_token.semicolon then (
+      Lexer.next l;
+      parse_parameter l >>= fun parameter ->
+      parse_parameters (parameter :: parameters) )
+    else R.ok parameters
+  in
+
+  parse_whitespace l;
+  let* ty = parse_restricted_name l in
+  let* () = Lexer.expect Char_token.forward_slash l in
+  let* subtype = parse_restricted_name l in
+  let+ parameters = parse_parameters [] in
+  parse_whitespace l;
+  { ty; subtype; parameters }
+
 (*----------------- Unit Tests ---------------*)
-(*--------------------------------------------*)
 
 let pp_result r = Sexplib.Sexp.pp_hum Format.std_formatter (sexp_of_result r)
 
@@ -236,10 +264,22 @@ let%expect_test "lex_content_type" =
   |> List.iter (lex_content_type >> pp_result);
   [%expect
     {|
-    (Ok multipart/form-data)(Ok text/plain)(Ok text/html)(Ok
-                                                          application/vnd.openxmlformats-officedocument.wordprocessingml.document)
-    (Ok application/vnd.adobe.air-application-installer-package+zip)(Error
-                                                                     "Expected ALPHA|DIGIT but received '!'") |}]
+    (Ok ((ty multipart) (subtype form-data) (parameters ())))(Ok
+                                                              ((ty text)
+                                                               (subtype plain)
+                                                               (parameters ())))
+    (Ok ((ty text) (subtype html) (parameters ())))(Ok
+                                                    ((ty application)
+                                                     (subtype
+                                                      vnd.openxmlformats-officedocument.wordprocessingml.document)
+                                                     (parameters ())))(Ok
+                                                                       ((ty
+                                                                        application)
+                                                                        (subtype
+                                                                        vnd.adobe.air-application-installer-package+zip)
+                                                                        (parameters
+                                                                        ())))
+    (Error "Expected ALPHA|DIGIT but received '!'") |}]
 
 (* let%expect_test "lex_token" = *)
 (*   [ "boundary ="; "bound\x7Fary"; "boundary"; "boundary    " ] *)
