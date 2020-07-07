@@ -148,7 +148,7 @@ let parse_quoted_string (l : lexer) =
     else if ch == Char_token.back_slash then
       parse_quoted_pair l >>= fun quoted_pair ->
       parse_qcontents (qcontent ^ quoted_pair)
-    else R.ok ""
+    else R.ok qcontent
   in
 
   parse_cfws l >>= fun () ->
@@ -156,7 +156,7 @@ let parse_quoted_string (l : lexer) =
     Lexer.next l;
     parse_qcontents "" >>= fun qcontent ->
     parse_fws l;
-    Lexer.expect Char_token.double_quote l >>= fun () -> qcontent |> R.ok )
+    Lexer.expect Char_token.double_quote l >>= fun () -> R.ok qcontent )
   else R.ok ""
 
 (* 
