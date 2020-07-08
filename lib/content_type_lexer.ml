@@ -188,15 +188,21 @@ let parse_token l =
   let is_token_char ch =
     is_ascii ch && ch <> space && (not (is_control ch)) && not (is_tspecials ch)
   in
-  let rec loop () =
+  let rec parse_token_chars () =
     if is_token_char (Lexer.current l) then (
       Lexer.next l;
-      loop () )
+      parse_token_chars () )
     else Lexer.lexeme l |> R.ok
   in
 
   Lexer.lex_start l;
-  loop ()
+  if is_token_char (Lexer.current l) then (
+    Lexer.next l;
+    parse_token_chars () )
+  else
+    asprintf "parse_token: expected 'token' but got '%a'" Char_token.pp
+      (Lexer.current l)
+    |> R.error
 
 (* https://tools.ietf.org/html/rfc2045#section-5.1
  parameter := attribute "=" value
@@ -247,40 +253,62 @@ let lex_content_type l =
   let* ty = parse_restricted_name l in
   let* () = Lexer.expect Char_token.forward_slash l in
   let* subtype = parse_restricted_name l in
+  parse_whitespace l;
   let+ parameters = parse_parameters [] in
   parse_whitespace l;
   { ty; subtype; parameters }
 
-(*----------------- Unit Tests ---------------*)
+(*----------------- Tests ---------------*)
 
-let pp_result r = Sexplib.Sexp.pp_hum Format.std_formatter (sexp_of_result r)
+let test_parse_content_type s =
+  Lexer.create Content_type s
+  |> lex_content_type
+  |> sexp_of_result
+  |> Sexplib.Sexp.pp_hum_indent 2 Format.std_formatter
 
-let%expect_test "lex_content_type" =
-  [
-    "multipart/form-data; charset=us-ascii (Plain text)";
-    "   text/plain  ;charset=\"us-ascii\" ";
-    "text/html ; ";
+let%expect_test _ =
+  test_parse_content_type "multipart/form-data; charset=us-ascii (Plain text)";
+  [%expect
+    {| (Ok ((ty multipart) (subtype form-data) (parameters ((charset us-ascii))))) |}]
+
+let%expect_test _ =
+  test_parse_content_type
+    "multipart/form-data; charset=(Plain text) us-ascii (Plain text)";
+  [%expect
+    {| (Ok ((ty multipart) (subtype form-data) (parameters ((charset us-ascii))))) |}]
+
+let%expect_test _ =
+  test_parse_content_type "   text/plain  ;charset=\"us-ascii\" ";
+  [%expect
+    {| (Ok ((ty text) (subtype plain) (parameters ((charset us-ascii))))) |}]
+
+let%expect_test _ =
+  test_parse_content_type "text/html ; ";
+
+  [%expect {| (Error "parse_token: expected 'token' but got 'EOF'") |}]
+
+let%expect_test _ =
+  test_parse_content_type
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-    "application/vnd.adobe.air-application-installer-package+zip";
-    " !!";
-  ]
-  |> List.map (Lexer.create Content_type)
-  |> List.iter (lex_content_type >> pp_result);
   [%expect
     {|
-    (Ok ((ty multipart) (subtype form-data) (parameters ((charset us-ascii)))))
-    (Ok ((ty text) (subtype plain) (parameters ())))(Ok
-                                                     ((ty text) (subtype html)
-                                                      (parameters ())))(Ok
-                                                                        ((ty
-                                                                        application)
-                                                                        (subtype
-                                                                        vnd.openxmlformats-officedocument.wordprocessingml.document)
-                                                                        (parameters
-                                                                        ())))
     (Ok
-     ((ty application) (subtype vnd.adobe.air-application-installer-package+zip)
-      (parameters ())))(Error "Expected ALPHA|DIGIT but received '!'") |}]
+      ((ty application)
+        (subtype vnd.openxmlformats-officedocument.wordprocessingml.document)
+        (parameters ()))) |}]
+
+let%expect_test _ =
+  test_parse_content_type
+    "application/vnd.adobe.air-application-installer-package+zip";
+  [%expect
+    {|
+    (Ok
+      ((ty application) (subtype vnd.adobe.air-application-installer-package+zip)
+        (parameters ()))) |}]
+
+let%expect_test _ =
+  test_parse_content_type " !!";
+  [%expect {| (Error "Expected ALPHA|DIGIT but received '!'") |}]
 
 (* let%expect_test "lex_token" = *)
 (*   [ "boundary ="; "bound\x7Fary"; "boundary"; "boundary    " ] *)
