@@ -217,6 +217,7 @@ let parse_token l =
 *)
 let parse_parameter l =
   let open R.O in
+  let rec parse_boundary_value () = () in
   parse_whitespace l;
   let* attribute = parse_token l in
   parse_whitespace l;
