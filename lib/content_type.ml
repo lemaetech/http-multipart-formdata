@@ -320,33 +320,32 @@ let parse s =
 
 (*----------------- Tests ---------------*)
 
-let test_parse_content_type s =
+let test_parse s =
   parse s
   |> [%sexp_of: (t, string) R.t]
   |> Sexplib.Sexp.pp_hum_indent 2 Format.std_formatter
 
 let%expect_test _ =
-  test_parse_content_type "multipart/form-data; charset=us-ascii (Plain text)";
+  test_parse "multipart/form-data; charset=us-ascii (Plain text)";
   [%expect
     {| (Ok ((ty multipart) (subtype form-data) (parameters ((charset us-ascii))))) |}]
 
 let%expect_test _ =
-  test_parse_content_type
-    "multipart/form-data; charset=(Plain text) us-ascii (Plain text)";
+  test_parse "multipart/form-data; charset=(Plain text) us-ascii (Plain text)";
   [%expect
     {| (Ok ((ty multipart) (subtype form-data) (parameters ((charset us-ascii))))) |}]
 
 let%expect_test _ =
-  test_parse_content_type "   text/plain  ;charset=\"us-ascii\" ";
+  test_parse "   text/plain  ;charset=\"us-ascii\" ";
   [%expect
     {| (Ok ((ty text) (subtype plain) (parameters ((charset us-ascii))))) |}]
 
 let%expect_test _ =
-  test_parse_content_type "text/html ; ";
+  test_parse "text/html ; ";
   [%expect {| (Error "parse_token: expected 'token' but got 'EOF'") |}]
 
 let%expect_test _ =
-  test_parse_content_type
+  test_parse
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
   [%expect
     {|
@@ -356,8 +355,7 @@ let%expect_test _ =
         (parameters ()))) |}]
 
 let%expect_test _ =
-  test_parse_content_type
-    "application/vnd.adobe.air-application-installer-package+zip";
+  test_parse "application/vnd.adobe.air-application-installer-package+zip";
   [%expect
     {|
     (Ok
@@ -365,12 +363,11 @@ let%expect_test _ =
         (parameters ()))) |}]
 
 let%expect_test _ =
-  test_parse_content_type " !!";
+  test_parse " !!";
   [%expect {| (Error "Expected ALPHA|DIGIT but received '!'") |}]
 
 let%expect_test _ =
-  test_parse_content_type
-    "multipart/mixed; boundary=gc0p4Jq0M2Yt08j34c0p; hello=world";
+  test_parse "multipart/mixed; boundary=gc0p4Jq0M2Yt08j34c0p; hello=world";
   [%expect
     {|
     (Ok
