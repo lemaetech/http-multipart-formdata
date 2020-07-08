@@ -1,4 +1,6 @@
-type t = int
+open Sexplib.Std
+
+type t = int [@@deriving sexp_of]
 
 let of_char ch = Char.code ch
 

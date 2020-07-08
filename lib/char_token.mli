@@ -2,6 +2,8 @@ type t
 
 val of_char : char -> t
 
+val sexp_of_t : t -> Sexplib.Sexp.t
+
 val pp : Format.formatter -> t -> unit
 
 val space : t

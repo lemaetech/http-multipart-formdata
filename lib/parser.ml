@@ -1,4 +1,5 @@
 open Std
+open Sexplib.Std
 
 type t = {
   src : string;
@@ -12,6 +13,9 @@ type t = {
   (* reading offset (position after current character) *)
   mutable rd_offset : int;
 }
+[@@deriving sexp_of]
+
+let pp fmt t = sexp_of_t t |> Sexplib.Sexp.pp_hum_indent 2 fmt
 
 let current t = t.ch
 
