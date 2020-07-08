@@ -211,13 +211,13 @@ let parse_parameter (l : lexer) =
   parse_whitespace l;
   Lexer.expect Char_token.equal l >>= fun () ->
   parse_cfws l >>= fun () ->
-  let+ value =
+  let* value =
     if Lexer.current l == Char_token.double_quote then (
       Lexer.next l;
       parse_quoted_string l )
     else parse_token l
   in
-  (attribute, value)
+  parse_cfws l >>| fun () -> (attribute, value)
 
 (* https://tools.ietf.org/html/rfc2045#section-5.1
  content := "Content-Type" ":" type "/" subtype
@@ -253,8 +253,8 @@ let pp_result r = Sexplib.Sexp.pp_hum Format.std_formatter (sexp_of_result r)
 
 let%expect_test "lex_content_type" =
   [
-    "multipart/form-data ";
-    "   text/plain  ";
+    "multipart/form-data; charset=us-ascii (Plain text)";
+    "   text/plain  ;charset=\"us-ascii\" ";
     "text/html ; ";
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
     "application/vnd.adobe.air-application-installer-package+zip";
