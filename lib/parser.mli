@@ -1,6 +1,8 @@
 type t
 
-val create : string -> t
+val of_string : string -> t
+
+val of_bigstring : Bigstringaf.t -> t
 
 val current : t -> Char_token.t
 

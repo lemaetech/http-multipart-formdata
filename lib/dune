@@ -1,11 +1,6 @@
 (library
  (name http_multipart_formdata)
- (libraries sexplib)
+ (libraries sexplib bigstringaf)
  (inline_tests)
  (preprocess
   (pps ppx_sexp_conv ppx_inline_test ppx_expect ppx_variants_conv)))
-
-(ocamllex lexer_old)
-
-(menhir
- (modules parser_old))

@@ -29,4 +29,5 @@
     :build
     (>= 2.6.0)))
   ppx_sexp_conv
+  bigstringaf
   sexplib))

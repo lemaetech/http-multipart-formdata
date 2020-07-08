@@ -300,7 +300,7 @@ let parse_parameter p =
 *)
 let parse s =
   let open R.O in
-  let p = Parser.create s in
+  let p = Parser.of_string s in
   let rec parse_parameters parameters =
     if Parser.current p == Char_token.semicolon then (
       Parser.next p;
