@@ -8,16 +8,14 @@
 open Std
 open Sexplib.Std
 
-type mode = Content_type | Content_type_param
-
-type lexer = mode Parser.t
+type parser = unit Parser.t
 
 type t = { ty : string; subtype : string; parameters : (string * string) list }
 [@@deriving sexp_of]
 
 type result = (t, string) R.t [@@deriving sexp_of]
 
-let rec parse_whitespace (l : lexer) =
+let rec parse_whitespace (l : parser) =
   if Parser.current l |> Char_token.is_whitespace then (
     Parser.next l;
     parse_whitespace l )
@@ -32,7 +30,7 @@ let rec parse_whitespace (l : lexer) =
  restricted-name-chars =/ "+" ; Characters after last plus always
                               ; specify a structured syntax suffix
 *)
-let parse_restricted_name (l : lexer) =
+let parse_restricted_name (l : parser) =
   let rec parse_restricted_char count =
     let ch = Parser.current l in
     if
@@ -64,7 +62,7 @@ let parse_restricted_name (l : lexer) =
 (* https://tools.ietf.org/html/rfc5322#section-3.2.2  
  FWS = ([*WSP CRLF] 1*WSP) /  obs-FWS   ; Folding white space
 *)
-let rec parse_fws (l : lexer) =
+let rec parse_fws (l : parser) =
   parse_whitespace l;
   if
     Parser.current l == Char_token.cr
@@ -77,7 +75,7 @@ let rec parse_fws (l : lexer) =
       next l);
     parse_fws l )
 
-let parse_quoted_pair (l : lexer) =
+let parse_quoted_pair (l : parser) =
   if Parser.current l == Char_token.back_slash then
     let lookahead = Parser.peek l in
     if Char_token.is_vchar lookahead || Char_token.is_whitespace lookahead then (
@@ -104,7 +102,7 @@ let parse_quoted_pair (l : lexer) =
 
  CFWS            =   (1*([FWS] comment) [FWS]) / FWS   
 *)
-let parse_cfws (l : lexer) =
+let parse_cfws (l : parser) =
   let open R.O in
   let rec parse_comment () =
     let rec parse_ccontents () =
@@ -146,7 +144,7 @@ let parse_cfws (l : lexer) =
                    DQUOTE *([FWS] qcontent) [FWS] DQUOTE
                    [CFWS]
 *)
-let parse_quoted_string (l : lexer) =
+let parse_quoted_string (l : parser) =
   let open R.O in
   let rec parse_qcontents qcontent =
     parse_fws l;
@@ -218,7 +216,7 @@ let parse_token l =
               ; is ALWAYS case-insensitive.
  value := token / quoted-string              
 *)
-let parse_parameter (l : lexer) =
+let parse_parameter (l : parser) =
   let open R.O in
   parse_whitespace l;
   let* attribute = parse_token l in
@@ -268,7 +266,7 @@ let parse_content_type l =
 (*----------------- Tests ---------------*)
 
 let test_parse_content_type s =
-  Parser.create Content_type s
+  Parser.create () s
   |> parse_content_type
   |> sexp_of_result
   |> Sexplib.Sexp.pp_hum_indent 2 Format.std_formatter
