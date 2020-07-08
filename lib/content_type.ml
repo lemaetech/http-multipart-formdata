@@ -296,30 +296,30 @@ let parse_parameter p =
  type-name = restricted-name
  subtype-name = restricted-name
 *)
-let parse_content_type l =
+let parse s =
   let open R.O in
+  let p = Parser.create s in
   let rec parse_parameters parameters =
-    if Parser.current l == Char_token.semicolon then (
-      Parser.next l;
-      parse_parameter l >>= fun (attribute, value) ->
+    if Parser.current p == Char_token.semicolon then (
+      Parser.next p;
+      parse_parameter p >>= fun (attribute, value) ->
       parse_parameters (ParamMap.add attribute value parameters) )
     else R.ok parameters
   in
 
-  parse_whitespace l;
-  let* ty = parse_restricted_name l in
-  let* () = Parser.expect Char_token.forward_slash l in
-  let* subtype = parse_restricted_name l in
-  parse_whitespace l;
+  parse_whitespace p;
+  let* ty = parse_restricted_name p in
+  let* () = Parser.expect Char_token.forward_slash p in
+  let* subtype = parse_restricted_name p in
+  parse_whitespace p;
   let+ parameters = parse_parameters ParamMap.empty in
-  parse_whitespace l;
+  parse_whitespace p;
   { ty; subtype; parameters }
 
 (*----------------- Tests ---------------*)
 
 let test_parse_content_type s =
-  Parser.create s
-  |> parse_content_type
+  parse s
   |> [%sexp_of: (t, string) R.t]
   |> Sexplib.Sexp.pp_hum_indent 2 Format.std_formatter
 

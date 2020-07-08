@@ -6,7 +6,7 @@ val subtype : t -> string
 
 val parameters : t -> (string * string) Seq.t
 
-val parse_content_type : Parser.t -> (t, string) Result.t
+val parse : string -> (t, string) Result.t
 
 val validate_boundary_value : string -> (unit, string) Result.t
 
