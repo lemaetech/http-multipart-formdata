@@ -130,6 +130,7 @@ let parse_cfws (l : parser) =
       parse_comment () >>= parse_comments )
     else R.ok ()
   in
+
   parse_comments ()
 
 (* https://tools.ietf.org/html/rfc5322#section-3.2.4
@@ -223,16 +224,12 @@ let parse_parameter (l : parser) =
   parse_whitespace l;
   Parser.expect Char_token.equal l >>= fun () ->
   parse_cfws l >>= fun () ->
-  let* value =
-    if Parser.current l == Char_token.double_quote then (
-      Parser.next l;
-      parse_quoted_string l )
-    else parse_token l
-  in
-
-  parse_cfws l >>| fun () ->
-  (* Printf.printf "a: %s, v: %s\n\n" attribute value; *)
-  (attribute, value)
+  ( if Parser.current l == Char_token.double_quote then (
+    Parser.next l;
+    parse_quoted_string l )
+  else parse_token l )
+  >>= fun value ->
+  parse_cfws l >>| fun () -> (attribute, value)
 
 (* https://tools.ietf.org/html/rfc2045#section-5.1
  content := "Content-Type" ":" type "/" subtype
