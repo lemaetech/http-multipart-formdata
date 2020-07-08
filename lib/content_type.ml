@@ -18,6 +18,8 @@ end
 type t = { ty : string; subtype : string; parameters : string ParamMap.t }
 [@@deriving sexp_of]
 
+let pp fmt t = sexp_of_t t |> Sexplib.Sexp.pp_hum_indent 2 fmt
+
 let ty t = t.ty
 
 let subtype t = t.subtype
