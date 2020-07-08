@@ -1,21 +1,21 @@
 open Std
 
-type 'mode t
+type t
 
-val current : 'mode t -> Char_token.t
+val current : t -> Char_token.t
 
-val create : 'mode -> string -> 'mode t
+val create : string -> t
 
-val lex_start : 'mode t -> unit
+val lex_start : t -> unit
 
-val next : 'mode t -> unit
+val next : t -> unit
 
-val peek : 'mode t -> Char_token.t
+val peek : t -> Char_token.t
 
-val peek2 : 'mode t -> Char_token.t
+val peek2 : t -> Char_token.t
 
-val lexeme : 'mode t -> string
+val lexeme : t -> string
 
-val expect : Char_token.t -> 'mode t -> (unit, string) R.t
+val expect : Char_token.t -> t -> (unit, string) R.t
 
-val accept : Char_token.t -> 'mode t -> (string, string) R.t
+val accept : Char_token.t -> t -> (string, string) R.t
