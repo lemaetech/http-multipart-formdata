@@ -8,10 +8,23 @@
 open Std
 open Sexplib.Std
 
-type t = { ty : string; subtype : string; parameters : (string * string) list }
+module ParamMap = struct
+  include Map.Make (String)
+
+  let sexp_of_t _f t =
+    to_seq t |> Array.of_seq |> [%sexp_of: (string * string) array]
+end
+
+type t = { ty : string; subtype : string; parameters : string ParamMap.t }
 [@@deriving sexp_of]
 
-type result = (t, string) R.t [@@deriving sexp_of]
+let ty t = t.ty
+
+let subtype t = t.subtype
+
+let parameters t = ParamMap.to_seq t.parameters
+
+let find_parameter ~name t = ParamMap.find_opt name t.parameters
 
 let rec parse_whitespace l =
   if Parser.current l |> Char_token.is_whitespace then (
@@ -288,8 +301,8 @@ let parse_content_type l =
   let rec parse_parameters parameters =
     if Parser.current l == Char_token.semicolon then (
       Parser.next l;
-      parse_parameter l >>= fun parameter ->
-      parse_parameters (parameter :: parameters) )
+      parse_parameter l >>= fun (attribute, value) ->
+      parse_parameters (ParamMap.add attribute value parameters) )
     else R.ok parameters
   in
 
@@ -298,16 +311,16 @@ let parse_content_type l =
   let* () = Parser.expect Char_token.forward_slash l in
   let* subtype = parse_restricted_name l in
   parse_whitespace l;
-  let+ parameters = parse_parameters [] in
+  let+ parameters = parse_parameters ParamMap.empty in
   parse_whitespace l;
-  { ty; subtype; parameters = List.rev parameters }
+  { ty; subtype; parameters }
 
 (*----------------- Tests ---------------*)
 
 let test_parse_content_type s =
   Parser.create s
   |> parse_content_type
-  |> sexp_of_result
+  |> [%sexp_of: (t, string) R.t]
   |> Sexplib.Sexp.pp_hum_indent 2 Format.std_formatter
 
 let%expect_test _ =
@@ -356,7 +369,8 @@ let%expect_test _ =
 let%expect_test _ =
   test_parse_content_type
     "multipart/mixed; boundary=gc0p4Jq0M2Yt08j34c0p; hello=world";
-  [%expect {|
+  [%expect
+    {|
     (Ok
       ((ty multipart) (subtype mixed)
         (parameters ((boundary gc0p4Jq0M2Yt08j34c0p) (hello world))))) |}]
