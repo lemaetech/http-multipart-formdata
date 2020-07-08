@@ -218,7 +218,10 @@ let parse_parameter (l : lexer) =
       parse_quoted_string l )
     else parse_token l
   in
-  parse_cfws l >>| fun () -> (attribute, value)
+
+  parse_cfws l >>| fun () ->
+  (* Printf.printf "a: %s, v: %s\n\n" attribute value; *)
+  (attribute, value)
 
 (* https://tools.ietf.org/html/rfc2045#section-5.1
  content := "Content-Type" ":" type "/" subtype
@@ -265,22 +268,19 @@ let%expect_test "lex_content_type" =
   |> List.iter (lex_content_type >> pp_result);
   [%expect
     {|
-    (Ok ((ty multipart) (subtype form-data) (parameters ())))(Ok
-                                                              ((ty text)
-                                                               (subtype plain)
-                                                               (parameters ())))
-    (Ok ((ty text) (subtype html) (parameters ())))(Ok
-                                                    ((ty application)
-                                                     (subtype
-                                                      vnd.openxmlformats-officedocument.wordprocessingml.document)
-                                                     (parameters ())))(Ok
-                                                                       ((ty
+    (Ok ((ty multipart) (subtype form-data) (parameters ((charset us-ascii)))))
+    (Ok ((ty text) (subtype plain) (parameters ())))(Ok
+                                                     ((ty text) (subtype html)
+                                                      (parameters ())))(Ok
+                                                                        ((ty
                                                                         application)
                                                                         (subtype
-                                                                        vnd.adobe.air-application-installer-package+zip)
+                                                                        vnd.openxmlformats-officedocument.wordprocessingml.document)
                                                                         (parameters
                                                                         ())))
-    (Error "Expected ALPHA|DIGIT but received '!'") |}]
+    (Ok
+     ((ty application) (subtype vnd.adobe.air-application-installer-package+zip)
+      (parameters ())))(Error "Expected ALPHA|DIGIT but received '!'") |}]
 
 (* let%expect_test "lex_token" = *)
 (*   [ "boundary ="; "bound\x7Fary"; "boundary"; "boundary    " ] *)
