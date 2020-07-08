@@ -3,14 +3,14 @@ open Std
 type t = {
   src : string;
   src_len : int;
-  mutable ch : Char_token.t;
   (* current character *)
-  mutable offset : int;
+  mutable ch : Char_token.t;
   (* character offset *)
-  mutable start_offset : int;
+  mutable offset : int;
   (* start offset *)
+  mutable start_offset : int;
+  (* reading offset (position after current character) *)
   mutable rd_offset : int;
-      (* reading offset (position after current character) *)
 }
 
 let current t = t.ch
