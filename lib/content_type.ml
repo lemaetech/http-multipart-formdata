@@ -284,7 +284,6 @@ let%expect_test _ =
 
 let%expect_test _ =
   test_parse_content_type "text/html ; ";
-
   [%expect {| (Error "parse_token: expected 'token' but got 'EOF'") |}]
 
 let%expect_test _ =
@@ -300,7 +299,8 @@ let%expect_test _ =
 let%expect_test _ =
   test_parse_content_type
     "application/vnd.adobe.air-application-installer-package+zip";
-  [%expect {|
+  [%expect
+    {|
     (Ok
       ((ty application) (subtype vnd.adobe.air-application-installer-package+zip)
         (parameters ()))) |}]
