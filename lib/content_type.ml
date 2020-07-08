@@ -356,7 +356,10 @@ let%expect_test _ =
 let%expect_test _ =
   test_parse_content_type
     "multipart/mixed; boundary=gc0p4Jq0M2Yt08j34c0p; hello=world";
-  [%expect {||}]
+  [%expect {|
+    (Ok
+      ((ty multipart) (subtype mixed)
+        (parameters ((boundary gc0p4Jq0M2Yt08j34c0p) (hello world))))) |}]
 
 (* let%expect_test "lex_token" = *)
 (*   [ "boundary ="; "bound\x7Fary"; "boundary"; "boundary    " ] *)
