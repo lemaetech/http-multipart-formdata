@@ -36,6 +36,8 @@ let back_slash = (* \ *) 0x5C
 
 let double_quote = 0x22
 
+let single_quote = 0x27
+
 let lbracket = 0x5B
 
 let rbracket = 0x5D

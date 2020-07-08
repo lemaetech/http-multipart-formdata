@@ -208,6 +208,50 @@ let parse_token l =
       (Parser.current l)
     |> R.error
 
+(* https://tools.ietf.org/html/rfc2046#section-5.1.1
+boundary := 0*69<bchars> bcharsnospace
+bchars := bcharsnospace / " "
+bcharsnospace := DIGIT / ALPHA / "'" / "(" / ")" /
+                 "+" / "_" / "," / "-" / "." /
+                 "/" / ":" / "=" / "?"
+*)
+let validate_boundary_value v =
+  let open R.O in
+  let is_bcharnospace ch =
+    Char_token.(
+      is_alpha ch
+      || is_digit ch
+      || ch == single_quote
+      || ch == lparen
+      || ch == rparen
+      || ch == plus
+      || ch == underscore
+      || ch == comma
+      || ch == minus
+      || ch == dot
+      || ch == forward_slash
+      || ch == colon
+      || ch == equal
+      || ch == question)
+  in
+  let is_bchars ch = is_bcharnospace ch || ch == Char_token.space in
+  let len = String.length v in
+  let rec validate_chars i =
+    match i >= 0 && i < len with
+    | true ->
+        let ch = Char_token.of_char v.[i] in
+        if is_bchars ch then validate_chars (i + 1)
+        else asprintf "Invalid BCHARS value - %a" Char_token.pp ch |> R.error
+    | false -> R.ok ()
+  in
+  ( if len > 0 && len <= 70 then R.ok ()
+  else R.error "Boundary value must be 1-70 characters." )
+  >>= fun () ->
+  validate_chars 0 >>= fun () ->
+  let last_char = Char_token.of_char v.[len - 1] in
+  if is_bcharnospace last_char then R.ok ()
+  else R.error "Boundary value last char must be BCHARNOSPACE character"
+
 (* https://tools.ietf.org/html/rfc2045#section-5.1
  parameter := attribute "=" value
  attribute := token
@@ -215,20 +259,19 @@ let parse_token l =
               ; is ALWAYS case-insensitive.
  value := token / quoted-string              
 *)
-let parse_parameter l =
+let parse_parameter p =
   let open R.O in
-  let rec parse_boundary_value () = () in
-  parse_whitespace l;
-  let* attribute = parse_token l in
-  parse_whitespace l;
-  Parser.expect Char_token.equal l >>= fun () ->
-  parse_cfws l >>= fun () ->
-  ( if Parser.current l == Char_token.double_quote then (
-    Parser.next l;
-    parse_quoted_string l )
-  else parse_token l )
+  parse_whitespace p;
+  let* attribute = parse_token p in
+  parse_whitespace p;
+  Parser.expect Char_token.equal p >>= fun () ->
+  parse_cfws p >>= fun () ->
+  ( if Parser.current p == Char_token.double_quote then (
+    Parser.next p;
+    parse_quoted_string p )
+  else parse_token p )
   >>= fun value ->
-  parse_cfws l >>| fun () -> (attribute, value)
+  parse_cfws p >>| fun () -> (attribute, value)
 
 (* https://tools.ietf.org/html/rfc2045#section-5.1
  content := "Content-Type" ":" type "/" subtype

@@ -38,6 +38,8 @@ val back_slash : t
 
 val double_quote : t
 
+val single_quote : t
+
 val lbracket : t
 
 val rbracket : t
