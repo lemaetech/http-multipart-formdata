@@ -256,7 +256,7 @@ let parse_content_type l =
   parse_whitespace l;
   let+ parameters = parse_parameters [] in
   parse_whitespace l;
-  { ty; subtype; parameters }
+  { ty; subtype; parameters = List.rev parameters }
 
 (*----------------- Tests ---------------*)
 
@@ -308,6 +308,11 @@ let%expect_test _ =
 let%expect_test _ =
   test_parse_content_type " !!";
   [%expect {| (Error "Expected ALPHA|DIGIT but received '!'") |}]
+
+let%expect_test _ =
+  test_parse_content_type
+    "multipart/mixed; boundary=gc0p4Jq0M2Yt08j34c0p; hello=world";
+  [%expect {||}]
 
 (* let%expect_test "lex_token" = *)
 (*   [ "boundary ="; "bound\x7Fary"; "boundary"; "boundary    " ] *)
