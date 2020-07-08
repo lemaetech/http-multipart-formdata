@@ -3,7 +3,7 @@ open Sexplib.Std
 
 type mode = Content_type | Content_type_param
 
-type lexer = mode Lexer.t
+type lexer = mode Parser.t
 
 type t = { ty : string; subtype : string; parameters : (string * string) list }
 [@@deriving sexp_of]
@@ -11,8 +11,8 @@ type t = { ty : string; subtype : string; parameters : (string * string) list }
 type result = (t, string) R.t [@@deriving sexp_of]
 
 let rec parse_whitespace (l : lexer) =
-  if Lexer.current l |> Char_token.is_whitespace then (
-    Lexer.next l;
+  if Parser.current l |> Char_token.is_whitespace then (
+    Parser.next l;
     parse_whitespace l )
 
 (* https://tools.ietf.org/html/rfc6838#section-4.2
@@ -27,7 +27,7 @@ let rec parse_whitespace (l : lexer) =
 *)
 let parse_restricted_name (l : lexer) =
   let rec parse_restricted_char count =
-    let ch = Lexer.current l in
+    let ch = Parser.current l in
     if
       (count < 126 && Char_token.is_alpha ch)
       || Char_token.is_digit ch
@@ -41,15 +41,15 @@ let parse_restricted_name (l : lexer) =
       || ch == Char_token.dot
       || ch == Char_token.plus
     then (
-      Lexer.next l;
+      Parser.next l;
       parse_restricted_char (count + 1) )
   in
-  Lexer.lex_start l;
-  let ch = Lexer.current l in
+  Parser.lex_start l;
+  let ch = Parser.current l in
   if Char_token.is_alpha ch || Char_token.is_digit ch then (
-    Lexer.next l;
+    Parser.next l;
     parse_restricted_char 0;
-    Lexer.lexeme l |> R.ok )
+    Parser.lexeme l |> R.ok )
   else
     asprintf "Expected ALPHA|DIGIT but received '%a'" Char_token.pp ch
     |> R.error
@@ -60,24 +60,24 @@ let parse_restricted_name (l : lexer) =
 let rec parse_fws (l : lexer) =
   parse_whitespace l;
   if
-    Lexer.current l == Char_token.cr
-    && Lexer.peek l == Char_token.lf
-    && (Char_token.is_whitespace @@ Lexer.peek2 l)
+    Parser.current l == Char_token.cr
+    && Parser.peek l == Char_token.lf
+    && (Char_token.is_whitespace @@ Parser.peek2 l)
   then (
-    Lexer.(
+    Parser.(
       next l;
       next l;
       next l);
     parse_fws l )
 
 let parse_quoted_pair (l : lexer) =
-  if Lexer.current l == Char_token.back_slash then
-    let lookahead = Lexer.peek l in
+  if Parser.current l == Char_token.back_slash then
+    let lookahead = Parser.peek l in
     if Char_token.is_vchar lookahead || Char_token.is_whitespace lookahead then (
-      Lexer.lex_start l;
-      Lexer.next l;
-      Lexer.next l;
-      Lexer.lexeme l |> R.ok )
+      Parser.lex_start l;
+      Parser.next l;
+      Parser.next l;
+      Parser.lexeme l |> R.ok )
     else
       sprintf "Invalid QUOTED_PAIR, VCHAR or WSP expected after '\'" |> R.error
   else R.ok ""
@@ -102,26 +102,26 @@ let parse_cfws (l : lexer) =
   let rec parse_comment () =
     let rec parse_ccontents () =
       parse_fws l;
-      let ch = Lexer.current l in
+      let ch = Parser.current l in
       if Char_token.is_ctext ch then (
-        Lexer.lex_start l;
-        Lexer.next l;
+        Parser.lex_start l;
+        Parser.next l;
         parse_ccontents () )
       else if ch == Char_token.back_slash then
         parse_quoted_pair l >>= fun _ -> parse_ccontents ()
       else if ch == Char_token.lparen then (
-        Lexer.next l;
+        Parser.next l;
         parse_comment () >>= parse_ccontents )
       else R.ok ()
     in
     parse_ccontents () >>= fun () ->
     parse_fws l;
-    Lexer.expect Char_token.rparen l
+    Parser.expect Char_token.rparen l
   in
   let rec parse_comments () =
     parse_fws l;
-    if Lexer.current l == Char_token.lparen then (
-      Lexer.next l;
+    if Parser.current l == Char_token.lparen then (
+      Parser.next l;
       parse_comment () >>= parse_comments )
     else R.ok ()
   in
@@ -143,11 +143,11 @@ let parse_quoted_string (l : lexer) =
   let open R.O in
   let rec parse_qcontents qcontent =
     parse_fws l;
-    let ch = Lexer.current l in
+    let ch = Parser.current l in
     if Char_token.is_qtext ch then (
-      Lexer.lex_start l;
-      Lexer.next l;
-      qcontent ^ Lexer.lexeme l |> parse_qcontents )
+      Parser.lex_start l;
+      Parser.next l;
+      qcontent ^ Parser.lexeme l |> parse_qcontents )
     else if ch == Char_token.back_slash then
       parse_quoted_pair l >>= fun quoted_pair ->
       parse_qcontents (qcontent ^ quoted_pair)
@@ -156,7 +156,7 @@ let parse_quoted_string (l : lexer) =
 
   parse_qcontents "" >>= fun qcontent ->
   parse_fws l;
-  Lexer.expect Char_token.double_quote l >>= fun () -> R.ok qcontent
+  Parser.expect Char_token.double_quote l >>= fun () -> R.ok qcontent
 
 (* https://tools.ietf.org/html/rfc2045#section-5.1
  token := 1*<any (US-ASCII) CHAR except SPACE, CTLs, or tspecials> 
@@ -189,19 +189,19 @@ let parse_token l =
     is_ascii ch && ch <> space && (not (is_control ch)) && not (is_tspecials ch)
   in
   let rec parse_token_chars () =
-    if is_token_char (Lexer.current l) then (
-      Lexer.next l;
+    if is_token_char (Parser.current l) then (
+      Parser.next l;
       parse_token_chars () )
-    else Lexer.lexeme l |> R.ok
+    else Parser.lexeme l |> R.ok
   in
 
-  Lexer.lex_start l;
-  if is_token_char (Lexer.current l) then (
-    Lexer.next l;
+  Parser.lex_start l;
+  if is_token_char (Parser.current l) then (
+    Parser.next l;
     parse_token_chars () )
   else
     asprintf "parse_token: expected 'token' but got '%a'" Char_token.pp
-      (Lexer.current l)
+      (Parser.current l)
     |> R.error
 
 (* https://tools.ietf.org/html/rfc2045#section-5.1
@@ -216,11 +216,11 @@ let parse_parameter (l : lexer) =
   parse_whitespace l;
   let* attribute = parse_token l in
   parse_whitespace l;
-  Lexer.expect Char_token.equal l >>= fun () ->
+  Parser.expect Char_token.equal l >>= fun () ->
   parse_cfws l >>= fun () ->
   let* value =
-    if Lexer.current l == Char_token.double_quote then (
-      Lexer.next l;
+    if Parser.current l == Char_token.double_quote then (
+      Parser.next l;
       parse_quoted_string l )
     else parse_token l
   in
@@ -239,11 +239,11 @@ let parse_parameter (l : lexer) =
  type-name = restricted-name
  subtype-name = restricted-name
 *)
-let lex_content_type l =
+let parse_content_type l =
   let open R.O in
   let rec parse_parameters parameters =
-    if Lexer.current l == Char_token.semicolon then (
-      Lexer.next l;
+    if Parser.current l == Char_token.semicolon then (
+      Parser.next l;
       parse_parameter l >>= fun parameter ->
       parse_parameters (parameter :: parameters) )
     else R.ok parameters
@@ -251,7 +251,7 @@ let lex_content_type l =
 
   parse_whitespace l;
   let* ty = parse_restricted_name l in
-  let* () = Lexer.expect Char_token.forward_slash l in
+  let* () = Parser.expect Char_token.forward_slash l in
   let* subtype = parse_restricted_name l in
   parse_whitespace l;
   let+ parameters = parse_parameters [] in
@@ -261,8 +261,8 @@ let lex_content_type l =
 (*----------------- Tests ---------------*)
 
 let test_parse_content_type s =
-  Lexer.create Content_type s
-  |> lex_content_type
+  Parser.create Content_type s
+  |> parse_content_type
   |> sexp_of_result
   |> Sexplib.Sexp.pp_hum_indent 2 Format.std_formatter
 
@@ -312,7 +312,7 @@ let%expect_test _ =
 
 (* let%expect_test "lex_token" = *)
 (*   [ "boundary ="; "bound\x7Fary"; "boundary"; "boundary    " ] *)
-(*   |> List.map (Lexer.create Content_type) *)
+(*   |> List.map (Parser.create Content_type) *)
 (*   |> List.iter (lex_token >> pp_result); *)
 (*   [%expect *)
 (*     {| *)
