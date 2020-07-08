@@ -1,10 +1,8 @@
-open Std
-
 type t
 
-val current : t -> Char_token.t
-
 val create : string -> t
+
+val current : t -> Char_token.t
 
 val lex_start : t -> unit
 
@@ -16,6 +14,6 @@ val peek2 : t -> Char_token.t
 
 val lexeme : t -> string
 
-val expect : Char_token.t -> t -> (unit, string) R.t
+val expect : Char_token.t -> t -> (unit, string) Result.t
 
-val accept : Char_token.t -> t -> (string, string) R.t
+val accept : Char_token.t -> t -> (string, string) Result.t
