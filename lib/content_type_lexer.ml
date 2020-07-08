@@ -207,6 +207,7 @@ let parse_token l =
 *)
 let parse_parameter (l : lexer) =
   let open R.O in
+  parse_whitespace l;
   let* attribute = parse_token l in
   parse_whitespace l;
   Lexer.expect Char_token.equal l >>= fun () ->
