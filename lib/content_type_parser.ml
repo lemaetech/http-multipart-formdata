@@ -1,3 +1,10 @@
+(* Implements the following RFCs
+   1. 2045 https://tools.ietf.org/html/rfc2045 
+   2. 2046 https://tools.ietf.org/html/rfc2046#section-5.1.1
+   3. 5234 https://tools.ietf.org/html/rfc5234#appendix-B.1
+   4. 6838 https://tools.ietf.org/html/rfc6838#section-4.2
+   5. 5322 https://tools.ietf.org/html/rfc5322#section-3.2.1
+*)
 open Std
 open Sexplib.Std
 
