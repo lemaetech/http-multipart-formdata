@@ -7,8 +7,10 @@ module Bigstringaf = struct
   let sexp_of_t t = Sexplib.Sexp.of_bigstring t
 end
 
+type src = String of string | Bigstring of Bigstringaf.t [@@deriving sexp_of]
+
 type t = {
-  src : src_type;
+  src : src;
   src_len : int;
   (* current character *)
   mutable ch : Char_token.t;
@@ -19,9 +21,6 @@ type t = {
   (* reading offset (position after current character) *)
   mutable rd_offset : int;
 }
-[@@deriving sexp_of]
-
-and src_type = String of string | Bigstring of Bigstringaf.t
 [@@deriving sexp_of]
 
 let pp fmt t = sexp_of_t t |> Sexplib.Sexp.pp_hum_indent 2 fmt
