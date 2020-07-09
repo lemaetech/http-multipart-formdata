@@ -81,7 +81,7 @@ let lexeme t =
   let off = t.start_offset in
   let len = t.offset - t.start_offset in
   match t.src with
-  | String src -> String.sub src off len
+  | String src -> String.sub src ~pos:off ~len
   | Bigstring src -> Bigstringaf.substring src ~off ~len
 
 let expect ch t =

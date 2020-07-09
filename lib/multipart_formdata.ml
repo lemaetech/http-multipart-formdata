@@ -1,37 +1,3 @@
-module R = struct
-  include Result
-
-  module O = struct
-    let ( let* ) = bind
-
-    let ( >>= ) = ( let* )
-
-    let ( let+ ) x f = map f x
-
-    let ( >>| ) = ( let+ )
-  end
-end
-
-let[@inline] ( >> ) f g x = g (f x)
-
-module String = struct
-  include StringLabels
-
-  let starts_with ~prefix s =
-    let prefix_len = length prefix in
-    let full_len = length s in
-    full_len >= prefix_len && String.equal (sub s ~pos:0 ~len:prefix_len) prefix
-
-  let chop_prefix ~prefix s =
-    let prefix_len = length prefix in
-    let full_len = length s in
-    if
-      full_len >= prefix_len
-      && String.equal (sub s ~pos:0 ~len:prefix_len) prefix
-    then sub s ~pos:prefix_len ~len:(full_len - prefix_len)
-    else s
-end
-
 type t = [ `File of file list | `String of string list ]
 
 and file = {

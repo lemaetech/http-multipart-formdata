@@ -21,3 +21,21 @@ module R = struct
     let ( >>| ) = ( let+ )
   end
 end
+
+module String = struct
+  include StringLabels
+
+  let starts_with ~prefix s =
+    let prefix_len = length prefix in
+    let full_len = length s in
+    full_len >= prefix_len && String.equal (sub s ~pos:0 ~len:prefix_len) prefix
+
+  let chop_prefix ~prefix s =
+    let prefix_len = length prefix in
+    let full_len = length s in
+    if
+      full_len >= prefix_len
+      && String.equal (sub s ~pos:0 ~len:prefix_len) prefix
+    then sub s ~pos:prefix_len ~len:(full_len - prefix_len)
+    else s
+end
