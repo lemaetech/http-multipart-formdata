@@ -55,10 +55,9 @@ let parse s =
   *> whitespace
   *> char ':'
   *> whitespace
-  *> string "formdata"
+  *> string "form-data"
   *> whitespace
-  *> char ';'
-  *> whitespace
+  *> many param
   |> of_string s
 
 (* open Angstrom
