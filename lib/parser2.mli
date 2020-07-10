@@ -22,8 +22,9 @@ val take_while_n : int -> (char -> bool) -> (string, [> error ]) t
 
 val many : ('a, [> error ]) t -> ('a list, [> error ]) t
 
-val ok : 'a -> ('a, [> error ]) t
 (** {2 Constructors} *)
+
+val ok : 'a -> ('a, [> error ]) t
 
 val error : 'error -> ('a, 'error) t
 
