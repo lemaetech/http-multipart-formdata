@@ -1,11 +1,7 @@
 open Std
 open R.O
 
-type error =
-  [ `Msg of string
-  | `Expected_char of int * char
-  | `Expected_string of int * string
-  | `Eof of int ]
+type error = [ `Msg of string ]
 
 type state = {
   src : src;
@@ -23,7 +19,7 @@ type (+'a, +'error) t = state -> (state * 'a, state * 'error) result
 let msgf state fmt = Format.kasprintf (fun s -> R.error (state, `Msg s)) fmt
 
 let pp_current_char fmt = function
-  | `Char c -> Format.fprintf fmt "'%c'" c
+  | `Char c -> Format.fprintf fmt "%c" c
   | `Eof -> Format.fprintf fmt "EOF"
 
 let advance n state =
@@ -53,7 +49,11 @@ let substring len state =
     | `String src -> String.sub src ~pos:state.offset ~len
     | `Bigstring src -> Bigstringaf.substring src ~off:state.offset ~len )
     |> R.ok
-  else R.error @@ (state, `Eof state.offset)
+  else R.error `Eof
+
+let ok v state = R.ok (state, v)
+
+let error e state = R.error (state, e)
 
 let char c state =
   if state.cc = `Char c then (
@@ -63,17 +63,25 @@ let char c state =
     msgf state "%d: char '%c' expected instead of %a" state.offset c
       pp_current_char state.cc
 
+let char_if f state =
+  match state.cc with
+  | `Char c when f c ->
+      advance 1 state;
+      ok c state
+  | `Char _ | `Eof ->
+      msgf state "%d: char_if returned 'false' for char '%a'" state.offset
+        pp_current_char state.cc
+
 let string s state =
   let len = String.length s in
-  let* s2 = substring len state in
-  if s = s2 then (
-    advance len state;
-    R.ok (state, s) )
-  else R.error @@ (state, `Expected_string (state.offset, s))
-
-let ok v state = R.ok (state, v)
-
-let error e state = R.error (state, e)
+  match substring len state with
+  | Ok s2 ->
+      if s = s2 then (
+        advance len state;
+        R.ok (state, s) )
+      else msgf state "%d: string \"%s\" not found" state.offset s
+  | Error `Eof ->
+      msgf state "%d: got EOF while parsing string \"%s\"" state.offset s
 
 let rec skip_while f state =
   match state.cc with
@@ -83,6 +91,20 @@ let rec skip_while f state =
         skip_while f state )
       else ok () state
   | `Eof -> ok () state
+
+let take_while_n n f state =
+  let rec loop count buf =
+    if count < n then
+      match state.cc with
+      | `Char c when f c ->
+          Buffer.add_char buf c;
+          advance 1 state;
+          loop (count + 1) buf
+      | `Char _ | `Eof -> Buffer.contents buf
+    else Buffer.contents buf
+  in
+
+  loop 0 (Buffer.create n) |> fun s -> ok s state
 
 let ( *> ) (p : (_, 'error) t) (q : ('a, 'error) t) state =
   p state >>= fun (state, _) -> q state

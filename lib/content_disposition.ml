@@ -11,19 +11,31 @@ let whitespace = skip_while (fun c -> c == '\x20' || c == '\x09')
 let parse_param s =
   char ';' *> whitespace *> string s >>= fun _param_name -> char '='
 
-let parse s =
-  let p =
-    crlf
-    *> string "Content-Disposition"
-    *> whitespace
-    *> char ':'
-    *> whitespace
-    *> string "formdata"
-    *> whitespace
-    *> char ';'
-    *> whitespace
+let restricted_name =
+  let is_restricted_name_chars = function
+    | '!' | '#' | '$' | '&' | '-' | '^' | '_' | '.' | '+' -> true
+    | c when is_alpha_digit c -> true
+    | _ -> false
   in
-  of_string s p
+
+  char_if is_alpha_digit >>= fun first_ch ->
+  let buf = Buffer.create 10 in
+  Buffer.add_char buf first_ch;
+  take_while_n 126 is_restricted_name_chars >>= fun restricted_name ->
+  Buffer.add_string buf restricted_name;
+  ok @@ Buffer.contents buf
+
+let parse s =
+  crlf
+  *> string "Content-Disposition"
+  *> whitespace
+  *> char ':'
+  *> whitespace
+  *> string "formdata"
+  *> whitespace
+  *> char ';'
+  *> whitespace
+  |> of_string s
 
 (* open Angstrom
 

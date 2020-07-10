@@ -1,22 +1,28 @@
-type error =
-  [ `Msg of string
-  | `Expected_char of int * char
-  | `Expected_string of int * string
-  | `Eof of int ]
+type error = [ `Msg of string ]
 
 type (+'a, +'error) t
 
 val of_string : string -> ('a, 'error) t -> ('a, 'error) result
 
+(** {2 Basic Parsers} *)
+
 val char : char -> (char, [> error ]) t
+
+val char_if : (char -> bool) -> (char, [> error ]) t
 
 val string : string -> (string, [> error ]) t
 
+(** {3 Looping} *)
+
 val skip_while : (char -> bool) -> (unit, [> error ]) t
+
+val take_while_n : int -> (char -> bool) -> (string, [> error ]) t
 
 val ok : 'a -> ('a, [> error ]) t
 
 val error : 'error -> ('a, 'error) t
+
+(** {2 Monadic API} *)
 
 val ( >>= ) : ('a, 'error) t -> ('a -> ('b, 'error) t) -> ('b, 'error) t
 
