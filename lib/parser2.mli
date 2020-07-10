@@ -26,7 +26,7 @@ val many : ('a, [> error ]) t -> ('a list, [> error ]) t
 
 val ok : 'a -> ('a, [> error ]) t
 
-val error : 'error -> ('a, 'error) t
+val fail : 'error -> ('a, 'error) t
 
 (** {2 Monadic API} *)
 

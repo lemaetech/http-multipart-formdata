@@ -53,7 +53,7 @@ let substring len state =
 
 let ok v state = R.ok (state, v)
 
-let error e state = R.error (state, e)
+let fail e state = R.error (state, e)
 
 let char c state =
   if state.cc = `Char c then (
