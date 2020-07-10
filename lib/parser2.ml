@@ -92,6 +92,26 @@ let rec skip_while f state =
       else ok () state
   | `Eof -> ok () state
 
+let take_while f state =
+  let rec loop buf =
+    match state.cc with
+    | `Char c when f c ->
+        Buffer.add_char buf c;
+        advance 1 state;
+        loop buf
+    | `Char _ | `Eof -> Buffer.contents buf
+  in
+
+  loop (Buffer.create 10) |> fun s -> ok s state
+
+let many t state =
+  let rec loop state l =
+    match t state with Ok (state, a) -> loop state (a :: l) | Error _ -> l
+  in
+
+  let v = loop state [] in
+  ok v state
+
 let take_while_n n f state =
   let rec loop count buf =
     if count < n then

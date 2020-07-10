@@ -6,10 +6,34 @@ let is_alpha_digit = function
 
 let crlf = string "\x0D\x0A"
 
+let is_space c = c == '\x20'
+
+let is_control = function '\x00' .. '\x1F' | '\x7F' -> true | _ -> false
+
+let is_tspecials = function
+  | '(' | ')' | '<' | '>' | '@' | ',' | ';' | ':' | '\\' | '"' | '/' | '[' | ']'
+  | '?' | '=' ->
+      true
+  | _ -> false
+
+let is_ascii_chars = function '\x00' .. '\x7F' -> true | _ -> false
+
 let whitespace = skip_while (fun c -> c == '\x20' || c == '\x09')
 
-let parse_param s =
-  char ';' *> whitespace *> string s >>= fun _param_name -> char '='
+let token =
+  let token_char c =
+    is_ascii_chars c
+    && (not (is_space c))
+    && (not (is_control c))
+    && not (is_tspecials c)
+  in
+
+  char_if token_char >>= fun ch ->
+  take_while token_char >>= fun chars -> String.make 1 ch ^ chars |> ok
+
+let param =
+  char ';' *> whitespace *> token >>= fun attribute ->
+  char '=' *> token >>= fun value -> ok (attribute, value)
 
 let restricted_name =
   let is_restricted_name_chars = function

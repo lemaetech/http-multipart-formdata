@@ -16,9 +16,14 @@ val string : string -> (string, [> error ]) t
 
 val skip_while : (char -> bool) -> (unit, [> error ]) t
 
+val take_while : (char -> bool) -> (string, [> error ]) t
+
 val take_while_n : int -> (char -> bool) -> (string, [> error ]) t
 
+val many : ('a, [> error ]) t -> ('a list, [> error ]) t
+
 val ok : 'a -> ('a, [> error ]) t
+(** {2 Constructors} *)
 
 val error : 'error -> ('a, 'error) t
 
