@@ -20,6 +20,8 @@ module R = struct
 
     let ( >>| ) = ( let+ )
   end
+
+  let errorf fmt = Format.kasprintf (fun s -> error s) fmt
 end
 
 module String = struct
