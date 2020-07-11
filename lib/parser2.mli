@@ -8,7 +8,7 @@ val of_string : string -> ('a, 'error) t -> ('a, 'error) result
 
 val char : char -> (char, [> error ]) t
 
-val char_if : (char -> bool) -> (char, [> error ]) t
+val satisfy : (char -> bool) -> (char, [> error ]) t
 
 val peek_char : (char option, [> error ]) t
 

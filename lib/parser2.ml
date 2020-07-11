@@ -53,7 +53,7 @@ let char c state =
     msgf state "%d: char '%c' expected instead of %a" state.offset c
       pp_current_char state.cc
 
-let char_if f state =
+let satisfy f state =
   match state.cc with
   | `Char c when f c -> R.ok (advance 1 state, c)
   | `Char _ | `Eof ->

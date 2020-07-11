@@ -18,7 +18,11 @@ let is_tspecials = function
 
 let is_ascii_chars = function '\x00' .. '\x7F' -> true | _ -> false
 
-let whitespace = skip_while (fun c -> c == '\x20' || c == '\x09')
+let is_vchar = function '\x21' .. '\x7E' -> true | _ -> false
+
+let is_whitespace = function '\x20' | '\x09' -> true | _ -> false
+
+let whitespace = skip_while is_whitespace
 
 let token =
   let token_char c =
@@ -28,8 +32,14 @@ let token =
     && not (is_tspecials c)
   in
 
-  char_if token_char >>= fun ch ->
+  satisfy token_char >>= fun ch ->
   take_while token_char >>= fun chars -> String.make 1 ch ^ chars |> ok
+
+let quoted_pair =
+  char '\\' *> satisfy (fun c -> is_whitespace c || is_vchar c) >>= fun c ->
+  ok @@ String.make 1 '\\' ^ String.make 1 c
+
+let qtext = ()
 
 let param =
   char ';' *> whitespace *> token >>= fun attribute ->
@@ -42,7 +52,7 @@ let restricted_name =
     | _ -> false
   in
 
-  char_if is_alpha_digit >>= fun first_ch ->
+  satisfy is_alpha_digit >>= fun first_ch ->
   let buf = Buffer.create 10 in
   Buffer.add_char buf first_ch;
   take_while_n 126 is_restricted_name_chars >>= fun restricted_name ->
