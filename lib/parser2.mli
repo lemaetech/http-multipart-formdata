@@ -10,6 +10,8 @@ val char : char -> (char, [> error ]) t
 
 val char_if : (char -> bool) -> (char, [> error ]) t
 
+val peek_char_fail : (char, [> error ]) t
+
 val string : string -> (string, [> error ]) t
 
 (** {3 Looping} *)
@@ -35,5 +37,7 @@ val ( <|> ) : ('a, 'error) t -> ('a, 'error) t -> ('a, 'error) t
 (** {2 Monadic API} *)
 
 val ( >>= ) : ('a, 'error) t -> ('a -> ('b, 'error) t) -> ('b, 'error) t
+
+val ( >>| ) : ('a, 'error) t -> ('a -> 'b) -> ('b, 'error) t
 
 val ( *> ) : (_, 'error) t -> ('a, 'error) t -> ('a, 'error) t

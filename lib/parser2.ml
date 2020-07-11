@@ -60,6 +60,11 @@ let char_if f state =
       msgf state "%d: char_if returned 'false' for char '%a'" state.offset
         pp_current_char state.cc
 
+let peek_char_fail state =
+  match state.cc with
+  | `Char c -> R.ok (state, c)
+  | `Eof -> msgf state "%d: peek_char_fail returned EOF" state.offset
+
 let string s state =
   let len = String.length s in
   match substring len state with
@@ -111,4 +116,7 @@ let ( <|> ) p q state = match p state with Ok _ as o -> o | Error _ -> q state
 let ( *> ) (p : (_, 'error) t) (q : ('a, 'error) t) state =
   p state >>= fun (state, _) -> q state
 
-let ( >>= ) t f state = t state >>= fun (_, a) -> f a state
+let ( >>= ) t f state = t state >>= fun (state, a) -> f a state
+
+let ( >>| ) (t : ('a, 'error) t) (f : 'a -> 'b) state =
+  t state >>| fun (state, a) -> (state, f a)
