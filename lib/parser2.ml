@@ -60,6 +60,10 @@ let char_if f state =
       msgf state "%d: char_if returned 'false' for char '%a'" state.offset
         pp_current_char state.cc
 
+let peek_char state =
+  let v = match state.cc with `Char c -> Some c | `Eof -> None in
+  R.ok (state, v)
+
 let peek_char_fail state =
   match state.cc with
   | `Char c -> R.ok (state, c)

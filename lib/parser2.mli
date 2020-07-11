@@ -10,6 +10,8 @@ val char : char -> (char, [> error ]) t
 
 val char_if : (char -> bool) -> (char, [> error ]) t
 
+val peek_char : (char option, [> error ]) t
+
 val peek_char_fail : (char, [> error ]) t
 
 val string : string -> (string, [> error ]) t
