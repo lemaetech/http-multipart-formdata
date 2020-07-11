@@ -28,6 +28,10 @@ val ok : 'a -> ('a, [> error ]) t
 
 val fail : 'error -> ('a, 'error) t
 
+(** {2 Alternatives} *)
+
+val ( <|> ) : ('a, 'error) t -> ('a, 'error) t -> ('a, 'error) t
+
 (** {2 Monadic API} *)
 
 val ( >>= ) : ('a, 'error) t -> ('a -> ('b, 'error) t) -> ('b, 'error) t

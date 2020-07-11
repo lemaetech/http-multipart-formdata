@@ -126,6 +126,8 @@ let take_while_n n f state =
 
   loop 0 (Buffer.create n) |> fun s -> ok s state
 
+let ( <|> ) p q state = match p state with Ok _ as o -> o | Error _ -> q state
+
 let ( *> ) (p : (_, 'error) t) (q : ('a, 'error) t) state =
   p state >>= fun (state, _) -> q state
 
