@@ -3,12 +3,7 @@ open R.O
 
 type error = [ `Msg of string ]
 
-type state = {
-  src : src;
-  len : int;
-  mutable offset : int;
-  mutable cc : current_char;
-}
+type state = { src : src; len : int; offset : int; cc : current_char }
 
 and src = [ `String of string | `Bigstring of Bigstringaf.t ]
 
@@ -23,25 +18,22 @@ let pp_current_char fmt = function
   | `Eof -> Format.fprintf fmt "EOF"
 
 let advance n state =
-  let current_char state =
+  let current_char offset =
     `Char
       ( match state.src with
-      | `String src -> src.[state.offset]
-      | `Bigstring src -> Bigstringaf.unsafe_get src state.offset )
+      | `String src -> src.[offset]
+      | `Bigstring src -> Bigstringaf.unsafe_get src offset )
   in
-  if state.offset + n < state.len then (
-    state.offset <- state.offset + n;
-    state.cc <- current_char state )
-  else (
-    state.offset <- state.len;
-    state.cc <- `Eof )
+  if state.offset + n < state.len then
+    let offset = state.offset + n in
+    { state with offset; cc = current_char offset }
+  else { state with offset = state.len; cc = `Eof }
 
 let of_string s (t : ('a, 'e) t) =
   let src = `String s in
   let len = String.length s in
   let state = { src; len; offset = -1; cc = `Eof } in
-  advance 1 state;
-  match t state with Ok (_, a) -> Ok a | Error (_, e) -> Error e
+  match advance 1 state |> t with Ok (_, a) -> Ok a | Error (_, e) -> Error e
 
 let substring len state =
   if state.offset + len < state.len then
@@ -56,18 +48,14 @@ let ok v state = R.ok (state, v)
 let fail e state = R.error (state, e)
 
 let char c state =
-  if state.cc = `Char c then (
-    advance 1 state;
-    R.ok (state, c) )
+  if state.cc = `Char c then R.ok (advance 1 state, c)
   else
     msgf state "%d: char '%c' expected instead of %a" state.offset c
       pp_current_char state.cc
 
 let char_if f state =
   match state.cc with
-  | `Char c when f c ->
-      advance 1 state;
-      ok c state
+  | `Char c when f c -> R.ok (advance 1 state, c)
   | `Char _ | `Eof ->
       msgf state "%d: char_if returned 'false' for char '%a'" state.offset
         pp_current_char state.cc
@@ -76,33 +64,26 @@ let string s state =
   let len = String.length s in
   match substring len state with
   | Ok s2 ->
-      if s = s2 then (
-        advance len state;
-        R.ok (state, s) )
+      if s = s2 then R.ok (advance len state, s)
       else msgf state "%d: string \"%s\" not found" state.offset s
   | Error `Eof ->
       msgf state "%d: got EOF while parsing string \"%s\"" state.offset s
 
 let rec skip_while f state =
   match state.cc with
-  | `Char c ->
-      if f c then (
-        advance 1 state;
-        skip_while f state )
-      else ok () state
+  | `Char c -> if f c then skip_while f (advance 1 state) else ok () state
   | `Eof -> ok () state
 
 let take_while f state =
-  let rec loop buf =
+  let rec loop state buf =
     match state.cc with
     | `Char c when f c ->
         Buffer.add_char buf c;
-        advance 1 state;
-        loop buf
-    | `Char _ | `Eof -> Buffer.contents buf
+        loop (advance 1 state) buf
+    | `Char _ | `Eof -> R.ok (state, Buffer.contents buf)
   in
 
-  loop (Buffer.create 10) |> fun s -> ok s state
+  loop state (Buffer.create 10)
 
 let many t state =
   let rec loop state l =
@@ -113,18 +94,17 @@ let many t state =
   ok v state
 
 let take_while_n n f state =
-  let rec loop count buf =
+  let rec loop state count buf =
     if count < n then
       match state.cc with
       | `Char c when f c ->
           Buffer.add_char buf c;
-          advance 1 state;
-          loop (count + 1) buf
-      | `Char _ | `Eof -> Buffer.contents buf
-    else Buffer.contents buf
+          loop (advance 1 state) (count + 1) buf
+      | `Char _ | `Eof -> R.ok (state, Buffer.contents buf)
+    else R.ok (state, Buffer.contents buf)
   in
 
-  loop 0 (Buffer.create n) |> fun s -> ok s state
+  loop state 0 (Buffer.create n)
 
 let ( <|> ) p q state = match p state with Ok _ as o -> o | Error _ -> q state
 
