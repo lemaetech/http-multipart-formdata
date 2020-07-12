@@ -4,7 +4,6 @@ type (+'a, +'error) t
 
 val advance : int -> (unit, [> error ]) t
 
-(* val of_string : string -> ('a, [> error ]) t -> ('a, [> error ]) result *)
 val of_string : string -> ('a, ([> error ] as 'b)) t -> ('a, 'b) result
 
 (** {2 Basic Parsers} *)
