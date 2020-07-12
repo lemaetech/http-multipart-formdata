@@ -31,13 +31,18 @@ let token =
     && (not (is_control c))
     && not (is_tspecials c)
   in
-
   satisfy token_char >>= fun ch ->
   take_while token_char >>= fun chars -> String.make 1 ch ^ chars |> ok
 
 let quoted_pair =
   char '\\' *> satisfy (fun c -> is_whitespace c || is_vchar c) >>= fun c ->
   ok @@ String.make 1 '\\' ^ String.make 1 c
+
+(* let fws = *)
+(*   let rec skip_ws count () = *)
+(*     if () *)
+(*   in *)
+(*   whitespace *> *)
 
 let qtext = ()
 
@@ -51,7 +56,6 @@ let restricted_name =
     | c when is_alpha_digit c -> true
     | _ -> false
   in
-
   satisfy is_alpha_digit >>= fun first_ch ->
   let buf = Buffer.create 10 in
   Buffer.add_char buf first_ch;
