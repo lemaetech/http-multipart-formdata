@@ -11,18 +11,13 @@ and current_char = [ `Char of char | `Eof ]
 
 type ('a, 'error) t = state -> (state * 'a, state * 'error) result
 
-let msgf :
-    state ->
-    ('b, Format.formatter, unit, ('c, 'a * [> error ]) result) format4 ->
-    'b =
- fun state fmt -> Format.kasprintf (fun s -> R.error (state, `Msg s)) fmt
+let msgf state fmt = Format.kasprintf (fun s -> R.error (state, `Msg s)) fmt
 
 let pp_current_char fmt = function
   | `Char c -> Format.fprintf fmt "%c" c
   | `Eof -> Format.fprintf fmt "EOF"
 
-let advance : int -> state -> (state * unit, state * [> error ]) result =
- fun n state ->
+let advance n state =
   let current_char offset =
     `Char
       ( match state.src with
@@ -35,8 +30,7 @@ let advance : int -> state -> (state * unit, state * [> error ]) result =
     R.ok (state, ())
   else msgf state "%d: EOF reached" state.offset
 
-let of_string : string -> ('a, [> error ]) t -> ('a, [> error ]) result =
- fun s t ->
+let of_string s t =
   let src = `String s in
   let len = String.length s in
   let state = { src; len; offset = -1; cc = `Eof } in
