@@ -26,6 +26,10 @@ let is_ctext = function
   | '\x21' .. '\x27' | '\x2A' .. '\x5B' | '\x5D' .. '\x7E' -> true
   | _ -> false
 
+let is_qtext = function
+  | '\x21' | '\x23' .. '\x5B' | '\x5D' .. '\x7E' -> true
+  | _ -> false
+
 let whitespace = skip_while is_whitespace
 
 let token =
@@ -39,8 +43,7 @@ let token =
   take_while token_char >>= fun chars -> String.make 1 ch ^ chars |> ok
 
 (* https://tools.ietf.org/html/rfc5322#section-3.2.1
-
-  quoted-pair     =   ('\' (VCHAR / WSP)) / obs-qp
+   quoted-pair     =   ('\' (VCHAR / WSP)) / obs-qp
 *)
 let quoted_pair =
   char '\\' *> satisfy (fun c -> is_whitespace c || is_vchar c) >>= fun c ->
@@ -66,8 +69,7 @@ let comment =
            <|> (loop_comment () >>| fun txt -> "(" ^ txt ^ ")")
            >>| ( ^ ) sp )
     >>| String.concat ""
-    >>= fun comment_text ->
-    fws >>= fun sp -> char ')' *>| (comment_text ^ sp)
+    >>= fun comment_text -> fws >>| (fun sp -> comment_text ^ sp) <* char ')'
   in
   loop_comment ()
 
@@ -78,11 +80,16 @@ let cfws =
   >>= (fun l -> fws >>| fun sp -> l @ [ sp ])
   <|> (fws >>| fun sp -> [ sp ])
 
-let qtext = ()
+let quoted_string =
+  let qcontent = satisfy is_qtext >>| String.make 1 <|> quoted_pair in
+  cfws *> char '"' *> many (fws >>= fun sp -> qcontent >>| ( ^ ) sp)
+  >>| String.concat ""
+  >>= fun q_string -> fws >>| (fun sp -> q_string ^ sp) <* char '"'
 
 let param =
   char ';' *> whitespace *> token >>= fun attribute ->
-  char '=' *> token >>= fun value -> ok (attribute, value)
+  Printf.printf "a: %s\n" attribute;
+  char '=' *> (token <|> quoted_string) >>| fun value -> (attribute, value)
 
 let restricted_name =
   let is_restricted_name_chars = function

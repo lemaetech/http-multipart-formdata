@@ -22,6 +22,9 @@ let ( <|> ) p q state = match p state with Ok _ as o -> o | Error _ -> q state
 let ( *> ) (p : (_, 'error) t) (q : ('a, 'error) t) state =
   R.bind (p state) (fun (state, _) -> q state)
 
+let ( <* ) (p : ('a, 'error) t) (q : (_, 'error) t) state =
+  R.bind (q state) (fun (state, _) -> p state)
+
 let ( *>| ) p a state = R.map (fun (state, _) -> (state, a)) (p state)
 
 let ( >>= ) t f state = t state >>= fun (state, a) -> f a state

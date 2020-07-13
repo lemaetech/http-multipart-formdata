@@ -59,6 +59,9 @@ val ( >>| ) : ('a, 'error) t -> ('a -> 'b) -> ('b, 'error) t
 val ( *> ) : (_, 'error) t -> ('a, 'error) t -> ('a, 'error) t
 (** [p *> b] is [p >>= fun _ -> b] *)
 
+val ( <* ) : ('a, 'error) t -> (_, 'error) t -> ('a, 'error) t
+(** [p <* q] discards result from [q] and returns [p] *)
+
 val ( *>| ) : (_, 'error) t -> 'a -> ('a, 'error) t
 (** [p *>| a] is [p >>| fun _ -> a] *)
 
