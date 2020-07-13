@@ -45,19 +45,15 @@ val ok : 'a -> ('a, [> error ]) t
 
 val fail : 'error -> ('a, 'error) t
 
-(** {2 Alternatives} *)
+(** {2 Combinators} *)
 
 val ( <|> ) : ('a, 'error) t -> ('a, 'error) t -> ('a, 'error) t
-
-(** {2 Monadic API} *)
 
 val ( >>= ) : ('a, 'error) t -> ('a -> ('b, 'error) t) -> ('b, 'error) t
 
 val ( >>| ) : ('a, 'error) t -> ('a -> 'b) -> ('b, 'error) t
 
 val ( *> ) : (_, 'error) t -> ('a, 'error) t -> ('a, 'error) t
-
-(** {2 Combinators} *)
 
 val many : ('a, [> error ]) t -> ('a list, [> error ]) t
 
