@@ -46,8 +46,8 @@ let token =
    quoted-pair     =   ('\' (VCHAR / WSP)) / obs-qp
 *)
 let quoted_pair =
-  char '\\' *> satisfy (fun c -> is_whitespace c || is_vchar c) >>= fun c ->
-  ok @@ String.make 1 '\\' ^ String.make 1 c
+  char '\\' *> satisfy (fun c -> is_whitespace c || is_vchar c) >>| fun c ->
+  String.make 1 '\\' ^ String.make 1 c
 
 (* https://tools.ietf.org/html/rfc5322#section-3.2.2 *)
 let fws =
@@ -87,8 +87,7 @@ let quoted_string =
   >>= fun q_string -> fws >>| (fun sp -> q_string ^ sp) <* char '"'
 
 let param =
-  char ';' *> whitespace *> token >>= fun attribute ->
-  Printf.printf "a: %s\n" attribute;
+  whitespace *> char ';' *> whitespace *> token >>= fun attribute ->
   char '=' *> (token <|> quoted_string) >>| fun value -> (attribute, value)
 
 let restricted_name =
