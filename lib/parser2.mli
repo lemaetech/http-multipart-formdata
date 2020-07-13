@@ -18,6 +18,9 @@ val peek_char : (char option, [> error ]) t
 
 val peek_char_fail : (char, [> error ]) t
 
+val any_char : (char, [> error ]) t
+(** [any_char] accepts any char and returns it. Fails if EOF reached. *)
+
 val peek_string : int -> (string option, [> error ]) t
 
 val string : string -> (string, [> error ]) t
@@ -54,8 +57,14 @@ val ( >>= ) : ('a, 'error) t -> ('a -> ('b, 'error) t) -> ('b, 'error) t
 val ( >>| ) : ('a, 'error) t -> ('a -> 'b) -> ('b, 'error) t
 
 val ( *> ) : (_, 'error) t -> ('a, 'error) t -> ('a, 'error) t
+(** [p *> b] is [p >>= fun _ -> b] *)
+
+val ( *>| ) : (_, 'error) t -> 'a -> ('a, 'error) t
+(** [p *>| a] is [p >>| fun _ -> a] *)
 
 val many : ('a, [> error ]) t -> ('a list, [> error ]) t
+(** [many p] runs p zero or more times and returns a list of results from the
+    runs of p.*)
 
 val count_skip_many : ('a, [> error ]) t -> (int, [> error ]) t
 (** [count_skip_many p] runs [p] zeor or more times *)

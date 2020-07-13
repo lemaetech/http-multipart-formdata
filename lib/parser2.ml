@@ -20,7 +20,9 @@ let pp_current_char fmt = function
 let ( <|> ) p q state = match p state with Ok _ as o -> o | Error _ -> q state
 
 let ( *> ) (p : (_, 'error) t) (q : ('a, 'error) t) state =
-  p state >>= fun (state, _) -> q state
+  R.bind (p state) (fun (state, _) -> q state)
+
+let ( *>| ) p a state = R.map (fun (state, _) -> (state, a)) (p state)
 
 let ( >>= ) t f state = t state >>= fun (state, a) -> f a state
 
@@ -83,6 +85,11 @@ let peek_char_fail state =
   match state.cc with
   | `Char c -> R.ok (state, c)
   | `Eof -> msgf state "%d: peek_char_fail returned EOF" state.offset
+
+let any_char state =
+  match state.cc with
+  | `Char c -> R.bind (advance 1 state) (fun (state, ()) -> R.ok (state, c))
+  | `Eof -> msgf state "%d: any_char returned EOF" state.offset
 
 let peek_string n state = R.ok (state, substring n state)
 

@@ -38,6 +38,10 @@ let token =
   satisfy token_char >>= fun ch ->
   take_while token_char >>= fun chars -> String.make 1 ch ^ chars |> ok
 
+(* https://tools.ietf.org/html/rfc5322#section-3.2.1
+
+  quoted-pair     =   ('\' (VCHAR / WSP)) / obs-qp
+*)
 let quoted_pair =
   char '\\' *> satisfy (fun c -> is_whitespace c || is_vchar c) >>= fun c ->
   ok @@ String.make 1 '\\' ^ String.make 1 c
@@ -50,6 +54,22 @@ let fws =
   >>= fun lws_count ->
   count_skip_while is_whitespace >>| fun ws_count2 ->
   if ws_count1 + lws_count + ws_count2 > 0 then " " else ""
+
+let comment =
+  let ctext = satisfy is_ctext >>| String.make 1 in
+  let rec loop_comment () =
+    char '('
+    *> many
+         ( fws >>= fun sp ->
+           ctext
+           <|> quoted_pair
+           <|> (loop_comment () >>| fun txt -> "(" ^ txt ^ ")")
+           >>| ( ^ ) sp )
+    >>| String.concat ""
+    >>= fun comment_text ->
+    fws >>= fun sp -> char ')' *>| (comment_text ^ sp)
+  in
+  loop_comment ()
 
 let qtext = ()
 
