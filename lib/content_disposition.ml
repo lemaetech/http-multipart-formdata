@@ -22,6 +22,10 @@ let is_vchar = function '\x21' .. '\x7E' -> true | _ -> false
 
 let is_whitespace = function '\x20' | '\x09' -> true | _ -> false
 
+let is_ctext = function
+  | '\x21' .. '\x27' | '\x2A' .. '\x5B' | '\x5D' .. '\x7E' -> true
+  | _ -> false
+
 let whitespace = skip_while is_whitespace
 
 let token =
@@ -38,11 +42,13 @@ let quoted_pair =
   char '\\' *> satisfy (fun c -> is_whitespace c || is_vchar c) >>= fun c ->
   ok @@ String.make 1 '\\' ^ String.make 1 c
 
-(* let fws = *)
-(*   let rec skip_ws count () = *)
-(*     if () *)
-(*   in *)
-(*   whitespace *> *)
+(* https://tools.ietf.org/html/rfc5322#section-3.2.2 *)
+let fws =
+  count_skip_while is_whitespace >>= fun ws_count ->
+  count_skip_while_string 3 (fun s ->
+      (* CRLF SP/HTAB*)
+      String.equal s "\x0D\x0A\x20" || String.equal s "\x0D\x0A\x09")
+  >>| fun lws_count -> if ws_count + lws_count > 0 then " " else ""
 
 let qtext = ()
 

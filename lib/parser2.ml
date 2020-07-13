@@ -17,6 +17,16 @@ let pp_current_char fmt = function
   | `Char c -> Format.fprintf fmt "%c" c
   | `Eof -> Format.fprintf fmt "EOF"
 
+let ( <|> ) p q state = match p state with Ok _ as o -> o | Error _ -> q state
+
+let ( *> ) (p : (_, 'error) t) (q : ('a, 'error) t) state =
+  p state >>= fun (state, _) -> q state
+
+let ( >>= ) t f state = t state >>= fun (state, a) -> f a state
+
+let ( >>| ) (t : ('a, 'error) t) (f : 'a -> 'b) state =
+  t state >>| fun (state, a) -> (state, f a)
+
 let advance n state =
   let current_char offset =
     `Char
@@ -43,8 +53,8 @@ let substring len state =
     ( match state.src with
     | `String src -> String.sub src ~pos:state.offset ~len
     | `Bigstring src -> Bigstringaf.substring src ~off:state.offset ~len )
-    |> R.ok
-  else R.error `Eof
+    |> Option.some
+  else None
 
 let ok v state = R.ok (state, v)
 
@@ -74,14 +84,15 @@ let peek_char_fail state =
   | `Char c -> R.ok (state, c)
   | `Eof -> msgf state "%d: peek_char_fail returned EOF" state.offset
 
+let peek_string n state = R.ok (state, substring n state)
+
 let string s state =
   let len = String.length s in
   match substring len state with
-  | Ok s2 ->
+  | Some s2 ->
       if s = s2 then R.map (fun (state, ()) -> (state, s)) (advance len state)
       else msgf state "%d: string \"%s\" not found" state.offset s
-  | Error `Eof ->
-      msgf state "%d: got EOF while parsing string \"%s\"" state.offset s
+  | None -> msgf state "%d: got EOF while parsing string \"%s\"" state.offset s
 
 let rec skip_while f state =
   match state.cc with
@@ -91,6 +102,22 @@ let rec skip_while f state =
       else ok () state
   | `Eof -> ok () state
 
+let count_skip_while f =
+  let rec loop count =
+    peek_char >>= function
+    | Some c -> if f c then advance 1 *> loop (count + 1) else ok count
+    | None -> ok count
+  in
+  loop 0
+
+let count_skip_while_string n f =
+  let rec loop count =
+    peek_string n >>= function
+    | Some s -> if f s then advance n *> loop (count + 1) else ok count
+    | None -> ok count
+  in
+  loop 0
+
 let take_while f state =
   let rec loop state buf =
     match state.cc with
@@ -99,15 +126,24 @@ let take_while f state =
         R.bind (advance 1 state) (fun (state, ()) -> loop state buf)
     | `Char _ | `Eof -> R.ok (state, Buffer.contents buf)
   in
-
   loop state (Buffer.create 10)
 
 let many t state =
-  let rec loop state l =
-    match t state with Ok (state, a) -> loop state (a :: l) | Error _ -> l
+  let rec loop l state =
+    match t state with
+    | Ok (state, a) -> loop (a :: l) state
+    | Error _ -> (state, l)
   in
+  let state, v = loop [] state in
+  ok v state
 
-  let v = loop state [] in
+let count_skip_many t state =
+  let rec loop count state =
+    match t state with
+    | Ok (state, _) -> loop (count + 1) state
+    | Error _ -> (state, count)
+  in
+  let state, v = loop 0 state in
   ok v state
 
 let take_while_n n f state =
@@ -121,15 +157,4 @@ let take_while_n n f state =
       | `Char _ | `Eof -> R.ok (state, Buffer.contents buf)
     else R.ok (state, Buffer.contents buf)
   in
-
   loop state 0 (Buffer.create n)
-
-let ( <|> ) p q state = match p state with Ok _ as o -> o | Error _ -> q state
-
-let ( *> ) (p : (_, 'error) t) (q : ('a, 'error) t) state =
-  p state >>= fun (state, _) -> q state
-
-let ( >>= ) t f state = t state >>= fun (state, a) -> f a state
-
-let ( >>| ) (t : ('a, 'error) t) (f : 'a -> 'b) state =
-  t state >>| fun (state, a) -> (state, f a)
