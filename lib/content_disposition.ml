@@ -71,6 +71,13 @@ let comment =
   in
   loop_comment ()
 
+let cfws =
+  many
+    ( fws >>= fun sp ->
+      comment >>| fun comment_text -> sp ^ comment_text )
+  >>= (fun l -> fws >>| fun sp -> l @ [ sp ])
+  <|> (fws >>| fun sp -> [ sp ])
+
 let qtext = ()
 
 let param =
