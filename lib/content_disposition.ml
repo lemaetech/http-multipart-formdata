@@ -44,11 +44,12 @@ let quoted_pair =
 
 (* https://tools.ietf.org/html/rfc5322#section-3.2.2 *)
 let fws =
-  count_skip_while is_whitespace >>= fun ws_count ->
+  count_skip_while is_whitespace >>= fun ws_count1 ->
   count_skip_while_string 3 (fun s ->
-      (* CRLF SP/HTAB*)
       String.equal s "\x0D\x0A\x20" || String.equal s "\x0D\x0A\x09")
-  >>| fun lws_count -> if ws_count + lws_count > 0 then " " else ""
+  >>= fun lws_count ->
+  count_skip_while is_whitespace >>| fun ws_count2 ->
+  if ws_count1 + lws_count + ws_count2 > 0 then " " else ""
 
 let qtext = ()
 
