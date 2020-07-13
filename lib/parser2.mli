@@ -32,7 +32,7 @@ val count_skip_while : (char -> bool) -> (int, [> error ]) t
 
 val count_skip_while_string : int -> (string -> bool) -> (int, [> error ]) t
 (** [count_skip_while_string n f] loops through input accepting/advancing [s]
-    only if [f s] is true. [String.length s = n] Returns the count of times the
+    only if [f s] is true. [String.length s = n]. Returns the count of times the
     [f s] was true. *)
 
 val take_while : (char -> bool) -> (string, [> error ]) t
