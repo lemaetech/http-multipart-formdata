@@ -1,3 +1,4 @@
+open Std
 open Parser2
 
 let is_alpha_digit = function
@@ -68,7 +69,7 @@ let comment =
            <|> quoted_pair
            <|> (loop_comment () >>| fun txt -> "(" ^ txt ^ ")")
            >>| ( ^ ) sp )
-    >>| String.concat ""
+    >>| String.concat ~sep:""
     >>= fun comment_text -> fws >>| (fun sp -> comment_text ^ sp) <* char ')'
   in
   loop_comment ()
@@ -83,7 +84,7 @@ let cfws =
 let quoted_string =
   let qcontent = satisfy is_qtext >>| String.make 1 <|> quoted_pair in
   cfws *> char '"' *> many (fws >>= fun sp -> qcontent >>| ( ^ ) sp)
-  >>| String.concat ""
+  >>| String.concat ~sep:""
   >>= fun q_string -> fws >>| (fun sp -> q_string ^ sp) <* char '"'
 
 let param =

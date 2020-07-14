@@ -33,17 +33,22 @@ let ( >>| ) (t : ('a, 'error) t) (f : 'a -> 'b) state =
   t state >>| fun (state, a) -> (state, f a)
 
 let advance n state =
+  Printf.printf "offset: %d\n" state.offset;
+  Printf.printf "n: %d\n" n;
   let current_char offset =
     `Char
       ( match state.src with
       | `String src -> src.[offset]
       | `Bigstring src -> Bigstringaf.unsafe_get src offset )
   in
-  if state.offset + n < state.len then
+  if state.offset + n < state.len then (
     let offset = state.offset + n in
+    Printf.printf "offset: %d\n\n" offset;
     let state = { state with offset; cc = current_char offset } in
+    R.ok (state, ()) )
+  else
+    let state = { state with offset = state.len; cc = `Eof } in
     R.ok (state, ())
-  else msgf state "%d: EOF reached" state.offset
 
 let of_string s t =
   let src = `String s in
@@ -67,7 +72,7 @@ let fail e state = R.error (state, e)
 
 let char c state =
   if state.cc = `Char c then
-    R.bind (advance 1 state) (fun (state, ()) -> R.ok (state, c))
+    R.map (fun (state, ()) -> (state, c)) (advance 1 state)
   else
     msgf state "%d: char '%c' expected instead of %a" state.offset c
       pp_current_char state.cc
@@ -105,20 +110,17 @@ let string s state =
   | None -> msgf state "%d: got EOF while parsing string \"%s\"" state.offset s
 
 let rec skip_while f state =
-  match state.cc with
-  | `Char c ->
-      if f c then
-        R.bind (advance 1 state) (fun (state, ()) -> skip_while f state)
-      else ok () state
-  | `Eof -> ok () state
+  match satisfy f state with
+  | Ok (state, _) -> skip_while f state
+  | Error (state, _) -> ok () state
 
-let count_skip_while f =
-  let rec loop count =
-    peek_char >>= function
-    | Some c -> if f c then advance 1 *> loop (count + 1) else ok count
-    | None -> ok count
+let count_skip_while f state =
+  let rec loop state count =
+    match satisfy f state with
+    | Ok (state, _) -> loop state (count + 1)
+    | Error (state, _) -> ok count state
   in
-  loop 0
+  loop state 0
 
 let count_skip_while_string n f =
   let rec loop count =
