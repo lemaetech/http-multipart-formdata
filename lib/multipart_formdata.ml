@@ -147,7 +147,7 @@ let restricted_name =
   Buffer.add_string buf restricted_name;
   ok @@ Buffer.contents buf
 
-let parse_content_disposition s =
+let content_disposition =
   crlf
   *> string "Content-Disposition"
   *> char ':'
@@ -155,19 +155,20 @@ let parse_content_disposition s =
   *> string "form-data"
   *> many param
   >>| (List.to_seq >> Params.of_seq >> content_disposition)
-  |> of_string s
 
-let parse_content_type ?(parse_header_name = false) s =
-  let p =
-    ( if parse_header_name then
-      crlf *> string "Content-Type" *> char ':' *> ok ()
-    else ok () )
-    *> whitespace
-    *> restricted_name
-    >>= fun ty ->
-    char '/' *> restricted_name >>= fun subtype ->
-    whitespace *> many param >>| fun params ->
-    let parameters = params |> List.to_seq |> Params.of_seq in
-    { Content_type.ty; subtype; parameters } |> content_type
-  in
-  of_string s p
+let content_type parse_header_name =
+  ( if parse_header_name then crlf *> string "Content-Type" *> char ':' *> ok ()
+  else ok () )
+  *> whitespace
+  *> restricted_name
+  >>= fun ty ->
+  char '/' *> restricted_name >>= fun subtype ->
+  whitespace *> many param >>| fun params ->
+  let parameters = params |> List.to_seq |> Params.of_seq in
+  { Content_type.ty; subtype; parameters } |> content_type
+
+let parse s =
+  content_type false
+  <|> content_disposition
+  <|> fail @@ `Msg "Content-Type or Content-Disposition header required."
+  |> of_string s
