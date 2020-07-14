@@ -70,7 +70,8 @@ let comment =
            <|> (loop_comment () >>| fun txt -> "(" ^ txt ^ ")")
            >>| ( ^ ) sp )
     >>| String.concat ~sep:""
-    >>= fun comment_text -> fws >>| (fun sp -> comment_text ^ sp) <* char ')'
+    >>= fun comment_text ->
+    fws >>= fun sp -> ok @@ comment_text ^ sp <* char ')'
   in
   loop_comment ()
 

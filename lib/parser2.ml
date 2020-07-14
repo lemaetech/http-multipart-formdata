@@ -33,19 +33,16 @@ let ( >>| ) (t : ('a, 'error) t) (f : 'a -> 'b) state =
   t state >>| fun (state, a) -> (state, f a)
 
 let advance n state =
-  Printf.printf "offset: %d\n" state.offset;
-  Printf.printf "n: %d\n" n;
   let current_char offset =
     `Char
       ( match state.src with
       | `String src -> src.[offset]
       | `Bigstring src -> Bigstringaf.unsafe_get src offset )
   in
-  if state.offset + n < state.len then (
+  if state.offset + n < state.len then
     let offset = state.offset + n in
-    Printf.printf "offset: %d\n\n" offset;
     let state = { state with offset; cc = current_char offset } in
-    R.ok (state, ()) )
+    R.ok (state, ())
   else
     let state = { state with offset = state.len; cc = `Eof } in
     R.ok (state, ())
@@ -74,7 +71,7 @@ let char c state =
   if state.cc = `Char c then
     R.map (fun (state, ()) -> (state, c)) (advance 1 state)
   else
-    msgf state "%d: char '%c' expected instead of %a" state.offset c
+    msgf state "%d: char '%c' expected instead of '%a'" state.offset c
       pp_current_char state.cc
 
 let satisfy f state =
@@ -147,7 +144,7 @@ let many t state =
     | Error _ -> (state, l)
   in
   let state, v = loop [] state in
-  ok v state
+  ok (List.rev v) state
 
 let count_skip_many t state =
   let rec loop count state =
