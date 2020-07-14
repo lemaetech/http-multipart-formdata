@@ -22,6 +22,6 @@ end
 
 type header
 
-val sexp_of_header : header -> Sexplib.Sexp.t
-
 val parse : string -> (header, [> Parser.error ]) result
+
+val sexp_of_header : header -> Sexplib.Sexp.t
