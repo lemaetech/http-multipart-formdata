@@ -24,4 +24,6 @@ type header
 
 val sexp_of_header : header -> Sexp.t
 
-val parse : string -> (header, [> Parser2.error ]) result
+open Parser
+
+val parse : string -> (header, [> Parser.error ]) result
