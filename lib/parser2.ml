@@ -129,11 +129,11 @@ let count_skip_while_string n f =
 
 let take_while f state =
   let rec loop buf state =
-    match state.cc with
-    | `Char c when f c ->
+    match satisfy f state with
+    | Ok (state, c) ->
         Buffer.add_char buf c;
-        R.bind (advance 1 state) (fun (state, ()) -> loop buf state)
-    | `Char _ | `Eof -> R.ok (state, Buffer.contents buf)
+        loop buf state
+    | Error (state, _) -> R.ok (state, Buffer.contents buf)
   in
   loop (Buffer.create 10) state
 
