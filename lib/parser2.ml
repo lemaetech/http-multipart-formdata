@@ -115,12 +115,12 @@ let rec skip_while f state =
   | Error (state, _) -> ok () state
 
 let count_skip_while f state =
-  let rec loop state count =
+  let rec loop count state =
     match satisfy f state with
-    | Ok (state, _) -> loop state (count + 1)
+    | Ok (state, _) -> loop (count + 1) state
     | Error (state, _) -> ok count state
   in
-  loop state 0
+  loop 0 state
 
 let count_skip_while_string n f =
   let rec loop count =
@@ -131,14 +131,14 @@ let count_skip_while_string n f =
   loop 0
 
 let take_while f state =
-  let rec loop state buf =
+  let rec loop buf state =
     match state.cc with
     | `Char c when f c ->
         Buffer.add_char buf c;
-        R.bind (advance 1 state) (fun (state, ()) -> loop state buf)
+        R.bind (advance 1 state) (fun (state, ()) -> loop buf state)
     | `Char _ | `Eof -> R.ok (state, Buffer.contents buf)
   in
-  loop state (Buffer.create 10)
+  loop (Buffer.create 10) state
 
 let many t state =
   let rec loop l state =
@@ -159,14 +159,14 @@ let count_skip_many t state =
   ok v state
 
 let take_while_n n f state =
-  let rec loop state count buf =
+  let rec loop count buf state =
     if count < n then
       match state.cc with
       | `Char c when f c ->
           Buffer.add_char buf c;
           R.bind (advance 1 state) (fun (state, ()) ->
-              loop state (count + 1) buf)
+              loop (count + 1) buf state)
       | `Char _ | `Eof -> R.ok (state, Buffer.contents buf)
     else R.ok (state, Buffer.contents buf)
   in
-  loop state 0 (Buffer.create n)
+  loop 0 (Buffer.create n) state
