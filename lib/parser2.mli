@@ -1,6 +1,12 @@
+open Sexplib
+
 type error = [ `Msg of string ]
 
 type (+'a, +'error) t
+
+val sexp_of_error : error -> Sexp.t
+
+val sexp_of_t : ('a -> Sexp.t) -> ('error -> Sexp.t) -> ('a, 'error) t -> Sexp.t
 
 val advance : int -> (unit, [> error ]) t
 

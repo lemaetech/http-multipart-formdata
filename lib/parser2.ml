@@ -1,7 +1,8 @@
 open Std
 open R.O
+open Sexplib.Std
 
-type error = [ `Msg of string ]
+type error = [ `Msg of string ] [@@deriving sexp_of]
 
 type state = { src : src; len : int; offset : int; cc : current_char }
 
@@ -10,6 +11,7 @@ and src = [ `String of string | `Bigstring of Bigstringaf.t ]
 and current_char = [ `Char of char | `Eof ]
 
 type ('a, 'error) t = state -> (state * 'a, state * 'error) result
+[@@deriving sexp_of]
 
 let msgf state fmt = Format.kasprintf (fun s -> R.error (state, `Msg s)) fmt
 
