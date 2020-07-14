@@ -79,8 +79,9 @@ let cfws =
   many
     ( fws >>= fun sp ->
       comment >>| fun comment_text -> sp ^ comment_text )
-  >>= (fun l -> fws >>| fun sp -> l @ [ sp ])
-  <|> (fws >>| fun sp -> [ sp ])
+  >>= (fun l ->
+        fws >>| fun sp -> if String.length sp > 0 then l @ [ sp ] else l)
+  <|> (fws >>| fun sp -> if String.length sp > 0 then [ sp ] else [])
 
 let quoted_string =
   let qcontent = satisfy is_qtext >>| String.make 1 <|> quoted_pair in
