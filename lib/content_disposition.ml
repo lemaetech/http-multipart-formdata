@@ -1,5 +1,36 @@
-open Std
 open Parser2
+open Std
+open Sexplib.Std
+
+module Params = struct
+  include Map.Make (String)
+
+  let sexp_of_t _f t =
+    to_seq t |> Array.of_seq |> [%sexp_of: (string * string) array]
+end
+
+module Content_type = struct
+  type t = { ty : string; subtype : string; parameters : string Params.t }
+  [@@deriving sexp_of]
+
+  let pp fmt t = sexp_of_t t |> Sexplib.Sexp.pp_hum_indent 2 fmt
+
+  let ty t = t.ty
+
+  let subtype t = t.subtype
+
+  let parameters t = Params.to_seq t.parameters
+
+  let find_parameter ~name t = Params.find_opt name t.parameters
+end
+
+type header =
+  | Content_type of Content_type.t
+  | Content_disposition of string Params.t
+
+let content_type ct = Content_type ct
+
+let content_disposition cd = Content_disposition cd
 
 let is_alpha_digit = function
   | '0' .. '9' | 'a' .. 'z' | 'A' .. 'Z' -> true
@@ -106,11 +137,27 @@ let restricted_name =
   Buffer.add_string buf restricted_name;
   ok @@ Buffer.contents buf
 
-let parse s =
+let parse_content_disposition s =
   crlf
   *> string "Content-Disposition"
   *> char ':'
   *> whitespace
   *> string "form-data"
   *> many param
+  >>| (List.to_seq >> Params.of_seq >> content_disposition)
   |> of_string s
+
+let parse_content_type ?(parse_header_name = false) s =
+  let p =
+    ( if parse_header_name then
+      crlf *> string "Content-Type" *> char ':' *> ok ()
+    else ok () )
+    *> whitespace
+    *> restricted_name
+    >>= fun ty ->
+    char '/' *> restricted_name >>= fun subtype ->
+    whitespace *> many param >>| fun params ->
+    let parameters = params |> List.to_seq |> Params.of_seq in
+    { Content_type.ty; subtype; parameters } |> content_type
+  in
+  of_string s p
