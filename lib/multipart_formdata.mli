@@ -1,4 +1,4 @@
-open Sexplib
+(* open Sexplib *)
 
 type file
 
@@ -7,7 +7,7 @@ type t = [ `File of file list | `String of string list ]
 module Content_type : sig
   type t
 
-  val sexp_of_t : t -> Sexp.t
+  val sexp_of_t : t -> Sexplib.Sexp.t
 
   val pp : Format.formatter -> t -> unit
 
@@ -22,8 +22,6 @@ end
 
 type header
 
-val sexp_of_header : header -> Sexp.t
-
-open Parser
+val sexp_of_header : header -> Sexplib.Sexp.t
 
 val parse : string -> (header, [> Parser.error ]) result
