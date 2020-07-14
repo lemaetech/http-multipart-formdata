@@ -6,6 +6,8 @@ val advance : int -> (unit, [> error ]) t
 
 val of_string : string -> ('a, ([> error ] as 'b)) t -> ('a, 'b) result
 
+val eof : (bool, [> error ]) t
+
 (** {2 Basic Parsers} *)
 
 val char : char -> (char, [> error ]) t

@@ -55,6 +55,10 @@ let of_string s t =
   | Ok (_, a) -> Ok a
   | Error (_, e) -> Error e
 
+let eof state =
+  let eof = match state.cc with `Char _ -> false | `Eof -> true in
+  R.ok (state, eof)
+
 let substring len state =
   if state.offset + len < state.len then
     ( match state.src with
