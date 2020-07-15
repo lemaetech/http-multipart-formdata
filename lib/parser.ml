@@ -82,10 +82,9 @@ let char c state =
 
 let char_if f state =
   match state.cc with
-  | `Char c ->
-      if f c then R.map (fun (state, ()) -> (state, Some c)) (advance 1 state)
-      else R.ok (state, None)
-  | `Eof -> R.ok (state, None)
+  | `Char c when f c ->
+      R.map (fun (state, ()) -> (state, Some c)) (advance 1 state)
+  | `Eof | `Char _ -> R.ok (state, None)
 
 let satisfy f state =
   match state.cc with
