@@ -22,6 +22,6 @@ type t = [ `File of file list | `String of string list ]
 
 (* type header *)
 
-val parse : header:string -> body:string -> (unit, [> Parser.error ]) result
+val parse : header:string -> body:Parser.src -> (unit, [> Parser.error ]) result
 
 (* val sexp_of_header : header -> Sexplib.Sexp.t *)

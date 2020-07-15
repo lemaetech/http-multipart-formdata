@@ -2,6 +2,8 @@ open Sexplib
 
 type error = [ `Msg of string ]
 
+type src = [ `String of string | `Bigstring of Bigstringaf.t ]
+
 type (+'a, +'error) t
 
 val sexp_of_error : error -> Sexp.t
@@ -10,7 +12,7 @@ val sexp_of_t : ('a -> Sexp.t) -> ('error -> Sexp.t) -> ('a, 'error) t -> Sexp.t
 
 val advance : int -> (unit, [> error ]) t
 
-val of_string : string -> ('a, ([> error ] as 'b)) t -> ('a, 'b) result
+val parse : src -> ('a, ([> error ] as 'b)) t -> ('a, 'b) result
 
 val eof : (bool, [> error ]) t
 

@@ -209,6 +209,6 @@ let multipart_body _boundary =
   <|> fail @@ `Msg "Content-Type or Content-Disposition header required."
 
 let parse ~header ~body =
-  let _header_params = of_string header multipart_formdata_header in
-  let _body_parts = of_string body (multipart_body "") in
+  let _header_params = parse (`String header) multipart_formdata_header in
+  let _body_parts = parse body (multipart_body "") in
   R.ok ()

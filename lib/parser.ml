@@ -49,9 +49,12 @@ let advance n state =
     let state = { state with offset = state.len; cc = `Eof } in
     R.ok (state, ())
 
-let of_string s t =
-  let src = `String s in
-  let len = String.length s in
+let parse src t =
+  let len =
+    match src with
+    | `String s -> String.length s
+    | `Bigstring s -> Bigstringaf.length s
+  in
   let state = { src; len; offset = -1; cc = `Eof } in
   R.bind (advance 1 state) (fun (state, ()) -> t state) |> function
   | Ok (_, a) -> Ok a
