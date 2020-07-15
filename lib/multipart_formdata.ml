@@ -200,11 +200,16 @@ let multipart_formdata_header =
     *> if attribute = "boundary" then boundary else token <|> quoted_string )
     >>| fun value -> (attribute, value)
   in
-  whitespace *> string "multipart/form-data" *> whitespace *> many param
+  whitespace
+  *> (string "multipart/form-data" >>|? fun _ -> `Not_multipart_formdata_header)
+  *> whitespace
+  *> many param
   >>= fun params ->
   if List.exists (fun (attribute, _) -> attribute = "boundary") params then
     params |> List.to_seq |> Params.of_seq |> ok
   else fail `Boundary_value_not_found
+
+let _a = (ok "" >>|? fun _ -> `Err) *> ok ()
 
 let multipart_body _boundary =
   content_type false

@@ -70,6 +70,10 @@ val ( >>= ) : ('a, 'error) t -> ('a -> ('b, 'error) t) -> ('b, 'error) t
 
 val ( >>| ) : ('a, 'error) t -> ('a -> 'b) -> ('b, 'error) t
 
+val ( >>|? ) : ('a, 'error) t -> ('error -> 'c) -> ('a, 'c) t
+(** [p >>|? f] executes [p] and maps [error] via [f error] if [p] results in
+    [error]. *)
+
 val ( *> ) : (_, 'error) t -> ('a, 'error) t -> ('a, 'error) t
 (** [p *> b] is [p >>= fun _ -> b] *)
 
