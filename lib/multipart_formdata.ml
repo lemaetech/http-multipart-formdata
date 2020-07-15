@@ -173,7 +173,7 @@ let content_type parse_header_name =
   let parameters = params |> List.to_seq |> Params.of_seq in
   { Content_type.ty; subtype; parameters } |> content_type
 
-let boundary =
+let boundary_header, boundary =
   let is_bcharnospace = function
     | '\'' | '(' | ')' | '+' | '_' | ',' | '-' | '.' | '/' | ':' | '=' | '?' ->
         true
@@ -185,19 +185,21 @@ let boundary =
     | c when is_bcharnospace c -> true
     | _ -> false
   in
-  let boundary_quoted =
-    char '"' *> take_while_n 69 is_bchars >>= fun bchars ->
-    satisfy is_bcharnospace
-    >>| (fun last_char -> bchars ^ String.make 1 last_char)
-    <* char '"'
+  let boundary =
+    take_while_n 69 is_bchars >>= fun bchars ->
+    satisfy is_bcharnospace >>| fun last_char ->
+    bchars ^ String.make 1 last_char
   in
-  boundary_quoted <|> token
+  let boundary_quoted = char '"' *> boundary <* char '"' in
+  (boundary_quoted <|> token, boundary)
 
 let multipart_formdata_header =
   let param =
     whitespace *> char ';' *> whitespace *> token >>= fun attribute ->
     ( char '='
-    *> if attribute = "boundary" then boundary else token <|> quoted_string )
+    *>
+    if attribute = "boundary" then boundary_header else token <|> quoted_string
+    )
     >>| fun value -> (attribute, value)
   in
   whitespace
@@ -212,9 +214,14 @@ let multipart_formdata_header =
 let _a = (ok "" >>|? fun _ -> `Err) *> ok ()
 
 let multipart_body _boundary =
-  content_type false
-  <|> content_disposition
-  <|> fail @@ `Msg "Content-Type or Content-Disposition header required."
+  crlf *> string "--" *> boundary >>= fun _boundary_value ->
+  many
+    ( content_type true
+    <|> content_disposition
+    <|> fail
+        @@ `Invalid_multipart_body_header
+             "Only Content-Type and Content-Disposition header supported." )
+  >>= fun _part_headers -> crlf
 
 let parse ~header ~body =
   let _header_params = parse (`String header) multipart_formdata_header in
