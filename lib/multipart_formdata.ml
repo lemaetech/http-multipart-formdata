@@ -1,7 +1,6 @@
 open Parser
 open Std
-
-(* open Sexplib.Std *)
+open Sexplib.Std
 
 type t = [ `File of file list | `String of string list ]
 
@@ -15,8 +14,12 @@ and file = {
 module Params = struct
   include Map.Make (String)
 
-  (* let sexp_of_t _f t = *)
-  (*   to_seq t |> Array.of_seq |> [%sexp_of: (string * string) array] *)
+  let sexp_of_t t =
+    to_seq t |> Array.of_seq |> [%sexp_of: (string * string) array]
+
+  let pp fmt t =
+    sexp_of_t t |> Sexplib.Sexp.pp_hum_indent 2 fmt
+    [@@ocaml.toplevel_printer] [@@warning "-32"]
 end
 
 module Content_type = struct
