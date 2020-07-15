@@ -75,17 +75,17 @@ let is_qtext = function
   | '\x21' | '\x23' .. '\x5B' | '\x5D' .. '\x7E' -> true
   | _ -> false
 
+let is_token_char c =
+  is_ascii_chars c
+  && (not (is_space c))
+  && (not (is_control c))
+  && not (is_tspecials c)
+
 let whitespace = skip_while is_whitespace
 
 let token =
-  let token_char c =
-    is_ascii_chars c
-    && (not (is_space c))
-    && (not (is_control c))
-    && not (is_tspecials c)
-  in
-  satisfy token_char >>= fun ch ->
-  take_while token_char >>= fun chars -> String.make 1 ch ^ chars |> ok
+  satisfy is_token_char >>= fun ch ->
+  take_while is_token_char >>= fun chars -> String.make 1 ch ^ chars |> ok
 
 (* https://tools.ietf.org/html/rfc5322#section-3.2.1
    quoted-pair     =   ('\' (VCHAR / WSP)) / obs-qp
