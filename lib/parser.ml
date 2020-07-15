@@ -80,12 +80,19 @@ let char c state =
     msgf state "%d: char '%c' expected instead of '%a'" state.offset c
       pp_current_char state.cc
 
+let char_if f state =
+  match state.cc with
+  | `Char c ->
+      if f c then R.map (fun (state, ()) -> (state, Some c)) (advance 1 state)
+      else ok None state
+  | `Eof -> ok None state
+
 let satisfy f state =
   match state.cc with
   | `Char c when f c ->
       R.bind (advance 1 state) (fun (state, ()) -> R.ok (state, c))
   | `Char _ | `Eof ->
-      msgf state "%d: char_if returned 'false' for char '%a'" state.offset
+      msgf state "%d: satisfy is 'false' for char '%a'" state.offset
         pp_current_char state.cc
 
 let peek_char state =

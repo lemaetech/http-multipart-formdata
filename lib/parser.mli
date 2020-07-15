@@ -18,6 +18,10 @@ val eof : (bool, [> error ]) t
 
 val char : char -> (char, [> error ]) t
 
+val char_if : (char -> bool) -> (char option, [> error ]) t
+(** [char_if f] accepts and returns a [Some c] if [f c] is true. Otherwise it
+    returns [None]. Always succeeds. *)
+
 val satisfy : (char -> bool) -> (char, [> error ]) t
 
 val peek_char : (char option, [> error ]) t
@@ -54,7 +58,7 @@ val take_while_n : int -> (char -> bool) -> (string, [> error ]) t
 
 val ok : 'a -> ('a, [> error ]) t
 
-val fail : 'error -> ('a, 'error) t
+val fail : 'error -> (_, 'error) t
 
 (** {2 Combinators} *)
 

@@ -1,6 +1,7 @@
 open Parser
 open Std
-open Sexplib.Std
+
+(* open Sexplib.Std *)
 
 type t = [ `File of file list | `String of string list ]
 
@@ -14,29 +15,31 @@ and file = {
 module Params = struct
   include Map.Make (String)
 
-  let sexp_of_t _f t =
-    to_seq t |> Array.of_seq |> [%sexp_of: (string * string) array]
+  (* let sexp_of_t _f t = *)
+  (*   to_seq t |> Array.of_seq |> [%sexp_of: (string * string) array] *)
 end
 
 module Content_type = struct
   type t = { ty : string; subtype : string; parameters : string Params.t }
-  [@@deriving sexp_of]
 
-  let pp fmt t = sexp_of_t t |> Sexplib.Sexp.pp_hum_indent 2 fmt
+  (* [@@deriving sexp_of] *)
 
-  let ty t = t.ty
+  (* let pp fmt t = sexp_of_t t |> Sexplib.Sexp.pp_hum_indent 2 fmt *)
 
-  let subtype t = t.subtype
+  (* let ty t = t.ty *)
 
-  let parameters t = Params.to_seq t.parameters
+  (* let subtype t = t.subtype *)
 
-  let find_parameter ~name t = Params.find_opt name t.parameters
+  (* let parameters t = Params.to_seq t.parameters *)
+
+  (* let find_parameter ~name t = Params.find_opt name t.parameters *)
 end
 
 type header =
   | Content_type of Content_type.t
   | Content_disposition of string Params.t
-[@@deriving sexp_of]
+
+(* [@@deriving sexp_of] *)
 
 let content_type ct = Content_type ct
 
@@ -167,8 +170,45 @@ let content_type parse_header_name =
   let parameters = params |> List.to_seq |> Params.of_seq in
   { Content_type.ty; subtype; parameters } |> content_type
 
-let parse s =
+let boundary =
+  let is_bcharnospace = function
+    | '\'' | '(' | ')' | '+' | '_' | ',' | '-' | '.' | '/' | ':' | '=' | '?' ->
+        true
+    | c when is_alpha_digit c -> true
+    | _ -> false
+  in
+  let is_bchars = function
+    | '\x20' -> true
+    | c when is_bcharnospace c -> true
+    | _ -> false
+  in
+  let boundary_quoted =
+    char '"' *> take_while_n 69 is_bchars >>= fun bchars ->
+    satisfy is_bcharnospace
+    >>| (fun last_char -> bchars ^ String.make 1 last_char)
+    <* char '"'
+  in
+  boundary_quoted <|> token
+
+let multipart_formdata_header =
+  let param =
+    whitespace *> char ';' *> whitespace *> token >>= fun attribute ->
+    ( char '='
+    *> if attribute = "boundary" then boundary else token <|> quoted_string )
+    >>| fun value -> (attribute, value)
+  in
+  whitespace *> string "multipart/form-data" *> whitespace *> many param
+  >>= fun params ->
+  if List.exists (fun (attribute, _) -> attribute = "boundary") params then
+    params |> List.to_seq |> Params.of_seq |> ok
+  else fail `Boundary_value_not_found
+
+let multipart_body _boundary =
   content_type false
   <|> content_disposition
   <|> fail @@ `Msg "Content-Type or Content-Disposition header required."
-  |> of_string s
+
+let parse ~header ~body =
+  let _header_params = of_string header multipart_formdata_header in
+  let _body_parts = of_string body (multipart_body "") in
+  R.ok ()
