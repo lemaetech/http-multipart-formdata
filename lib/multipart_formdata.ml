@@ -211,8 +211,6 @@ let multipart_formdata_header =
     params |> List.to_seq |> Params.of_seq |> ok
   else fail `Boundary_value_not_found
 
-let _a = (ok "" >>|? fun _ -> `Err) *> ok ()
-
 let multipart_body _boundary =
   crlf *> string "--" *> boundary >>= fun _boundary_value ->
   many
