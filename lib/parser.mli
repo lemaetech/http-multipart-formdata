@@ -75,6 +75,8 @@ val ( >>|? ) : ('a, 'error) t -> ('error -> 'c) -> ('a, 'c) t
     [error]. *)
 
 val ( >>*? ) : ('a, 'error) t -> 'f -> ('a, 'f) t
+(** [p >>*? e] executes [p] and returns error [e] discarding [error] if [p]
+    fails. *)
 
 val ( *> ) : (_, 'error) t -> ('a, 'error) t -> ('a, 'error) t
 (** [p *> b] is [p >>= fun _ -> b] *)
