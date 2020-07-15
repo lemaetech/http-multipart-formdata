@@ -201,7 +201,7 @@ let multipart_formdata_header =
     >>| fun value -> (attribute, value)
   in
   whitespace
-  *> (string "multipart/form-data" >>|? fun _ -> `Not_multipart_formdata_header)
+  *> (string "multipart/form-data" >>*? `Not_multipart_formdata_header)
   *> whitespace
   *> many param
   >>= fun params ->

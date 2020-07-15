@@ -36,6 +36,8 @@ let ( >>| ) (t : ('a, 'error) t) (f : 'a -> 'b) state =
 
 let ( >>|? ) t f state = R.map_error (fun (state, e) -> (state, f e)) (t state)
 
+let ( >>*? ) t e state = R.map_error (fun (state, _) -> (state, e)) (t state)
+
 let advance n state =
   let current_char offset =
     `Char
