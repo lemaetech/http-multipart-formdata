@@ -141,9 +141,11 @@ let quoted_string =
   >>| String.concat ~sep:""
   >>= fun q_string -> fws >>| (fun sp -> q_string ^ sp) <* char '"'
 
+let param_value = token <|> quoted_string
+
 let param =
   whitespace *> char ';' *> whitespace *> token >>= fun attribute ->
-  char '=' *> (token <|> quoted_string) >>| fun value -> (attribute, value)
+  char '=' *> param_value >>| fun value -> (attribute, value)
 
 let restricted_name =
   let is_restricted_name_chars = function
@@ -195,16 +197,13 @@ let boundary_header, boundary =
     satisfy is_bcharnospace >>| fun last_char ->
     bchars ^ String.make 1 last_char
   in
-  let boundary_quoted = char '"' *> boundary <* char '"' in
-  (boundary_quoted <|> token, boundary)
+  let boundary_header = char '"' *> boundary <* char '"' <|> token in
+  (boundary_header, boundary)
 
 let multipart_formdata_header =
   let param =
     whitespace *> char ';' *> whitespace *> token >>= fun attribute ->
-    ( char '='
-    *>
-    if attribute = "boundary" then boundary_header else token <|> quoted_string
-    )
+    (char '=' *> if attribute = "boundary" then boundary_header else param_value)
     >>| fun value -> (attribute, value)
   in
   whitespace
@@ -212,8 +211,6 @@ let multipart_formdata_header =
   *> whitespace
   *> many param
   >>= fun params -> params |> List.to_seq |> Params.of_seq |> ok
-
-(* else fail `Boundary_value_not_found *)
 
 let multipart_bodypart boundary_value =
   crlf *> string "--" *> boundary >>= fun _boundary_value ->
