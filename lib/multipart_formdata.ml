@@ -181,7 +181,7 @@ let content_type parse_header_name =
   let parameters = params |> List.to_seq |> Params.of_seq in
   { Content_type.ty; subtype; parameters } |> content_type
 
-let boundary_header, boundary =
+let header_boundary, boundary =
   let is_bcharnospace = function
     | '\'' | '(' | ')' | '+' | '_' | ',' | '-' | '.' | '/' | ':' | '=' | '?' ->
         true
@@ -204,7 +204,7 @@ let boundary_header, boundary =
 let multipart_formdata_header =
   let param =
     whitespace *> char ';' *> whitespace *> token >>= fun attribute ->
-    (char '=' *> if attribute = "boundary" then boundary_header else param_value)
+    (char '=' *> if attribute = "boundary" then header_boundary else param_value)
     >>| fun value -> (attribute, value)
   in
   whitespace
