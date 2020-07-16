@@ -215,12 +215,9 @@ let multipart_formdata_header =
 
 let multipart_bodypart boundary_value =
   crlf *> string "--" *> boundary >>= fun _boundary_value ->
-  many
-    ( content_type true
-    <|> content_disposition
-    <|> fail
-          (`Invalid_multipart_body_header
-            "Only Content-Type and Content-Disposition header supported.") )
+  many (content_type true <|> content_disposition)
+  >>*? `Invalid_multipart_body_header
+         "Only Content-Type and Content-Disposition header supported."
   >>= fun _part_headers ->
   many (not_string ("\r\n--" ^ boundary_value)) >>| String.concat ~sep:""
 
