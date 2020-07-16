@@ -4,6 +4,9 @@ type file
 
 type t = [ `File of file list | `String of string list ]
 
+type error =
+  [ `Boundary_value_not_found | `Not_multipart_formdata_header | Parser.error ]
+
 (* module Content_type : sig *)
 (*   type t *)
 
@@ -22,6 +25,6 @@ type t = [ `File of file list | `String of string list ]
 
 (* type header *)
 
-val parse : header:string -> body:Parser.src -> (unit, [> Parser.error ]) result
+val parse : header:string -> body:Parser.src -> (string list, [> error ]) result
 
 (* val sexp_of_header : header -> Sexplib.Sexp.t *)

@@ -2,6 +2,9 @@ open Parser
 open Std
 open Sexplib.Std
 
+type error =
+  [ `Boundary_value_not_found | `Not_multipart_formdata_header | Parser.error ]
+
 type t = [ `File of file list | `String of string list ]
 
 and file = {
@@ -206,12 +209,11 @@ let multipart_formdata_header =
   *> (string "multipart/form-data" >>*? `Not_multipart_formdata_header)
   *> whitespace
   *> many param
-  >>= fun params ->
-  if List.exists (fun (attribute, _) -> attribute = "boundary") params then
-    params |> List.to_seq |> Params.of_seq |> ok
-  else fail `Boundary_value_not_found
+  >>= fun params -> params |> List.to_seq |> Params.of_seq |> ok
 
-let multipart_body _boundary =
+(* else fail `Boundary_value_not_found *)
+
+let multipart_bodypart boundary_value =
   crlf *> string "--" *> boundary >>= fun _boundary_value ->
   many
     ( content_type true
@@ -219,9 +221,12 @@ let multipart_body _boundary =
     <|> fail
         @@ `Invalid_multipart_body_header
              "Only Content-Type and Content-Disposition header supported." )
-  >>= fun _part_headers -> crlf
+  >>= fun _part_headers ->
+  many (not_string ("\r\n--" ^ boundary_value)) >>| String.concat ~sep:""
 
 let parse ~header ~body =
-  let _header_params = parse (`String header) multipart_formdata_header in
-  let _body_parts = parse body (multipart_body "") in
-  R.ok ()
+  let open R.O in
+  let* header_params = parse (`String header) multipart_formdata_header in
+  match Params.find_opt "boundary" header_params with
+  | Some boundary_value -> parse body (many (multipart_bodypart boundary_value))
+  | None -> R.error `Boundary_value_not_found
