@@ -198,8 +198,8 @@ let header_boundary, boundary =
     satisfy is_bcharnospace >>| fun last_char ->
     bchars ^ String.make 1 last_char
   in
-  let boundary_header = char '"' *> boundary <* char '"' <|> token in
-  (boundary_header, boundary)
+  let header_boundary = char '"' *> boundary <* char '"' <|> token in
+  (header_boundary, boundary)
 
 let multipart_formdata_header =
   let param =
