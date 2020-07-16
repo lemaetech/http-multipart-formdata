@@ -5,6 +5,7 @@ open Sexplib.Std
 type error =
   [ `Boundary_parameter_not_found
   | `Not_multipart_formdata_header
+  | `Invalid_multipart_body_header
   | Parser.error ]
 
 type t = [ `File of file list | `String of string list ]
@@ -218,8 +219,8 @@ let multipart_bodypart boundary_value =
     ( content_type true
     <|> content_disposition
     <|> fail
-        @@ `Invalid_multipart_body_header
-             "Only Content-Type and Content-Disposition header supported." )
+          (`Invalid_multipart_body_header
+            "Only Content-Type and Content-Disposition header supported.") )
   >>= fun _part_headers ->
   many (not_string ("\r\n--" ^ boundary_value)) >>| String.concat ~sep:""
 
