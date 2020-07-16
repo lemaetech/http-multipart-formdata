@@ -64,7 +64,7 @@ val not_string : string -> (string, [> `EOF | `String_matched ]) t
 
 val ok : 'a -> ('a, [> error ]) t
 
-val fail : 'error -> (_, 'error) t
+val fail : ([> error ] as 'e) -> (_, 'e) t
 
 (** {2 Combinators} *)
 
