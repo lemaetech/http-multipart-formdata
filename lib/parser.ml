@@ -127,15 +127,12 @@ let string s state =
 
 let not_string s state =
   let len = String.length s in
-  if state.offset + len < state.len then
-    substring len state |> Option.get |> String.equal s |> function
-    | true -> R.error (state, `String_matched)
-    | false -> R.map (fun (state, ()) -> (state, s)) (advance len state)
-  else if state.len - state.offset < len then
-    let len = state.len - state.offset in
-    let s = substring len state |> Option.get in
-    R.map (fun (state, ()) -> (state, s)) (advance len state)
-  else R.error (state, `EOF)
+  match substring len state with
+  | Some s2 -> (
+      match String.equal s s2 with
+      | true -> R.error (state, `String_matched)
+      | false -> any_char state )
+  | None -> any_char state
 
 let rec skip_while f state =
   match satisfy f state with

@@ -193,12 +193,19 @@ let header_boundary, boundary =
     | c when is_bcharnospace c -> true
     | _ -> false
   in
+  let is_dquote = function '"' -> true | _ -> false in
   let boundary =
-    take_while_n 69 is_bchars >>= fun bchars ->
-    satisfy is_bcharnospace >>| fun last_char ->
-    bchars ^ String.make 1 last_char
+    take_while_n 70 is_bchars >>= fun bchars ->
+    let len = String.length bchars in
+    if len > 0 then
+      let last_char = String.unsafe_get bchars (len - 1) in
+      if is_bcharnospace last_char then ok bchars
+      else fail `Invalid_last_char_boundary_value
+    else fail `Zero_length_boundary_value
   in
-  let header_boundary = char '"' *> boundary <* char '"' <|> token in
+  let header_boundary =
+    char_if is_dquote *> boundary <* char_if is_dquote <|> token
+  in
   (header_boundary, boundary)
 
 let multipart_formdata_header =
@@ -215,11 +222,17 @@ let multipart_formdata_header =
 
 let multipart_bodypart boundary_value =
   crlf *> string "--" *> boundary >>= fun _boundary_value ->
-  many (content_type true <|> content_disposition)
-  >>*? `Invalid_multipart_body_header
-         "Only Content-Type and Content-Disposition header supported."
+  many
+    ( content_type true
+    <|> content_disposition
+    <|> fail
+        @@ `Invalid_multipart_body_header
+             "Only Content-Type and Content-Disposition header supported." )
   >>= fun _part_headers ->
-  many (not_string ("\r\n--" ^ boundary_value)) >>| String.concat ~sep:""
+  many (not_string ("\r\n--" ^ boundary_value)) >>| fun chars ->
+  let buf = Buffer.create (List.length chars) in
+  List.iter (fun c -> Buffer.add_char buf c) chars;
+  Buffer.contents buf
 
 let parse ~header ~body =
   let open R.O in
