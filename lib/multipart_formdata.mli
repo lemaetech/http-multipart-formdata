@@ -5,7 +5,9 @@ type file
 type t = [ `File of file list | `String of string list ]
 
 type error =
-  [ `Boundary_value_not_found | `Not_multipart_formdata_header | Parser.error ]
+  [ `Boundary_parameter_not_found
+  | `Not_multipart_formdata_header
+  | Parser.error ]
 
 (* module Content_type : sig *)
 (*   type t *)

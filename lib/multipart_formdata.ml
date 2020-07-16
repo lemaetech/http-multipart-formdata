@@ -3,7 +3,9 @@ open Std
 open Sexplib.Std
 
 type error =
-  [ `Boundary_value_not_found | `Not_multipart_formdata_header | Parser.error ]
+  [ `Boundary_parameter_not_found
+  | `Not_multipart_formdata_header
+  | Parser.error ]
 
 type t = [ `File of file list | `String of string list ]
 
@@ -229,4 +231,4 @@ let parse ~header ~body =
   let* header_params = parse (`String header) multipart_formdata_header in
   match Params.find_opt "boundary" header_params with
   | Some boundary_value -> parse body (many (multipart_bodypart boundary_value))
-  | None -> R.error `Boundary_value_not_found
+  | None -> R.error `Boundary_parameter_not_found
