@@ -12,9 +12,11 @@ val sexp_of_t : ('a -> Sexp.t) -> ('error -> Sexp.t) -> ('a, 'error) t -> Sexp.t
 
 val advance : int -> (unit, [> error ]) t
 
-val parse : src -> ('a, ([> error ] as 'b)) t -> ('a, 'b) result
-
 val eof : (bool, [> error ]) t
+
+(** {2 Executing} *)
+
+val parse : src -> ('a, ([> error ] as 'b)) t -> ('a, 'b) result
 
 (** {2 Basic Parsers} *)
 
@@ -97,3 +99,5 @@ val many : ('a, [> error ]) t -> ('a list, [> error ]) t
 
 val count_skip_many : ('a, [> error ]) t -> (int, [> error ]) t
 (** [count_skip_many p] runs [p] zeor or more times *)
+
+val line : (string, [> error ]) t

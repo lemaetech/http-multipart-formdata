@@ -194,3 +194,24 @@ let take_while_n n f state =
     else R.ok (state, Buffer.contents buf)
   in
   loop 0 (Buffer.create n) state
+
+let line state =
+  let peek_char2 state =
+    match advance 1 state with Ok (state2, ()) -> state2.cc | Error _ -> `Eof
+  in
+  let rec loop buf state =
+    match state.cc with
+    | `Char c1 -> (
+        match peek_char2 state with
+        | `Char c2 ->
+            if c1 = '\r' && c2 = '\n' then
+              R.map
+                (fun (state, ()) -> (state, Buffer.contents buf))
+                (advance 2 state)
+            else (
+              Buffer.add_char buf c1;
+              R.bind (advance 1 state) (fun (state, ()) -> loop buf state) )
+        | `Eof -> R.ok (state, Buffer.contents buf) )
+    | `Eof -> R.ok (state, Buffer.contents buf)
+  in
+  loop (Buffer.create 1) state
