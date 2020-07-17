@@ -162,8 +162,7 @@ let restricted_name =
   ok @@ Buffer.contents buf
 
 let content_disposition =
-  crlf
-  *> string "Content-Disposition"
+  string "Content-Disposition"
   *> char ':'
   *> whitespace
   *> string "form-data"
@@ -171,7 +170,7 @@ let content_disposition =
   >>| (List.to_seq >> Params.of_seq >> content_disposition)
 
 let content_type parse_header_name =
-  ( if parse_header_name then crlf *> string "Content-Type" *> char ':' *> ok ()
+  ( if parse_header_name then string "Content-Type" *> char ':' *> ok ()
   else ok () )
   *> whitespace
   *> restricted_name
