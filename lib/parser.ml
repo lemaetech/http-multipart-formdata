@@ -209,15 +209,15 @@ let line state =
     match peek_2chars state with
     | `Char '\r', `Char '\n' ->
         R.map
-          (fun (state, ()) -> (state, Buffer.contents buf))
+          (fun (state, ()) -> (state, Buffer.contents buf |> Option.some))
           (advance 2 state)
     | `Char '\n', _ ->
         R.map
-          (fun (state, ()) -> (state, Buffer.contents buf))
+          (fun (state, ()) -> (state, Buffer.contents buf |> Option.some))
           (advance 1 state)
     | `Char c1, _ ->
         Buffer.add_char buf c1;
         R.bind (advance 1 state) (fun (state, ()) -> loop buf state)
-    | `Eof, _ -> R.error (state, `Eof)
+    | `Eof, _ -> R.ok (state, None)
   in
   loop (Buffer.create 1) state

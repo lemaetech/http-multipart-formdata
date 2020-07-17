@@ -220,19 +220,23 @@ let multipart_formdata_header =
 let multipart_bodyparts boundary_value =
   let dash_boundary = "--" ^ boundary_value in
   let rec loop_body buf =
-    line >>= fun ln ->
-    if ln <> dash_boundary then (
-      Buffer.add_string buf (ln ^ "\r\n");
-      loop_body buf )
-    else ok @@ Buffer.contents buf
+    line >>= function
+    | Some ln ->
+        if ln <> dash_boundary then (
+          Buffer.add_string buf (ln ^ "\r\n");
+          loop_body buf )
+        else Buffer.contents buf |> ok
+    | None -> Buffer.contents buf |> ok
   in
-  let rec loop_parts parts ln =
-    if ln = dash_boundary ^ "--" then ok parts
-    else if ln = dash_boundary then
-      many (content_type true <|> content_disposition) >>= fun headers ->
-      loop_body (Buffer.create 10) >>= fun body ->
-      line >>= loop_parts ((headers, body) :: parts)
-    else line >>= loop_parts parts
+  let rec loop_parts parts = function
+    | Some ln ->
+        if ln = dash_boundary ^ "--" then ok parts
+        else if ln = dash_boundary then
+          many (content_type true <|> content_disposition) >>= fun headers ->
+          loop_body (Buffer.create 5) >>= fun body ->
+          line >>= loop_parts ((headers, body) :: parts)
+        else line >>= loop_parts parts
+    | None -> ok parts
   in
   line >>= loop_parts []
 
