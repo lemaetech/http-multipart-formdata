@@ -101,5 +101,5 @@ val count_skip_many : ('a, [> error ]) t -> (int, [> error ]) t
 (** [count_skip_many p] runs [p] zeor or more times *)
 
 val line : (string, [> `Eof ]) t
-(** [line] accepts and returns string representing a line of input. Fails with
-    [`Eof] when input reaches end of input. *)
+(** [line] accepts and returns string representing a line of input delimited by
+    either [\n] or [\r\n]. Fails with [`Eof] when input reaches end of input. *)
