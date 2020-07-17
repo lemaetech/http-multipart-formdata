@@ -31,11 +31,6 @@ type header
 val parse :
   header:string ->
   body:Parser.src ->
-  ( (header list * string) list,
-    [> `Boundary_parameter_not_found
-    | `Eof
-    | `Msg of string
-    | `Not_multipart_formdata_header ] )
-  result
+  ((header list * string) list, [> error ]) result
 
 (* val sexp_of_header : header -> Sexplib.Sexp.t *)

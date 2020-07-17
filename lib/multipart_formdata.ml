@@ -58,8 +58,6 @@ let is_alpha_digit = function
   | '0' .. '9' | 'a' .. 'z' | 'A' .. 'Z' -> true
   | _ -> false
 
-let crlf = string "\x0D\x0A"
-
 let is_space c = c == '\x20'
 
 let is_control = function '\x00' .. '\x1F' | '\x7F' -> true | _ -> false
