@@ -26,8 +26,16 @@ type error =
 (*   val find_parameter : name:string -> t -> string option *)
 (* end *)
 
-(* type header *)
+type header
 
-val parse : header:string -> body:Parser.src -> (string list, [> error ]) result
+val parse :
+  header:string ->
+  body:Parser.src ->
+  ( (header list * string) list,
+    [> `Boundary_parameter_not_found
+    | `Eof
+    | `Msg of string
+    | `Not_multipart_formdata_header ] )
+  result
 
 (* val sexp_of_header : header -> Sexplib.Sexp.t *)

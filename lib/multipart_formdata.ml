@@ -181,7 +181,7 @@ let content_type parse_header_name =
   let parameters = params |> List.to_seq |> Params.of_seq in
   { Content_type.ty; subtype; parameters } |> content_type
 
-let header_boundary, boundary =
+let header_boundary =
   let is_bcharnospace = function
     | '\'' | '(' | ')' | '+' | '_' | ',' | '-' | '.' | '/' | ':' | '=' | '?' ->
         true
@@ -203,10 +203,7 @@ let header_boundary, boundary =
       else fail `Invalid_last_char_boundary_value
     else fail `Zero_length_boundary_value
   in
-  let header_boundary =
-    char_if is_dquote *> boundary <* char_if is_dquote <|> token
-  in
-  (header_boundary, boundary)
+  char_if is_dquote *> boundary <* char_if is_dquote <|> token
 
 let multipart_formdata_header =
   let param =
@@ -220,23 +217,28 @@ let multipart_formdata_header =
   *> many param
   >>= fun params -> params |> List.to_seq |> Params.of_seq |> ok
 
-let multipart_bodypart boundary_value =
-  crlf *> string "--" *> boundary >>= fun _boundary_value ->
-  many
-    ( content_type true
-    <|> content_disposition
-    <|> fail
-        @@ `Invalid_multipart_body_header
-             "Only Content-Type and Content-Disposition header supported." )
-  >>= fun _part_headers ->
-  many (not_string ("\r\n--" ^ boundary_value)) >>| fun chars ->
-  let buf = Buffer.create (List.length chars) in
-  List.iter (fun c -> Buffer.add_char buf c) chars;
-  Buffer.contents buf
+let multipart_bodyparts boundary_value =
+  let dash_boundary = "--" ^ boundary_value in
+  let rec loop_body buf =
+    line >>= fun ln ->
+    if ln <> dash_boundary then (
+      Buffer.add_string buf (ln ^ "\r\n");
+      loop_body buf )
+    else ok @@ Buffer.contents buf
+  in
+  let rec loop_parts parts ln =
+    if ln = dash_boundary ^ "--" then ok parts
+    else if ln = dash_boundary then
+      many (content_type true <|> content_disposition) >>= fun headers ->
+      loop_body (Buffer.create 10) >>= fun body ->
+      line >>= loop_parts ((headers, body) :: parts)
+    else line >>= loop_parts parts
+  in
+  line >>= loop_parts []
 
 let parse ~header ~body =
   let open R.O in
   let* header_params = parse (`String header) multipart_formdata_header in
   match Params.find_opt "boundary" header_params with
-  | Some boundary_value -> parse body (many (multipart_bodypart boundary_value))
+  | Some boundary_value -> parse body (multipart_bodyparts boundary_value)
   | None -> R.error `Boundary_parameter_not_found
