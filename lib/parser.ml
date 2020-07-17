@@ -218,6 +218,6 @@ let line state =
     | `Char c1, _ ->
         Buffer.add_char buf c1;
         R.bind (advance 1 state) (fun (state, ()) -> loop buf state)
-    | `Eof, _ -> R.ok (state, Buffer.contents buf)
+    | `Eof, _ -> R.error (state, `Eof)
   in
   loop (Buffer.create 1) state
