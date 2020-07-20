@@ -1,5 +1,6 @@
-open Std
 open Sexplib.Std
+module R = Result
+module String = StringLabels
 
 type error = [ `Msg of string ] [@@deriving sexp_of]
 
