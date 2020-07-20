@@ -1,5 +1,4 @@
 open Std
-open R.O
 open Sexplib.Std
 
 type error = [ `Msg of string ] [@@deriving sexp_of]
@@ -29,10 +28,10 @@ let ( <* ) (p : ('a, 'error) t) (q : (_, 'error) t) state =
 
 let ( *>| ) p a state = R.map (fun (state, _) -> (state, a)) (p state)
 
-let ( >>= ) t f state = t state >>= fun (state, a) -> f a state
+let ( >>= ) t f state = R.bind (t state) (fun (state, a) -> f a state)
 
 let ( >>| ) (t : ('a, 'error) t) (f : 'a -> 'b) state =
-  t state >>| fun (state, a) -> (state, f a)
+  R.map (fun (state, a) -> (state, f a)) (t state)
 
 let ( >>|? ) t f state = R.map_error (fun (state, e) -> (state, f e)) (t state)
 
