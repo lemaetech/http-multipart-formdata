@@ -12,7 +12,9 @@ val sexp_of_t : ('a -> Sexp.t) -> ('error -> Sexp.t) -> ('a, 'error) t -> Sexp.t
 
 val advance : int -> (unit, [> error ]) t
 
-val eof : (bool, [> error ]) t
+val end_of_input : (bool, [> error ]) t
+(** [end_of_input] returns [true] if parser has reached end of input. Always
+    succeeds. *)
 
 (** {2 Executing} *)
 

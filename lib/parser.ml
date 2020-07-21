@@ -64,7 +64,7 @@ let parse src t =
   | Ok (_, a) -> Ok a
   | Error (_, e) -> Error e
 
-let eof state =
+let end_of_input state =
   let eof = match state.cc with `Char _ -> false | `Eof -> true in
   R.ok (state, eof)
 
