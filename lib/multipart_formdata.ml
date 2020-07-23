@@ -1,4 +1,4 @@
-open Reparse.Parser
+open Reparse
 open Sexplib.Std
 module String = StringLabels
 
