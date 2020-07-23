@@ -1,12 +1,12 @@
-open Parser
+open Reparse.Parser
 open Std
 open Sexplib.Std
 
-type error =
+type nonrec error =
   [ `Boundary_parameter_not_found
   | `Not_multipart_formdata_header
   | `Invalid_multipart_body_header
-  | Parser.error ]
+  | error ]
 
 type t = [ `File of file list | `String of string list ]
 
