@@ -1,12 +1,12 @@
-open Parser
+open Reparse.Parser
 open Std
 open Sexplib.Std
 
-type error =
+type nonrec error =
   [ `Boundary_parameter_not_found
   | `Not_multipart_formdata_header
   | `Invalid_multipart_body_header
-  | Parser.error ]
+  | error ]
 
 type t = [ `File of file list | `String of string list ]
 
@@ -20,6 +20,8 @@ and file = {
 module Params = struct
   include Map.Make (String)
 
+  type nonrec t = string t
+
   let sexp_of_t t =
     to_seq t |> Array.of_seq |> [%sexp_of: (string * string) array]
 
@@ -28,27 +30,11 @@ module Params = struct
     [@@ocaml.toplevel_printer] [@@warning "-32"]
 end
 
-module Content_type = struct
-  type t = { ty : string; subtype : string; parameters : string Params.t }
+type content_type = { ty : string; subtype : string; parameters : Params.t }
+[@@deriving sexp_of]
 
-  (* [@@deriving sexp_of] *)
-
-  (* let pp fmt t = sexp_of_t t |> Sexplib.Sexp.pp_hum_indent 2 fmt *)
-
-  (* let ty t = t.ty *)
-
-  (* let subtype t = t.subtype *)
-
-  (* let parameters t = Params.to_seq t.parameters *)
-
-  (* let find_parameter ~name t = Params.find_opt name t.parameters *)
-end
-
-type header =
-  | Content_type of Content_type.t
-  | Content_disposition of string Params.t
-
-(* [@@deriving sexp_of] *)
+type header = Content_type of content_type | Content_disposition of Params.t
+[@@deriving sexp_of]
 
 let content_type ct = Content_type ct
 
@@ -176,7 +162,7 @@ let content_type parse_header_name =
   char '/' *> restricted_name >>= fun subtype ->
   whitespace *> many param >>| fun params ->
   let parameters = params |> List.to_seq |> Params.of_seq in
-  { Content_type.ty; subtype; parameters } |> content_type
+  content_type { ty; subtype; parameters }
 
 let header_boundary =
   let is_bcharnospace = function

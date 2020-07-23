@@ -19,7 +19,8 @@
 
 (package
  (name http-multipart-formdata)
- (synopsis
+ (synopsis "Http multipart/formdata parser")
+ (description
    "Ocaml implementation of RFC 7578 (Returning Values from Forms: multipart/form-data)- https://tools.ietf.org/html/rfc7578")
  (depends
   (ocaml
@@ -28,6 +29,9 @@
    (and
     :build
     (>= 2.6.0)))
+  reparse
   ppx_sexp_conv
+  (ppx_inline_test :with-test)
+  (ppx_expect :with-test)
   bigstringaf
   sexplib))
