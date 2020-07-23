@@ -1,6 +1,6 @@
 open Reparse.Parser
-open Std
 open Sexplib.Std
+module String = StringLabels
 
 type nonrec error =
   [ `Boundary_parameter_not_found
@@ -151,7 +151,7 @@ let content_disposition =
   *> whitespace
   *> string "form-data"
   *> many param
-  >>| (List.to_seq >> Params.of_seq >> content_disposition)
+  >>| fun params -> List.to_seq params |> Params.of_seq |> content_disposition
 
 let content_type parse_header_name =
   ( if parse_header_name then string "Content-Type" *> char ':' *> ok ()
@@ -224,8 +224,9 @@ let multipart_bodyparts boundary_value =
   line >>= loop_parts []
 
 let parse ~header ~body =
-  let open R.O in
-  let* header_params = parse (`String header) multipart_formdata_header in
-  match Params.find_opt "boundary" header_params with
-  | Some boundary_value -> parse body (multipart_bodyparts boundary_value)
-  | None -> R.error `Boundary_parameter_not_found
+  Result.bind
+    (parse (`String header) multipart_formdata_header)
+    (fun header_params ->
+      match Params.find_opt "boundary" header_params with
+      | Some boundary_value -> parse body (multipart_bodyparts boundary_value)
+      | None -> Result.error `Boundary_parameter_not_found)
