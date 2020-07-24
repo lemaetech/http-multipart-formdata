@@ -2,6 +2,8 @@ open Reparse
 open Sexplib.Std
 module String = StringLabels
 
+let ( let* ) = Result.bind
+
 type nonrec error =
   [ `Boundary_parameter_not_found
   | `Not_multipart_formdata_header
@@ -224,9 +226,7 @@ let multipart_bodyparts boundary_value =
   line >>= loop_parts []
 
 let parse ~header ~body =
-  Result.bind
-    (parse (`String header) multipart_formdata_header)
-    (fun header_params ->
-      match Params.find_opt "boundary" header_params with
-      | Some boundary_value -> parse body (multipart_bodyparts boundary_value)
-      | None -> Result.error `Boundary_parameter_not_found)
+  let* header_params = parse (`String header) multipart_formdata_header in
+  match Params.find_opt "boundary" header_params with
+  | Some boundary_value -> parse body (multipart_bodyparts boundary_value)
+  | None -> Result.error `Boundary_parameter_not_found
