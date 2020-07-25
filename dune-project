@@ -23,13 +23,10 @@
  (depends
   (ocaml
    (>= 4.10.0))
-  (dune
-   (and
-    :build
-    (>= 2.6.0)))
+  dune
   reparse
   ppx_sexp_conv
   (ppx_inline_test :with-test)
   (ppx_expect :with-test)
   bigstringaf
-  sexplib))
+  sexplib0))

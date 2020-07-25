@@ -11,13 +11,13 @@ homepage: "https://github.com/bikallem/http-mutlipart-formdata"
 bug-reports: "https://github.com/bikallem/http-mutlipart-formdata/issues"
 depends: [
   "ocaml" {>= "4.10.0"}
-  "dune" {>= "2.6" & build & >= "2.6.0"}
+  "dune" {>= "2.6"}
   "reparse"
   "ppx_sexp_conv"
   "ppx_inline_test" {with-test}
   "ppx_expect" {with-test}
   "bigstringaf"
-  "sexplib"
+  "sexplib0"
 ]
 build: [
   ["dune" "subst"] {pinned}

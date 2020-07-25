@@ -1,5 +1,6 @@
 open Reparse
-open Sexplib.Std
+open Sexplib0
+open Sexplib0.Sexp_conv
 module String = StringLabels
 
 let ( let* ) = Result.bind
@@ -28,7 +29,7 @@ module Params = struct
     to_seq t |> Array.of_seq |> [%sexp_of: (string * string) array]
 
   let pp fmt t =
-    sexp_of_t t |> Sexplib.Sexp.pp_hum_indent 2 fmt
+    sexp_of_t t |> Sexp.pp_hum_indent 2 fmt
     [@@ocaml.toplevel_printer] [@@warning "-32"]
 end
 
