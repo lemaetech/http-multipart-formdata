@@ -39,6 +39,15 @@ type content_type = { ty : string; subtype : string; parameters : Params.t }
 type header = Content_type of content_type | Content_disposition of Params.t
 [@@deriving sexp_of]
 
+module Body_part = struct
+  type t = { name : string; parameters : Params.t; body : bytes }
+  [@@deriving sexp_of]
+
+  let name _t = ""
+
+  let create name body parameters = { name; body; parameters }
+end
+
 let content_type ct = Content_type ct
 
 let content_disposition cd = Content_disposition cd

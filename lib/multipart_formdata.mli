@@ -9,6 +9,12 @@ type error =
   | `Invalid_multipart_body_header
   | Reparse.error ]
 
+module Body_part : sig
+  type t
+
+  val name : t -> string
+end
+
 type header
 
 val parse :
