@@ -254,8 +254,8 @@ let p_multipart_bodyparts boundary_value =
         if ln <> dash_boundary then (
           Buffer.add_string buf (ln ^ "\r\n");
           loop_body buf )
-        else Buffer.contents buf |> ok
-    | None -> Buffer.contents buf |> ok
+        else (Buffer.contents buf, Some ln) |> ok
+    | None -> (Buffer.contents buf, None) |> ok
   in
   let rec loop_parts parts = function
     | Some ln ->
@@ -263,8 +263,8 @@ let p_multipart_bodyparts boundary_value =
         else if ln = dash_boundary then
           many (string "\r\n" *> p_content_type true <|> p_content_disposition)
           >>= fun headers ->
-          loop_body (Buffer.create 5) >>= fun body ->
-          body_part headers body >>= fun bp -> line >>= loop_parts (bp :: parts)
+          loop_body (Buffer.create 5) >>= fun (body, ln) ->
+          body_part headers body >>= fun bp -> loop_parts (bp :: parts) ln
         else line >>= loop_parts parts
     | None -> ok parts
   in

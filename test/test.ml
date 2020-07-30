@@ -56,6 +56,11 @@ let%expect_test _ =
                                            \n\r\
                                            \ntext default\r\
                                            \n"))
+        ((form_field text2) (filename ()) (content_type text/plain)
+          (parameters ((name text2))) (body  "\r\
+                                            \n\r\
+                                            \na\207\137b\r\
+                                            \n"))
         ((form_field file1) (filename (a.txt)) (content_type text/plain)
           (parameters ((filename a.txt) (name file1)))
           (body  "\r\
@@ -63,6 +68,14 @@ let%expect_test _ =
                 \nContent of a.txt.\r\
                 \n\r\
                 \n"))
+        ((form_field file2) (filename (a.html)) (content_type text/html)
+          (parameters ((filename a.html) (name file2)))
+          (body
+             "\r\
+            \n\r\
+            \n<!DOCTYPE html><title>Content of a.html.</title>\r\
+            \n\r\
+            \n"))
         ((form_field file3) (filename (binary))
           (content_type application/octet-stream)
           (parameters ((filename binary) (name file3)))
