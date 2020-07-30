@@ -23,7 +23,7 @@ module Params = struct
   let union a b = union (fun _key a _b -> Some a) a b
 
   let sexp_of_t t =
-    to_seq t |> List.of_seq |> List.rev |> [%sexp_of: (string * string) list]
+    to_seq t |> List.of_seq |> [%sexp_of: (string * string) list]
 
   let pp fmt t =
     sexp_of_t t |> Sexp.pp_hum_indent 2 fmt
@@ -254,21 +254,21 @@ let p_multipart_bodyparts boundary_value =
         if ln <> dash_boundary then (
           Buffer.add_string buf (ln ^ "\r\n");
           loop_body buf )
-        else Buffer.contents buf |> ok
-    | None -> Buffer.contents buf |> ok
+        else (Buffer.contents buf, Some ln) |> ok
+    | None -> (Buffer.contents buf, None) |> ok
   in
   let rec loop_parts parts = function
     | Some ln ->
         if ln = dash_boundary ^ "--" then ok parts
         else if ln = dash_boundary then
-          many (p_content_type true <|> p_content_disposition)
+          many (string "\r\n" *> p_content_type true <|> p_content_disposition)
           >>= fun headers ->
-          loop_body (Buffer.create 5) >>= fun body ->
-          body_part headers body >>= fun bp -> line >>= loop_parts (bp :: parts)
+          loop_body (Buffer.create 5) >>= fun (body, ln) ->
+          body_part headers body >>= fun bp -> loop_parts (bp :: parts) ln
         else line >>= loop_parts parts
     | None -> ok parts
   in
-  line >>= loop_parts []
+  line >>= loop_parts [] >>= fun parts -> List.rev parts |> ok
 
 let parse ~header ~body =
   let* header_params = parse (`String header) p_multipart_formdata_header in

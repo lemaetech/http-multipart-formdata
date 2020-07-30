@@ -10,7 +10,7 @@ let pp fmt t =
 
 let%expect_test _ =
   let header =
-    " multipart/form-data; \
+    "multipart/form-data; \
      boundary=---------------------------735323031399963166993862150"
   in
   let body =
@@ -48,27 +48,38 @@ let%expect_test _ =
   Multipart_formdata.parse ~header ~body:(`String body)
   |> pp Format.std_formatter;
 
-  [%expect {|
+  [%expect
+    {|
     (Ok
-      (((form_field file3) (filename (binary)) (content_type text/plain)
-         (parameters ((name file3) (filename binary)))
-         (body
-            "\r\
-           \nContent-Type: application/octet-stream\r\
-           \n\r\
-           \na\207\137b\r\
-           \n"))
+      (((form_field text1) (filename ()) (content_type text/plain)
+         (parameters ((name text1))) (body  "\r\
+                                           \n\r\
+                                           \ntext default\r\
+                                           \n"))
+        ((form_field text2) (filename ()) (content_type text/plain)
+          (parameters ((name text2))) (body  "\r\
+                                            \n\r\
+                                            \na\207\137b\r\
+                                            \n"))
         ((form_field file1) (filename (a.txt)) (content_type text/plain)
-          (parameters ((name file1) (filename a.txt)))
+          (parameters ((filename a.txt) (name file1)))
+          (body  "\r\
+                \n\r\
+                \nContent of a.txt.\r\
+                \n\r\
+                \n"))
+        ((form_field file2) (filename (a.html)) (content_type text/html)
+          (parameters ((filename a.html) (name file2)))
           (body
              "\r\
-            \nContent-Type: text/plain\r\
             \n\r\
-            \nContent of a.txt.\r\
+            \n<!DOCTYPE html><title>Content of a.html.</title>\r\
             \n\r\
             \n"))
-        ((form_field text1) (filename ()) (content_type text/plain)
-          (parameters ((name text1))) (body  "\r\
-                                            \n\r\
-                                            \ntext default\r\
-                                            \n"))))|}]
+        ((form_field file3) (filename (binary))
+          (content_type application/octet-stream)
+          (parameters ((filename binary) (name file3)))
+          (body  "\r\
+                \n\r\
+                \na\207\137b\r\
+                \n"))))|}]
