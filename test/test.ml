@@ -10,32 +10,32 @@ let pp fmt t =
 
 let%expect_test _ =
   let header =
-    " multipart/form-data; \
+    "multipart/form-data; \
      boundary=---------------------------735323031399963166993862150"
   in
   let body =
     [
       {||};
-      (* {|-----------------------------735323031399963166993862150|}; *)
-      (* {|Content-Disposition: form-data; name="text1"|}; *)
-      (* {||}; *)
-      (* {|text default|}; *)
-      (* {|-----------------------------735323031399963166993862150|}; *)
-      (* {|Content-Disposition: form-data; name="text2"|}; *)
-      (* {||}; *)
-      (* {|aωb|}; *)
-      (* {|-----------------------------735323031399963166993862150|}; *)
-      (* {|Content-Disposition: form-data; name="file1"; filename="a.txt"|}; *)
-      (* {|Content-Type: text/plain|}; *)
-      (* {||}; *)
-      (* {|Content of a.txt.|}; *)
-      (* {||}; *)
-      (* {|-----------------------------735323031399963166993862150|}; *)
-      (* {|Content-Disposition: form-data; name="file2"; filename="a.html"|}; *)
-      (* {|Content-Type: text/html|}; *)
-      (* {||}; *)
-      (* {|<!DOCTYPE html><title>Content of a.html.</title>|}; *)
-      (* {||}; *)
+      {|-----------------------------735323031399963166993862150|};
+      {|Content-Disposition: form-data; name="text1"|};
+      {||};
+      {|text default|};
+      {|-----------------------------735323031399963166993862150|};
+      {|Content-Disposition: form-data; name="text2"|};
+      {||};
+      {|aωb|};
+      {|-----------------------------735323031399963166993862150|};
+      {|Content-Disposition: form-data; name="file1"; filename="a.txt"|};
+      {|Content-Type: text/plain|};
+      {||};
+      {|Content of a.txt.|};
+      {||};
+      {|-----------------------------735323031399963166993862150|};
+      {|Content-Disposition: form-data; name="file2"; filename="a.html"|};
+      {|Content-Type: text/html|};
+      {||};
+      {|<!DOCTYPE html><title>Content of a.html.</title>|};
+      {||};
       {|-----------------------------735323031399963166993862150|};
       {|Content-Disposition: form-data; name="file3"; filename="binary"|};
       {|Content-Type: application/octet-stream|};
@@ -51,11 +51,22 @@ let%expect_test _ =
   [%expect
     {|
     (Ok
-      (((form_field file3) (filename (binary)) (content_type text/plain)
-         (parameters ((name file3) (filename binary)))
-         (body
-            "\r\
-           \nContent-Type: application/octet-stream\r\
-           \n\r\
-           \na\207\137b\r\
-           \n"))))|}]
+      (((form_field text1) (filename ()) (content_type text/plain)
+         (parameters ((name text1))) (body  "\r\
+                                           \n\r\
+                                           \ntext default\r\
+                                           \n"))
+        ((form_field file1) (filename (a.txt)) (content_type text/plain)
+          (parameters ((filename a.txt) (name file1)))
+          (body  "\r\
+                \n\r\
+                \nContent of a.txt.\r\
+                \n\r\
+                \n"))
+        ((form_field file3) (filename (binary))
+          (content_type application/octet-stream)
+          (parameters ((filename binary) (name file3)))
+          (body  "\r\
+                \n\r\
+                \na\207\137b\r\
+                \n"))))|}]
