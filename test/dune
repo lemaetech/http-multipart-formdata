@@ -1,0 +1,6 @@
+(library
+ (name test)
+ (inline_tests)
+ (libraries http-multipart-formdata)
+ (preprocess
+  (pps ppx_sexp_conv ppx_expect)))

@@ -21,4 +21,6 @@ val parse : header:string -> body:Reparse.input -> (t list, error) result
 
 val sexp_of_t : t -> Sexplib0.Sexp.t
 
+val sexp_of_error : error -> Sexplib0.Sexp.t
+
 val pp : Format.formatter -> t -> unit

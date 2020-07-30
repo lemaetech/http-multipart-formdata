@@ -13,6 +13,7 @@ type error =
   | `Invalid_multipart_body_header
   | `Name_parameter_not_found
   | Reparse.error ]
+[@@deriving sexp_of]
 
 module Params = struct
   include Map.Make (String)
