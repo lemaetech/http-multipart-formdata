@@ -7,12 +7,12 @@ let ( let* ) = Result.bind
 
 module R = Result
 
-type nonrec error =
+type error =
   [ `Boundary_parameter_not_found
   | `Not_multipart_formdata_header
   | `Invalid_multipart_body_header
   | `Name_parameter_not_found
-  | error ]
+  | Reparse.error ]
 
 module Params = struct
   include Map.Make (String)

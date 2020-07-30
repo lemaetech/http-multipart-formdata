@@ -1,10 +1,10 @@
 type t
 
-type error =
-  private
-  [> `Boundary_parameter_not_found
+type nonrec error =
+  [ `Boundary_parameter_not_found
   | `Not_multipart_formdata_header
   | `Invalid_multipart_body_header
+  | `Name_parameter_not_found
   | Reparse.error ]
 
 val form_field : t -> string
