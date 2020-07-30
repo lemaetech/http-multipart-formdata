@@ -212,8 +212,11 @@ let p_multipart_formdata_header =
     *> if attribute = "boundary" then p_header_boundary else p_param_value )
     >>| fun value -> (attribute, value)
   in
-  p_whitespace
-  *> (string "multipart/form-data" >>*? `Not_multipart_formdata_header)
+  ( string_if "\r\n"
+    *> string_if "Content-Type:"
+    *> p_whitespace
+    *> string "multipart/form-data"
+  >>*? `Not_multipart_formdata_header )
   *> p_whitespace
   *> many param
   >>= fun params -> params |> List.to_seq |> Params.of_seq |> ok

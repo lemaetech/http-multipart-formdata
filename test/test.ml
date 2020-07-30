@@ -10,7 +10,7 @@ let pp fmt t =
 
 let%expect_test _ =
   let header =
-    "multipart/form-data; \
+    "Content-Type: multipart/form-data; \
      boundary=---------------------------735323031399963166993862150"
   in
   let body =
