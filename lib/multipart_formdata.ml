@@ -23,7 +23,7 @@ module Params = struct
   let union a b = union (fun _key a _b -> Some a) a b
 
   let sexp_of_t t =
-    to_seq t |> Array.of_seq |> [%sexp_of: (string * string) array]
+    to_seq t |> List.of_seq |> List.rev |> [%sexp_of: (string * string) list]
 
   let pp fmt t =
     sexp_of_t t |> Sexp.pp_hum_indent 2 fmt

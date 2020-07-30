@@ -51,7 +51,7 @@ let%expect_test _ =
   [%expect {|
     (Ok
       (((form_field file3) (filename (binary)) (content_type text/plain)
-         (parameters ((filename binary) (name file3)))
+         (parameters ((name file3) (filename binary)))
          (body
             "\r\
            \nContent-Type: application/octet-stream\r\
@@ -59,7 +59,7 @@ let%expect_test _ =
            \na\207\137b\r\
            \n"))
         ((form_field file1) (filename (a.txt)) (content_type text/plain)
-          (parameters ((filename a.txt) (name file1)))
+          (parameters ((name file1) (filename a.txt)))
           (body
              "\r\
             \nContent-Type: text/plain\r\
