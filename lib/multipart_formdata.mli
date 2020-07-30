@@ -17,7 +17,10 @@ val is_file : t -> bool
 
 val body : t -> bytes
 
-val parse : header:string -> body:Reparse.input -> (t list, error) result
+val parse :
+  header:string ->
+  body:[ `String of string | `Bigstring of Bigstringaf.t ] ->
+  (t list, error) result
 
 val sexp_of_t : t -> Sexplib0.Sexp.t
 
