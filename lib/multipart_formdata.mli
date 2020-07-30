@@ -1,6 +1,4 @@
-type file
-
-type t = [ `File of file list | `String of string list ]
+type t
 
 type error =
   private
@@ -9,15 +7,18 @@ type error =
   | `Invalid_multipart_body_header
   | Reparse.error ]
 
-module Body_part : sig
-  type t
+val form_field : t -> string
 
-  val name : t -> string
-end
+val filename : t -> string option
 
-type header
+val content_type : t -> string
 
-val parse :
-  header:string ->
-  body:Reparse.input ->
-  ((header list * string) list, error) result
+val is_file : t -> bool
+
+val body : t -> bytes
+
+val parse : header:string -> body:Reparse.input -> (t list, error) result
+
+val sexp_of_t : t -> Sexplib0.Sexp.t
+
+val pp : Format.formatter -> t -> unit

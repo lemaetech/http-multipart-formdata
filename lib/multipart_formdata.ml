@@ -5,25 +5,21 @@ module String = StringLabels
 
 let ( let* ) = Result.bind
 
+module R = Result
+
 type nonrec error =
   [ `Boundary_parameter_not_found
   | `Not_multipart_formdata_header
   | `Invalid_multipart_body_header
+  | `Name_parameter_not_found
   | error ]
-
-type t = [ `File of file list | `String of string list ]
-
-and file = {
-  form_name : string;
-  filename : string option;
-  content_type : string;
-  body : bytes;
-}
 
 module Params = struct
   include Map.Make (String)
 
   type nonrec t = string t
+
+  let union a b = union (fun _key a _b -> Some a) a b
 
   let sexp_of_t t =
     to_seq t |> Array.of_seq |> [%sexp_of: (string * string) array]
@@ -33,24 +29,30 @@ module Params = struct
     [@@ocaml.toplevel_printer] [@@warning "-32"]
 end
 
-type content_type = { ty : string; subtype : string; parameters : Params.t }
+type t = {
+  form_field : string;
+  filename : string option;
+  content_type : string;
+  parameters : Params.t;
+  body : bytes;
+}
 [@@deriving sexp_of]
 
-type header = Content_type of content_type | Content_disposition of Params.t
-[@@deriving sexp_of]
+let form_field t = t.form_field
 
-module Body_part = struct
-  type t = { name : string; parameters : Params.t; body : bytes }
-  [@@deriving sexp_of]
+let filename t = t.filename
 
-  let name _t = ""
+let content_type t = t.content_type
 
-  let create name body parameters = { name; body; parameters }
-end
+let is_file t = Option.is_some t.filename
 
-let content_type ct = Content_type ct
+let body t = t.body
 
-let content_disposition cd = Content_disposition cd
+let pp fmt t = Sexp.pp_hum_indent 2 fmt (sexp_of_t t)
+
+type part_header =
+  | Content_type of { ty : string; subtype : string; parameters : Params.t }
+  | Content_disposition of Params.t
 
 let is_alpha_digit = function
   | '0' .. '9' | 'a' .. 'z' | 'A' .. 'Z' -> true
@@ -86,21 +88,21 @@ let is_token_char c =
   && (not (is_control c))
   && not (is_tspecials c)
 
-let whitespace = skip_while is_whitespace
+let p_whitespace = skip_while is_whitespace
 
-let token =
+let p_token =
   satisfy is_token_char >>= fun ch ->
   take_while is_token_char >>= fun chars -> String.make 1 ch ^ chars |> ok
 
 (* https://tools.ietf.org/html/rfc5322#section-3.2.1
    quoted-pair     =   ('\' (VCHAR / WSP)) / obs-qp
 *)
-let quoted_pair =
+let p_quoted_pair =
   char '\\' *> satisfy (fun c -> is_whitespace c || is_vchar c) >>| fun c ->
   String.make 1 '\\' ^ String.make 1 c
 
 (* https://tools.ietf.org/html/rfc5322#section-3.2.2 *)
-let fws =
+let p_fws =
   count_skip_while is_whitespace >>= fun ws_count1 ->
   count_skip_while_string 3 (fun s ->
       String.equal s "\x0D\x0A\x20" || String.equal s "\x0D\x0A\x09")
@@ -108,43 +110,43 @@ let fws =
   count_skip_while is_whitespace >>| fun ws_count2 ->
   if ws_count1 + lws_count + ws_count2 > 0 then " " else ""
 
-let comment =
+let p_comment =
   let ctext = satisfy is_ctext >>| String.make 1 in
   let rec loop_comment () =
     char '('
     *> many
-         ( fws >>= fun sp ->
+         ( p_fws >>= fun sp ->
            ctext
-           <|> quoted_pair
+           <|> p_quoted_pair
            <|> (loop_comment () >>| fun txt -> "(" ^ txt ^ ")")
            >>| ( ^ ) sp )
     >>| String.concat ~sep:""
     >>= fun comment_text ->
-    fws >>= fun sp -> ok @@ comment_text ^ sp <* char ')'
+    p_fws >>= fun sp -> ok @@ comment_text ^ sp <* char ')'
   in
   loop_comment ()
 
-let cfws =
+let p_cfws =
   many
-    ( fws >>= fun sp ->
-      comment >>| fun comment_text -> sp ^ comment_text )
+    ( p_fws >>= fun sp ->
+      p_comment >>| fun comment_text -> sp ^ comment_text )
   >>= (fun l ->
-        fws >>| fun sp -> if String.length sp > 0 then l @ [ sp ] else l)
-  <|> (fws >>| fun sp -> if String.length sp > 0 then [ sp ] else [])
+        p_fws >>| fun sp -> if String.length sp > 0 then l @ [ sp ] else l)
+  <|> (p_fws >>| fun sp -> if String.length sp > 0 then [ sp ] else [])
 
-let quoted_string =
-  let qcontent = satisfy is_qtext >>| String.make 1 <|> quoted_pair in
-  cfws *> char '"' *> many (fws >>= fun sp -> qcontent >>| ( ^ ) sp)
+let p_quoted_string =
+  let qcontent = satisfy is_qtext >>| String.make 1 <|> p_quoted_pair in
+  p_cfws *> char '"' *> many (p_fws >>= fun sp -> qcontent >>| ( ^ ) sp)
   >>| String.concat ~sep:""
-  >>= fun q_string -> fws >>| (fun sp -> q_string ^ sp) <* char '"'
+  >>= fun q_string -> p_fws >>| (fun sp -> q_string ^ sp) <* char '"'
 
-let param_value = token <|> quoted_string
+let p_param_value = p_token <|> p_quoted_string
 
-let param =
-  whitespace *> char ';' *> whitespace *> token >>= fun attribute ->
-  char '=' *> param_value >>| fun value -> (attribute, value)
+let p_param =
+  p_whitespace *> char ';' *> p_whitespace *> p_token >>= fun attribute ->
+  char '=' *> p_param_value >>| fun value -> (attribute, value)
 
-let restricted_name =
+let p_restricted_name =
   let is_restricted_name_chars = function
     | '!' | '#' | '$' | '&' | '-' | '^' | '_' | '.' | '+' -> true
     | c when is_alpha_digit c -> true
@@ -157,26 +159,28 @@ let restricted_name =
   Buffer.add_string buf restricted_name;
   ok @@ Buffer.contents buf
 
-let content_disposition =
+let p_content_disposition =
   string "Content-Disposition"
   *> char ':'
-  *> whitespace
+  *> p_whitespace
   *> string "form-data"
-  *> many param
-  >>| fun params -> List.to_seq params |> Params.of_seq |> content_disposition
+  *> many p_param
+  >>| fun params ->
+  let params = List.to_seq params |> Params.of_seq in
+  Content_disposition params
 
-let content_type parse_header_name =
+let p_content_type parse_header_name =
   ( if parse_header_name then string "Content-Type" *> char ':' *> ok ()
   else ok () )
-  *> whitespace
-  *> restricted_name
+  *> p_whitespace
+  *> p_restricted_name
   >>= fun ty ->
-  char '/' *> restricted_name >>= fun subtype ->
-  whitespace *> many param >>| fun params ->
+  char '/' *> p_restricted_name >>= fun subtype ->
+  p_whitespace *> many p_param >>| fun params ->
   let parameters = params |> List.to_seq |> Params.of_seq in
-  content_type { ty; subtype; parameters }
+  Content_type { ty; subtype; parameters }
 
-let header_boundary =
+let p_header_boundary =
   let is_bcharnospace = function
     | '\'' | '(' | ')' | '+' | '_' | ',' | '-' | '.' | '/' | ':' | '=' | '?' ->
         true
@@ -198,21 +202,50 @@ let header_boundary =
       else fail `Invalid_last_char_boundary_value
     else fail `Zero_length_boundary_value
   in
-  char_if is_dquote *> boundary <* char_if is_dquote <|> token
+  char_if is_dquote *> boundary <* char_if is_dquote <|> p_token
 
-let multipart_formdata_header =
+let p_multipart_formdata_header =
   let param =
-    whitespace *> char ';' *> whitespace *> token >>= fun attribute ->
-    (char '=' *> if attribute = "boundary" then header_boundary else param_value)
+    p_whitespace *> char ';' *> p_whitespace *> p_token >>= fun attribute ->
+    ( char '='
+    *> if attribute = "boundary" then p_header_boundary else p_param_value )
     >>| fun value -> (attribute, value)
   in
-  whitespace
+  p_whitespace
   *> (string "multipart/form-data" >>*? `Not_multipart_formdata_header)
-  *> whitespace
+  *> p_whitespace
   *> many param
   >>= fun params -> params |> List.to_seq |> Params.of_seq |> ok
 
-let multipart_bodyparts boundary_value =
+let body_part headers body =
+  let name, content_type, filename, parameters =
+    List.fold_left
+      (fun (name, ct, filename, params) header ->
+        match header with
+        | Content_type ct ->
+            let content_type = Some (ct.ty ^ "/" ^ ct.subtype) in
+            (name, content_type, filename, Params.union params ct.parameters)
+        | Content_disposition params2 ->
+            let name = Params.find_opt "name" params2 in
+            let filename = Params.find_opt "filename" params2 in
+            (name, ct, filename, Params.union params params2))
+      (None, None, None, Params.empty)
+      headers
+  in
+  match name with
+  | None -> Reparse.fail `Name_parameter_not_found
+  | Some nm ->
+      let content_type = try Option.get content_type with _ -> "text/plain" in
+      Reparse.ok
+        {
+          form_field = nm;
+          filename;
+          content_type;
+          parameters;
+          body = Bytes.unsafe_of_string body;
+        }
+
+let p_multipart_bodyparts boundary_value =
   let dash_boundary = "--" ^ boundary_value in
   let rec loop_body buf =
     line >>= function
@@ -227,16 +260,17 @@ let multipart_bodyparts boundary_value =
     | Some ln ->
         if ln = dash_boundary ^ "--" then ok parts
         else if ln = dash_boundary then
-          many (content_type true <|> content_disposition) >>= fun headers ->
+          many (p_content_type true <|> p_content_disposition)
+          >>= fun headers ->
           loop_body (Buffer.create 5) >>= fun body ->
-          line >>= loop_parts ((headers, body) :: parts)
+          body_part headers body >>= fun bp -> line >>= loop_parts (bp :: parts)
         else line >>= loop_parts parts
     | None -> ok parts
   in
   line >>= loop_parts []
 
 let parse ~header ~body =
-  let* header_params = parse (`String header) multipart_formdata_header in
+  let* header_params = parse (`String header) p_multipart_formdata_header in
   match Params.find_opt "boundary" header_params with
-  | Some boundary_value -> parse body (multipart_bodyparts boundary_value)
+  | Some boundary_value -> parse body (p_multipart_bodyparts boundary_value)
   | None -> Result.error `Boundary_parameter_not_found
