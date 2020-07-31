@@ -2,9 +2,6 @@ open Reparse
 open Sexplib0
 open Sexplib0.Sexp_conv
 module String = StringLabels
-
-let ( let* ) = Result.bind
-
 module R = Result
 
 type error =
@@ -311,6 +308,7 @@ let p_multipart_bodyparts boundary_value =
   |> ok
 
 let parse ~header ~body =
+  let ( let* ) = Result.bind in
   let* header_params = parse (`String header) p_multipart_formdata_header in
   match String_map.find_opt "boundary" header_params with
   | Some boundary_value -> parse body (p_multipart_bodyparts boundary_value)
