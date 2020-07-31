@@ -1,12 +1,12 @@
 open Sexplib0
-open Http_multipart_formdata
 
 type ('a, 'error) t = ('a, 'error) result = Ok of 'a | Error of 'error
 [@@deriving sexp_of]
 
 let pp fmt t =
-  let pp1 = Sexp_conv.sexp_of_list Multipart_formdata.sexp_of_t in
-  sexp_of_t pp1 Multipart_formdata.sexp_of_error t |> Sexp.pp_hum_indent 2 fmt
+  let pp1 = Sexp_conv.sexp_of_list Http_multipart_formdata.sexp_of_t in
+  sexp_of_t pp1 Http_multipart_formdata.sexp_of_error t
+  |> Sexp.pp_hum_indent 2 fmt
 
 let%expect_test _ =
   let header =
@@ -45,7 +45,7 @@ let%expect_test _ =
     ]
     |> String.concat "\r\n"
   in
-  Multipart_formdata.parse ~header ~body:(`String body)
+  Http_multipart_formdata.parse ~header ~body:(`String body)
   |> pp Format.std_formatter;
 
   [%expect
