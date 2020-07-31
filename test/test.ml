@@ -162,3 +162,47 @@ let%expect_test "multiple body parts with same form field." =
                     \n\r\
                     \na\207\137b\r\
                     \n")))))) |}]
+
+let%test "find" =
+  let header =
+    " multipart/form-data; \
+     boundary=---------------------------735323031399963166993862150"
+  in
+  let body =
+    [
+      {||};
+      {|-----------------------------735323031399963166993862150|};
+      {|Content-Disposition: form-data; name="text1"|};
+      {||};
+      {|text default|};
+      {|-----------------------------735323031399963166993862150|};
+      {|Content-Disposition: form-data; name="text1"|};
+      {||};
+      {|aωb|};
+      {|-----------------------------735323031399963166993862150|};
+      {|Content-Disposition: form-data; name="file1"; filename="a.txt"|};
+      {|Content-Type: text/plain|};
+      {||};
+      {|Content of a.txt.|};
+      {||};
+      {|-----------------------------735323031399963166993862150|};
+      {|Content-Disposition: form-data; name="file1"; filename="a.html"|};
+      {|Content-Type: text/html|};
+      {||};
+      {|<!DOCTYPE html><title>Content of a.html.</title>|};
+      {||};
+      {|-----------------------------735323031399963166993862150|};
+      {|Content-Disposition: form-data; name="file1"; filename="binary"|};
+      {|Content-Type: application/octet-stream|};
+      {||};
+      {|aωb|};
+      {|-----------------------------735323031399963166993862150--|};
+    ]
+    |> String.concat "\r\n"
+  in
+  Http_multipart_formdata.parse ~header ~body:(`String body) |> function
+  | Ok parts ->
+      List.length (Http_multipart_formdata.find "text1" parts) = 2
+      && List.length (Http_multipart_formdata.find "file1" parts) = 3
+      && List.length (Http_multipart_formdata.body_parts parts) = 5
+  | Error _ -> false
