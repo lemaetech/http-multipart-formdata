@@ -15,18 +15,18 @@ type error =
   | Reparse.error ]
 [@@deriving sexp_of]
 
-module Params = struct
+module String_map = struct
   include Map.Make (String)
-
-  type nonrec t = string t
 
   let union a b = union (fun _key a _b -> Some a) a b
 
-  let sexp_of_t t =
-    to_seq t |> List.of_seq |> [%sexp_of: (string * string) list]
+  let sexp_of_t f t =
+    let s = sexp_of_pair sexp_of_string f in
+    let l = to_seq t |> List.of_seq in
+    sexp_of_list s l
 
-  let pp fmt t =
-    sexp_of_t t |> Sexp.pp_hum_indent 2 fmt
+  let pp f fmt t =
+    sexp_of_t f t |> Sexp.pp_hum_indent 2 fmt
     [@@ocaml.toplevel_printer] [@@warning "-32"]
 end
 
@@ -34,7 +34,7 @@ type t = {
   form_field : string;
   filename : string option;
   content_type : string;
-  parameters : Params.t;
+  parameters : string String_map.t;
   body : bytes;
 }
 [@@deriving sexp_of]
@@ -52,8 +52,12 @@ let body t = t.body
 let pp fmt t = Sexp.pp_hum_indent 2 fmt (sexp_of_t t)
 
 type part_header =
-  | Content_type of { ty : string; subtype : string; parameters : Params.t }
-  | Content_disposition of Params.t
+  | Content_type of {
+      ty : string;
+      subtype : string;
+      parameters : string String_map.t;
+    }
+  | Content_disposition of string String_map.t
 
 let is_alpha_digit = function
   | '0' .. '9' | 'a' .. 'z' | 'A' .. 'Z' -> true
@@ -167,7 +171,7 @@ let p_content_disposition =
   *> string "form-data"
   *> many p_param
   >>| fun params ->
-  let params = List.to_seq params |> Params.of_seq in
+  let params = List.to_seq params |> String_map.of_seq in
   Content_disposition params
 
 let p_content_type parse_header_name =
@@ -178,7 +182,7 @@ let p_content_type parse_header_name =
   >>= fun ty ->
   char '/' *> p_restricted_name >>= fun subtype ->
   p_whitespace *> many p_param >>| fun params ->
-  let parameters = params |> List.to_seq |> Params.of_seq in
+  let parameters = params |> List.to_seq |> String_map.of_seq in
   Content_type { ty; subtype; parameters }
 
 let p_header_boundary =
@@ -219,7 +223,7 @@ let p_multipart_formdata_header =
   >>*? `Not_multipart_formdata_header )
   *> p_whitespace
   *> many param
-  >>= fun params -> params |> List.to_seq |> Params.of_seq |> ok
+  >>= fun params -> params |> List.to_seq |> String_map.of_seq |> ok
 
 let body_part headers body =
   let name, content_type, filename, parameters =
@@ -228,12 +232,12 @@ let body_part headers body =
         match header with
         | Content_type ct ->
             let content_type = Some (ct.ty ^ "/" ^ ct.subtype) in
-            (name, content_type, filename, Params.union params ct.parameters)
+            (name, content_type, filename, String_map.union params ct.parameters)
         | Content_disposition params2 ->
-            let name = Params.find_opt "name" params2 in
-            let filename = Params.find_opt "filename" params2 in
-            (name, ct, filename, Params.union params params2))
-      (None, None, None, Params.empty)
+            let name = String_map.find_opt "name" params2 in
+            let filename = String_map.find_opt "filename" params2 in
+            (name, ct, filename, String_map.union params params2))
+      (None, None, None, String_map.empty)
       headers
   in
   match name with
@@ -275,6 +279,6 @@ let p_multipart_bodyparts boundary_value =
 
 let parse ~header ~body =
   let* header_params = parse (`String header) p_multipart_formdata_header in
-  match Params.find_opt "boundary" header_params with
+  match String_map.find_opt "boundary" header_params with
   | Some boundary_value -> parse body (p_multipart_bodyparts boundary_value)
   | None -> Result.error `Boundary_parameter_not_found
