@@ -59,6 +59,15 @@ let sexp_of_t t = String_map.sexp_of_t (sexp_of_list Body_part.sexp_of_t) t
 
 let pp fmt t = Sexp.pp_hum_indent 2 fmt (sexp_of_t t)
 
+let find name t =
+  match String_map.find_opt name t with Some l -> l | None -> []
+
+let body_parts (t : t) =
+  String_map.to_seq t
+  |> List.of_seq
+  |> List.map (fun (_, bp) -> bp)
+  |> List.concat
+
 type part_header =
   | Content_type of {
       ty : string;

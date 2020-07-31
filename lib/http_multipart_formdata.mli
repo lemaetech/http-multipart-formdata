@@ -45,6 +45,13 @@ val parse :
 (** [parse ~header ~body] parses [header] to retrieve boundary value and uses
     that to parse [body] to return [t]. *)
 
+val find : string -> t -> Body_part.t list
+(** [find nm t] returns a list of [Body_part.t] associated with name [nm]. It
+    returns an empty list if [nm] is not found in [t]. *)
+
+val body_parts : t -> Body_part.t list
+(** [body_parts t] returns all parsed body parts in [t]. *)
+
 (** {2 Pretty-printers *)
 
 val sexp_of_error : error -> Sexplib0.Sexp.t
