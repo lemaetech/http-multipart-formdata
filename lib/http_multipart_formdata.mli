@@ -47,12 +47,16 @@ module Body_part : sig
   val pp : Format.formatter -> t -> unit
 end
 
+(** {2 Parsing} *)
+
 val parse :
   header:string ->
   body:[ `String of string | `Bigstring of Bigstringaf.t ] ->
   (t, error) result
 (** [parse ~header ~body] parses [header] to retrieve boundary value and uses
     that to parse [body] to return [t]. *)
+
+(** {2 Query functions} *)
 
 val find : string -> t -> Body_part.t list
 (** [find nm t] returns a list of [Body_part.t] associated with name [nm]. It
