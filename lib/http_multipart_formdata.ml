@@ -1,3 +1,11 @@
+(*-------------------------------------------------------------------------
+ * Copyright (c) 2019, 2020 Bikal Gurung. All rights reserved.
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License,  v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ *
+ *-------------------------------------------------------------------------*)
 open Reparse
 open Sexplib0
 open Sexplib0.Sexp_conv
