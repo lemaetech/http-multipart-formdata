@@ -30,26 +30,28 @@ module String_map = struct
     [@@ocaml.toplevel_printer] [@@warning "-32"]
 end
 
-type t = {
-  form_field : string;
-  filename : string option;
-  content_type : string;
-  parameters : string String_map.t;
-  body : bytes;
-}
-[@@deriving sexp_of]
+module Body_part = struct
+  type t = {
+    form_field : string;
+    filename : string option;
+    content_type : string;
+    parameters : string String_map.t;
+    body : bytes;
+  }
+  [@@deriving sexp_of]
 
-let form_field t = t.form_field
+  let form_field t = t.form_field
 
-let filename t = t.filename
+  let filename t = t.filename
 
-let content_type t = t.content_type
+  let content_type t = t.content_type
 
-let is_file t = Option.is_some t.filename
+  let is_file t = Option.is_some t.filename
 
-let body t = t.body
+  let body t = t.body
 
-let pp fmt t = Sexp.pp_hum_indent 2 fmt (sexp_of_t t)
+  let pp fmt t = Sexp.pp_hum_indent 2 fmt (sexp_of_t t)
+end
 
 type part_header =
   | Content_type of {
@@ -246,7 +248,7 @@ let body_part headers body =
       let content_type = try Option.get content_type with _ -> "text/plain" in
       Reparse.ok
         {
-          form_field = nm;
+          Body_part.form_field = nm;
           filename;
           content_type;
           parameters;
