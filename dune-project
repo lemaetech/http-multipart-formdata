@@ -21,7 +21,7 @@
  (tags
   ("http" "multipart" "formadata" "form" "web"))
  (description
-   "Ocaml implementation of RFC 7578 (Returning Values from Forms: multipart/form-data)- https://tools.ietf.org/html/rfc7578")
+   "OCaml implementation of RFC 7578 (Returning Values from Forms: multipart/form-data)- https://tools.ietf.org/html/rfc7578")
  (depends
   (ocaml
    (>= 4.10.0))

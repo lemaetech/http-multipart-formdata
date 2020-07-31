@@ -163,7 +163,7 @@ let%expect_test "multiple body parts with same form field." =
                     \na\207\137b\r\
                     \n")))))) |}]
 
-let%test "find" =
+let%test "find/body_parts" =
   let header =
     " multipart/form-data; \
      boundary=---------------------------735323031399963166993862150"

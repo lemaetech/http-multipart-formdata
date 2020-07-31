@@ -1,12 +1,12 @@
 http-mutlipart-formdata
 =======================
 
-Ocaml implementation of RFC 7578 (Returning Values from Forms: multipart/form-data)
+OCaml implementation of RFC 7578 (Returning Values from Forms: multipart/form-data)
 - https://tools.ietf.org/html/rfc7578")
 
 Requirements
 ------------
-Reparse requires ocaml version 4.10.0.
+Reparse requires OCaml version 4.10.0.
 
 Installation
 -----------
