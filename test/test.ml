@@ -4,8 +4,8 @@ type ('a, 'error) t = ('a, 'error) result = Ok of 'a | Error of 'error
 [@@deriving sexp_of]
 
 let pp fmt t =
-  let pp1 = Sexp_conv.sexp_of_list Http_multipart_formdata.sexp_of_t in
-  sexp_of_t pp1 Http_multipart_formdata.sexp_of_error t
+  sexp_of_t Http_multipart_formdata.sexp_of_t
+    Http_multipart_formdata.sexp_of_error t
   |> Sexp.pp_hum_indent 2 fmt
 
 let%expect_test _ =
@@ -51,38 +51,41 @@ let%expect_test _ =
   [%expect
     {|
     (Ok
-      (((form_field text1) (filename ()) (content_type text/plain)
-         (parameters ((name text1))) (body  "\r\
-                                           \n\r\
-                                           \ntext default\r\
-                                           \n"))
-        ((form_field text2) (filename ()) (content_type text/plain)
-          (parameters ((name text2))) (body  "\r\
-                                            \n\r\
-                                            \na\207\137b\r\
-                                            \n"))
-        ((form_field file1) (filename (a.txt)) (content_type text/plain)
-          (parameters ((filename a.txt) (name file1)))
-          (body  "\r\
-                \n\r\
-                \nContent of a.txt.\r\
-                \n\r\
-                \n"))
-        ((form_field file2) (filename (a.html)) (content_type text/html)
-          (parameters ((filename a.html) (name file2)))
-          (body
-             "\r\
-            \n\r\
-            \n<!DOCTYPE html><title>Content of a.html.</title>\r\
-            \n\r\
-            \n"))
-        ((form_field file3) (filename (binary))
-          (content_type application/octet-stream)
-          (parameters ((filename binary) (name file3)))
-          (body  "\r\
-                \n\r\
-                \na\207\137b\r\
-                \n"))))|}]
+      ((file1
+         (((name file1) (filename (a.txt)) (content_type text/plain)
+            (parameters ()) (body  "\r\
+                                  \n\r\
+                                  \nContent of a.txt.\r\
+                                  \n\r\
+                                  \n"))))
+        (file2
+          (((name file2) (filename (a.html)) (content_type text/html)
+             (parameters ())
+             (body
+                "\r\
+               \n\r\
+               \n<!DOCTYPE html><title>Content of a.html.</title>\r\
+               \n\r\
+               \n"))))
+        (file3
+          (((name file3) (filename (binary))
+             (content_type application/octet-stream) (parameters ())
+             (body  "\r\
+                   \n\r\
+                   \na\207\137b\r\
+                   \n"))))
+        (text1
+          (((name text1) (filename ()) (content_type text/plain) (parameters ())
+             (body  "\r\
+                   \n\r\
+                   \ntext default\r\
+                   \n"))))
+        (text2
+          (((name text2) (filename ()) (content_type text/plain) (parameters ())
+             (body  "\r\
+                   \n\r\
+                   \na\207\137b\r\
+                   \n"))))))|}]
 
 let%expect_test "multiple body parts with same form field." =
   let header =
@@ -124,37 +127,38 @@ let%expect_test "multiple body parts with same form field." =
   Http_multipart_formdata.parse ~header ~body:(`String body)
   |> pp Format.std_formatter;
 
-  [%expect {|
+  [%expect
+    {|
     (Ok
-      (((form_field text1) (filename ()) (content_type text/plain)
-         (parameters ((name text1))) (body  "\r\
-                                           \n\r\
-                                           \ntext default\r\
-                                           \n"))
-        ((form_field text1) (filename ()) (content_type text/plain)
-          (parameters ((name text1))) (body  "\r\
-                                            \n\r\
-                                            \na\207\137b\r\
-                                            \n"))
-        ((form_field file1) (filename (a.txt)) (content_type text/plain)
-          (parameters ((filename a.txt) (name file1)))
-          (body  "\r\
-                \n\r\
-                \nContent of a.txt.\r\
-                \n\r\
-                \n"))
-        ((form_field file1) (filename (a.html)) (content_type text/html)
-          (parameters ((filename a.html) (name file1)))
-          (body
-             "\r\
-            \n\r\
-            \n<!DOCTYPE html><title>Content of a.html.</title>\r\
-            \n\r\
-            \n"))
-        ((form_field file1) (filename (binary))
-          (content_type application/octet-stream)
-          (parameters ((filename binary) (name file1)))
-          (body  "\r\
-                \n\r\
-                \na\207\137b\r\
-                \n")))) |}]
+      ((file1
+         (((name file1) (filename (a.txt)) (content_type text/plain)
+            (parameters ()) (body  "\r\
+                                  \n\r\
+                                  \nContent of a.txt.\r\
+                                  \n\r\
+                                  \n"))
+           ((name file1) (filename (a.html)) (content_type text/html)
+             (parameters ())
+             (body
+                "\r\
+               \n\r\
+               \n<!DOCTYPE html><title>Content of a.html.</title>\r\
+               \n\r\
+               \n"))
+           ((name file1) (filename (binary))
+             (content_type application/octet-stream) (parameters ())
+             (body  "\r\
+                   \n\r\
+                   \na\207\137b\r\
+                   \n"))))
+        (text1
+          (((name text1) (filename ()) (content_type text/plain) (parameters ())
+             (body  "\r\
+                   \n\r\
+                   \ntext default\r\
+                   \n"))
+            ((name text1) (filename ()) (content_type text/plain) (parameters ())
+              (body  "\r\
+                    \n\r\
+                    \na\207\137b\r\
+                    \n")))))) |}]

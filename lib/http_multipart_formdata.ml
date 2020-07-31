@@ -15,45 +15,66 @@ type error =
   | Reparse.error ]
 [@@deriving sexp_of]
 
-module Params = struct
+module String_map = struct
   include Map.Make (String)
-
-  type nonrec t = string t
 
   let union a b = union (fun _key a _b -> Some a) a b
 
-  let sexp_of_t t =
-    to_seq t |> List.of_seq |> [%sexp_of: (string * string) list]
+  let sexp_of_t f t =
+    let s = sexp_of_pair sexp_of_string f in
+    let l = to_seq t |> List.of_seq in
+    sexp_of_list s l
 
-  let pp fmt t =
-    sexp_of_t t |> Sexp.pp_hum_indent 2 fmt
+  let pp f fmt t =
+    sexp_of_t f t |> Sexp.pp_hum_indent 2 fmt
     [@@ocaml.toplevel_printer] [@@warning "-32"]
 end
 
-type t = {
-  form_field : string;
-  filename : string option;
-  content_type : string;
-  parameters : Params.t;
-  body : bytes;
-}
-[@@deriving sexp_of]
+module Body_part = struct
+  type t = {
+    name : string;
+    filename : string option;
+    content_type : string;
+    parameters : string String_map.t;
+    body : bytes;
+  }
+  [@@deriving sexp_of]
 
-let form_field t = t.form_field
+  let name t = t.name
 
-let filename t = t.filename
+  let filename t = t.filename
 
-let content_type t = t.content_type
+  let content_type t = t.content_type
 
-let is_file t = Option.is_some t.filename
+  let is_file t = Option.is_some t.filename
 
-let body t = t.body
+  let body t = t.body
+
+  let pp fmt t = Sexp.pp_hum_indent 2 fmt (sexp_of_t t)
+end
+
+type t = Body_part.t list String_map.t
+
+let sexp_of_t t = String_map.sexp_of_t (sexp_of_list Body_part.sexp_of_t) t
 
 let pp fmt t = Sexp.pp_hum_indent 2 fmt (sexp_of_t t)
 
+let find name t =
+  match String_map.find_opt name t with Some l -> l | None -> []
+
+let body_parts (t : t) =
+  String_map.to_seq t
+  |> List.of_seq
+  |> List.map (fun (_, bp) -> bp)
+  |> List.concat
+
 type part_header =
-  | Content_type of { ty : string; subtype : string; parameters : Params.t }
-  | Content_disposition of Params.t
+  | Content_type of {
+      ty : string;
+      subtype : string;
+      parameters : string String_map.t;
+    }
+  | Content_disposition of string String_map.t
 
 let is_alpha_digit = function
   | '0' .. '9' | 'a' .. 'z' | 'A' .. 'Z' -> true
@@ -167,7 +188,7 @@ let p_content_disposition =
   *> string "form-data"
   *> many p_param
   >>| fun params ->
-  let params = List.to_seq params |> Params.of_seq in
+  let params = List.to_seq params |> String_map.of_seq in
   Content_disposition params
 
 let p_content_type parse_header_name =
@@ -178,7 +199,7 @@ let p_content_type parse_header_name =
   >>= fun ty ->
   char '/' *> p_restricted_name >>= fun subtype ->
   p_whitespace *> many p_param >>| fun params ->
-  let parameters = params |> List.to_seq |> Params.of_seq in
+  let parameters = params |> List.to_seq |> String_map.of_seq in
   Content_type { ty; subtype; parameters }
 
 let p_header_boundary =
@@ -219,7 +240,7 @@ let p_multipart_formdata_header =
   >>*? `Not_multipart_formdata_header )
   *> p_whitespace
   *> many param
-  >>= fun params -> params |> List.to_seq |> Params.of_seq |> ok
+  >>= fun params -> params |> List.to_seq |> String_map.of_seq |> ok
 
 let body_part headers body =
   let name, content_type, filename, parameters =
@@ -228,26 +249,38 @@ let body_part headers body =
         match header with
         | Content_type ct ->
             let content_type = Some (ct.ty ^ "/" ^ ct.subtype) in
-            (name, content_type, filename, Params.union params ct.parameters)
+            (name, content_type, filename, String_map.union params ct.parameters)
         | Content_disposition params2 ->
-            let name = Params.find_opt "name" params2 in
-            let filename = Params.find_opt "filename" params2 in
-            (name, ct, filename, Params.union params params2))
-      (None, None, None, Params.empty)
+            let name = String_map.find_opt "name" params2 in
+            let filename = String_map.find_opt "filename" params2 in
+            (name, ct, filename, String_map.union params params2))
+      (None, None, None, String_map.empty)
       headers
   in
   match name with
   | None -> Reparse.fail `Name_parameter_not_found
   | Some nm ->
       let content_type = try Option.get content_type with _ -> "text/plain" in
+      let parameters =
+        String_map.remove "name" parameters |> fun parameters ->
+        match filename with
+        | Some _ -> String_map.remove "filename" parameters
+        | None -> parameters
+      in
       Reparse.ok
-        {
-          form_field = nm;
-          filename;
-          content_type;
-          parameters;
-          body = Bytes.unsafe_of_string body;
-        }
+        ( nm,
+          {
+            Body_part.name = nm;
+            filename;
+            content_type;
+            parameters;
+            body = Bytes.unsafe_of_string body;
+          } )
+
+let add_part (name, bp) m =
+  match String_map.find_opt name m with
+  | Some l -> String_map.add name (bp :: l) m
+  | None -> String_map.add name [ bp ] m
 
 let p_multipart_bodyparts boundary_value =
   let dash_boundary = "--" ^ boundary_value in
@@ -271,10 +304,14 @@ let p_multipart_bodyparts boundary_value =
         else line >>= loop_parts parts
     | None -> ok parts
   in
-  line >>= loop_parts [] >>= fun parts -> List.rev parts |> ok
+  line >>= loop_parts [] >>= fun parts ->
+  List.fold_left
+    (fun m (name, bp) -> add_part (name, bp) m)
+    String_map.empty parts
+  |> ok
 
 let parse ~header ~body =
   let* header_params = parse (`String header) p_multipart_formdata_header in
-  match Params.find_opt "boundary" header_params with
+  match String_map.find_opt "boundary" header_params with
   | Some boundary_value -> parse body (p_multipart_bodyparts boundary_value)
   | None -> Result.error `Boundary_parameter_not_found
