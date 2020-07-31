@@ -3,6 +3,5 @@
  (public_name http-multipart-formdata)
  (libraries sexplib0 bigstringaf reparse)
  (wrapped false)
- (inline_tests)
  (preprocess
-  (pps ppx_sexp_conv ppx_inline_test ppx_expect)))
+  (pps ppx_sexp_conv)))
