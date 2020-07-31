@@ -53,6 +53,10 @@ module Body_part = struct
   let pp fmt t = Sexp.pp_hum_indent 2 fmt (sexp_of_t t)
 end
 
+type t = Body_part.t String_map.t
+
+let sexp_of_t t = String_map.sexp_of_t Body_part.sexp_of_t t
+
 type part_header =
   | Content_type of {
       ty : string;

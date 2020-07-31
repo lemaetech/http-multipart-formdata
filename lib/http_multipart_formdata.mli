@@ -1,3 +1,5 @@
+type t
+
 type nonrec error =
   [ `Boundary_parameter_not_found
   | `Not_multipart_formdata_header
@@ -29,3 +31,5 @@ val parse :
   header:string ->
   body:[ `String of string | `Bigstring of Bigstringaf.t ] ->
   (Body_part.t list, error) result
+
+val sexp_of_t : t -> Sexplib0.Sexp.t
