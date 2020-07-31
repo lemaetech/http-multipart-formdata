@@ -21,3 +21,7 @@ API documentation
 $ opam install odig 
 $ odig doc http-multipart-formdata 
 ```
+
+Examples
+--------
+See https://github.com/bikallem/http-mutlipart-formdata/blob/master/test/test.ml
