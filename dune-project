@@ -18,6 +18,8 @@
 (package
  (name http-multipart-formdata)
  (synopsis "Http multipart/formdata parser")
+ (tags
+  ("http" "multipart" "formadata" "form" "web"))
  (description
    "Ocaml implementation of RFC 7578 (Returning Values from Forms: multipart/form-data)- https://tools.ietf.org/html/rfc7578")
  (depends
