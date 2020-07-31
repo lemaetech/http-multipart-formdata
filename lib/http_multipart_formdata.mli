@@ -19,12 +19,19 @@ module Body_part : sig
   (** [name t] returns value of [name] parameter. *)
 
   val filename : t -> string option
+  (** [filename t] returns [Some s] which represents the [filename] parameter of
+      a file body part. Otherwise it returns [None] if the body part is just a
+      string value. *)
 
   val content_type : t -> string
+  (** [content_type t] returns content-type of [t] as specified in
+      https://tools.ietf.org/html/rfc7578#section-4.4. *)
 
   val is_file : t -> bool
+  (** [is_file t] returns [true] if [t] is a file body part. *)
 
   val body : t -> bytes
+  (** [body t] returns the body data of [t]. *)
 
   val sexp_of_t : t -> Sexplib0.Sexp.t
 
