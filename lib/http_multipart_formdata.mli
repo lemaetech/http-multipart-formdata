@@ -1,4 +1,7 @@
+(** {2 Types} *)
+
 type t
+(** Represents HTTP Multipart formadata. *)
 
 type nonrec error =
   [ `Boundary_parameter_not_found
@@ -6,13 +9,14 @@ type nonrec error =
   | `Invalid_multipart_body_header
   | `Name_parameter_not_found
   | Reparse.error ]
-
-val sexp_of_error : error -> Sexplib0.Sexp.t
+(** Represents error while parsing http multipart formdata. *)
 
 module Body_part : sig
   type t
+  (** Represents a body part instance. *)
 
-  val form_field : t -> string
+  val name : t -> string
+  (** [name t] returns value of [name] parameter. *)
 
   val filename : t -> string option
 
@@ -30,6 +34,14 @@ end
 val parse :
   header:string ->
   body:[ `String of string | `Bigstring of Bigstringaf.t ] ->
-  (Body_part.t list, error) result
+  (t, error) result
+(** [parse ~header ~body] parses [header] to retrieve boundary value and uses
+    that to parse [body] to return [t]. *)
+
+(** {2 Pretty-printers *)
+
+val sexp_of_error : error -> Sexplib0.Sexp.t
 
 val sexp_of_t : t -> Sexplib0.Sexp.t
+
+val pp : Format.formatter -> t -> unit

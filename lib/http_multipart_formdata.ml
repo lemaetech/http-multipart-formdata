@@ -32,7 +32,7 @@ end
 
 module Body_part = struct
   type t = {
-    form_field : string;
+    name : string;
     filename : string option;
     content_type : string;
     parameters : string String_map.t;
@@ -40,7 +40,7 @@ module Body_part = struct
   }
   [@@deriving sexp_of]
 
-  let form_field t = t.form_field
+  let name t = t.name
 
   let filename t = t.filename
 
@@ -53,9 +53,11 @@ module Body_part = struct
   let pp fmt t = Sexp.pp_hum_indent 2 fmt (sexp_of_t t)
 end
 
-type t = Body_part.t String_map.t
+type t = Body_part.t list String_map.t
 
-let sexp_of_t t = String_map.sexp_of_t Body_part.sexp_of_t t
+let sexp_of_t t = String_map.sexp_of_t (sexp_of_list Body_part.sexp_of_t) t
+
+let pp fmt t = Sexp.pp_hum_indent 2 fmt (sexp_of_t t)
 
 type part_header =
   | Content_type of {
@@ -250,14 +252,26 @@ let body_part headers body =
   | None -> Reparse.fail `Name_parameter_not_found
   | Some nm ->
       let content_type = try Option.get content_type with _ -> "text/plain" in
+      let parameters =
+        String_map.remove "name" parameters |> fun parameters ->
+        match filename with
+        | Some _ -> String_map.remove "filename" parameters
+        | None -> parameters
+      in
       Reparse.ok
-        {
-          Body_part.form_field = nm;
-          filename;
-          content_type;
-          parameters;
-          body = Bytes.unsafe_of_string body;
-        }
+        ( nm,
+          {
+            Body_part.name = nm;
+            filename;
+            content_type;
+            parameters;
+            body = Bytes.unsafe_of_string body;
+          } )
+
+let add_part (name, bp) m =
+  match String_map.find_opt name m with
+  | Some l -> String_map.add name (bp :: l) m
+  | None -> String_map.add name [ bp ] m
 
 let p_multipart_bodyparts boundary_value =
   let dash_boundary = "--" ^ boundary_value in
@@ -281,7 +295,11 @@ let p_multipart_bodyparts boundary_value =
         else line >>= loop_parts parts
     | None -> ok parts
   in
-  line >>= loop_parts [] >>= fun parts -> List.rev parts |> ok
+  line >>= loop_parts [] >>= fun parts ->
+  List.fold_left
+    (fun m (name, bp) -> add_part (name, bp) m)
+    String_map.empty parts
+  |> ok
 
 let parse ~header ~body =
   let* header_params = parse (`String header) p_multipart_formdata_header in
