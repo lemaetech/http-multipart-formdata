@@ -7,7 +7,7 @@
 (generate_opam_files true)
 
 (source
- (github bikallem/http-mutlipart-formdata))
+ (github lemaetech/http-mutlipart-formdata))
 
 (license MPL-2.0)
 

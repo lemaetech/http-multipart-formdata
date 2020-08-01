@@ -8,8 +8,8 @@ maintainer: ["Bikal Lem"]
 authors: ["Bikal Lem, <gbikal@gmail.com>"]
 license: "MPL-2.0"
 tags: ["http" "multipart" "formadata" "form" "web"]
-homepage: "https://github.com/bikallem/http-mutlipart-formdata"
-bug-reports: "https://github.com/bikallem/http-mutlipart-formdata/issues"
+homepage: "https://github.com/lemaetech/http-mutlipart-formdata"
+bug-reports: "https://github.com/lemaetech/http-mutlipart-formdata/issues"
 depends: [
   "ocaml" {>= "4.10.0"}
   "dune" {>= "2.6"}
@@ -34,4 +34,4 @@ build: [
     "@doc" {with-doc}
   ]
 ]
-dev-repo: "git+https://github.com/bikallem/http-mutlipart-formdata.git"
+dev-repo: "git+https://github.com/lemaetech/http-mutlipart-formdata.git"
