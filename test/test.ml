@@ -75,14 +75,14 @@ let%expect_test _ =
                                      \n\r\
                                      \na\207\137b\r\
                                      \n")))))
-        (text1 ((String (value  "\r\
-                               \n\r\
-                               \ntext default\r\
-                               \n"))))
-        (text2 ((String (value  "\r\
-                               \n\r\
-                               \na\207\137b\r\
-                               \n"))))))|}]
+        (text1 ((String  "\r\
+                        \n\r\
+                        \ntext default\r\
+                        \n")))
+        (text2 ((String  "\r\
+                        \n\r\
+                        \na\207\137b\r\
+                        \n")))))|}]
 
 let%expect_test "multiple body parts with same form field." =
   let header =
@@ -150,14 +150,14 @@ let%expect_test "multiple body parts with same form field." =
                                      \na\207\137b\r\
                                      \n")))))
         (text1
-          ((String (value  "\r\
-                          \n\r\
-                          \ntext default\r\
-                          \n"))
-            (String (value  "\r\
-                           \n\r\
-                           \na\207\137b\r\
-                           \n")))))) |}]
+          ((String  "\r\
+                   \n\r\
+                   \ntext default\r\
+                   \n")
+            (String  "\r\
+                    \n\r\
+                    \na\207\137b\r\
+                    \n"))))) |}]
 
 let%test "find/body_parts" =
   let header =

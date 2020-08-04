@@ -36,6 +36,8 @@ module File_part : sig
   val body : t -> bytes
   (** [body t] returns the body data of [t]. *)
 
+  val find_parameter : string -> t -> string option
+
   (** {2 Pretty-printers}*)
 
   val sexp_of_t : t -> Sexplib0.Sexp.t
@@ -43,8 +45,8 @@ module File_part : sig
   val pp : Format.formatter -> t -> unit
 end
 
-(** Represents body part which can be either a string value or a File upload. *)
-type body_part = private File of File_part.t | String of { value : string }
+type part = [ `File of File_part.t | `String of string ]
+(** Represents form part which can be either a string value or a File upload. *)
 
 (** {2 Parsing} *)
 
@@ -57,11 +59,11 @@ val parse :
 
 (** {2 Query functions} *)
 
-val find : string -> t -> body_part list
+val find : string -> t -> part list
 (** [find nm t] returns a list of [Body_part.t] associated with name [nm]. It
     returns an empty list if [nm] is not found in [t]. *)
 
-val body_parts : t -> body_part list
+val body_parts : t -> part list
 (** [body_parts t] returns all parsed body parts in [t]. *)
 
 (** {2 Pretty-printers} *)
