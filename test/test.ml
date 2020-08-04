@@ -200,5 +200,5 @@ let%test "find/body_parts" =
   | Ok parts ->
       List.length (Http_multipart_formdata.find "text1" parts) = 2
       && List.length (Http_multipart_formdata.find "file1" parts) = 3
-      && List.length (Http_multipart_formdata.body_parts parts) = 5
+      && List.length (Http_multipart_formdata.parts parts) = 2
   | Error _ -> false

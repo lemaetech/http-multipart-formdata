@@ -66,12 +66,6 @@ let pp fmt t = Sexp.pp_hum_indent 2 fmt (sexp_of_t t)
 let find name t =
   match String_map.find_opt name t with Some l -> l | None -> []
 
-let body_parts (t : t) =
-  String_map.to_seq t
-  |> List.of_seq
-  |> List.map (fun (_, bp) -> bp)
-  |> List.concat
-
 type part_header =
   | Content_type of {
       ty : string;
@@ -323,3 +317,5 @@ let parse ~header ~body =
   match String_map.find_opt "boundary" header_params with
   | Some boundary_value -> parse body (p_multipart_bodyparts boundary_value)
   | None -> Result.error `Boundary_parameter_not_found
+
+let parts (t : t) = String_map.to_seq t |> List.of_seq

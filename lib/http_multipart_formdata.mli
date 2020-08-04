@@ -63,8 +63,8 @@ val find : string -> t -> part list
 (** [find nm t] returns a list of [Body_part.t] associated with name [nm]. It
     returns an empty list if [nm] is not found in [t]. *)
 
-val body_parts : t -> part list
-(** [body_parts t] returns all parsed body parts in [t]. *)
+val parts : t -> (string * part list) list
+(** [parts t] returns all parsed body parts in [t]. *)
 
 (** {2 Pretty-printers} *)
 
