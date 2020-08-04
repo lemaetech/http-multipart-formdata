@@ -2,8 +2,6 @@
 
 (name http-multipart-formdata)
 
-(version 1.0.0)
-
 (generate_opam_files true)
 
 (source
