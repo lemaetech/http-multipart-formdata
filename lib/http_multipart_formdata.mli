@@ -20,12 +20,9 @@ type nonrec error =
   | Reparse.error ]
 (** Represents error while parsing http multipart formdata. *)
 
-module Body_part : sig
+module File_part : sig
   type t
-  (** Represents a body part instance. *)
-
-  val name : t -> string
-  (** [name t] returns value of [name] parameter. *)
+  (** Represents a File body part instance. *)
 
   val filename : t -> string option
   (** [filename t] returns [Some s] which represents the [filename] parameter of
@@ -36,16 +33,18 @@ module Body_part : sig
   (** [content_type t] returns content-type of [t] as specified in
       https://tools.ietf.org/html/rfc7578#section-4.4. *)
 
-  val is_file : t -> bool
-  (** [is_file t] returns [true] if [t] is a file body part. *)
-
   val body : t -> bytes
   (** [body t] returns the body data of [t]. *)
+
+  (** {2 Pretty-printers}*)
 
   val sexp_of_t : t -> Sexplib0.Sexp.t
 
   val pp : Format.formatter -> t -> unit
 end
+
+(** Represents body part which can be either a string value or a File upload. *)
+type body_part = private File of File_part.t | String of { value : string }
 
 (** {2 Parsing} *)
 
@@ -58,11 +57,11 @@ val parse :
 
 (** {2 Query functions} *)
 
-val find : string -> t -> Body_part.t list
+val find : string -> t -> body_part list
 (** [find nm t] returns a list of [Body_part.t] associated with name [nm]. It
     returns an empty list if [nm] is not found in [t]. *)
 
-val body_parts : t -> Body_part.t list
+val body_parts : t -> body_part list
 (** [body_parts t] returns all parsed body parts in [t]. *)
 
 (** {2 Pretty-printers} *)

@@ -35,9 +35,8 @@ module String_map = struct
     [@@ocaml.toplevel_printer] [@@warning "-32"]
 end
 
-module Body_part = struct
+module File_part = struct
   type t = {
-    name : string;
     filename : string option;
     content_type : string;
     parameters : string String_map.t;
@@ -45,22 +44,21 @@ module Body_part = struct
   }
   [@@deriving sexp_of]
 
-  let name t = t.name
-
   let filename t = t.filename
 
   let content_type t = t.content_type
-
-  let is_file t = Option.is_some t.filename
 
   let body t = t.body
 
   let pp fmt t = Sexp.pp_hum_indent 2 fmt (sexp_of_t t)
 end
 
-type t = Body_part.t list String_map.t
+type body_part = File of File_part.t | String of { value : string }
+[@@deriving sexp_of]
 
-let sexp_of_t t = String_map.sexp_of_t (sexp_of_list Body_part.sexp_of_t) t
+type t = body_part list String_map.t
+
+let sexp_of_t t = String_map.sexp_of_t (sexp_of_list sexp_of_body_part) t
 
 let pp fmt t = Sexp.pp_hum_indent 2 fmt (sexp_of_t t)
 
@@ -272,15 +270,18 @@ let body_part headers body =
         | Some _ -> String_map.remove "filename" parameters
         | None -> parameters
       in
-      Reparse.ok
-        ( nm,
-          {
-            Body_part.name = nm;
-            filename;
-            content_type;
-            parameters;
-            body = Bytes.unsafe_of_string body;
-          } )
+      ( match filename with
+      | Some _ ->
+          ( nm,
+            File
+              {
+                filename;
+                content_type;
+                parameters;
+                body = Bytes.unsafe_of_string body;
+              } )
+      | None -> (nm, String { value = body }) )
+      |> Reparse.ok
 
 let add_part (name, bp) m =
   match String_map.find_opt name m with

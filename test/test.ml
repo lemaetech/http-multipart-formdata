@@ -52,40 +52,37 @@ let%expect_test _ =
     {|
     (Ok
       ((file1
-         (((name file1) (filename (a.txt)) (content_type text/plain)
-            (parameters ()) (body  "\r\
-                                  \n\r\
-                                  \nContent of a.txt.\r\
-                                  \n\r\
-                                  \n"))))
+         ((File
+            ((filename (a.txt)) (content_type text/plain) (parameters ())
+              (body  "\r\
+                    \n\r\
+                    \nContent of a.txt.\r\
+                    \n\r\
+                    \n")))))
         (file2
-          (((name file2) (filename (a.html)) (content_type text/html)
-             (parameters ())
-             (body
-                "\r\
-               \n\r\
-               \n<!DOCTYPE html><title>Content of a.html.</title>\r\
-               \n\r\
-               \n"))))
+          ((File
+             ((filename (a.html)) (content_type text/html) (parameters ())
+               (body
+                  "\r\
+                 \n\r\
+                 \n<!DOCTYPE html><title>Content of a.html.</title>\r\
+                 \n\r\
+                 \n")))))
         (file3
-          (((name file3) (filename (binary))
-             (content_type application/octet-stream) (parameters ())
-             (body  "\r\
-                   \n\r\
-                   \na\207\137b\r\
-                   \n"))))
-        (text1
-          (((name text1) (filename ()) (content_type text/plain) (parameters ())
-             (body  "\r\
-                   \n\r\
-                   \ntext default\r\
-                   \n"))))
-        (text2
-          (((name text2) (filename ()) (content_type text/plain) (parameters ())
-             (body  "\r\
-                   \n\r\
-                   \na\207\137b\r\
-                   \n"))))))|}]
+          ((File
+             ((filename (binary)) (content_type application/octet-stream)
+               (parameters ()) (body  "\r\
+                                     \n\r\
+                                     \na\207\137b\r\
+                                     \n")))))
+        (text1 ((String (value  "\r\
+                               \n\r\
+                               \ntext default\r\
+                               \n"))))
+        (text2 ((String (value  "\r\
+                               \n\r\
+                               \na\207\137b\r\
+                               \n"))))))|}]
 
 let%expect_test "multiple body parts with same form field." =
   let header =
@@ -131,37 +128,36 @@ let%expect_test "multiple body parts with same form field." =
     {|
     (Ok
       ((file1
-         (((name file1) (filename (a.txt)) (content_type text/plain)
-            (parameters ()) (body  "\r\
-                                  \n\r\
-                                  \nContent of a.txt.\r\
-                                  \n\r\
-                                  \n"))
-           ((name file1) (filename (a.html)) (content_type text/html)
-             (parameters ())
-             (body
-                "\r\
-               \n\r\
-               \n<!DOCTYPE html><title>Content of a.html.</title>\r\
-               \n\r\
-               \n"))
-           ((name file1) (filename (binary))
-             (content_type application/octet-stream) (parameters ())
-             (body  "\r\
-                   \n\r\
-                   \na\207\137b\r\
-                   \n"))))
-        (text1
-          (((name text1) (filename ()) (content_type text/plain) (parameters ())
-             (body  "\r\
-                   \n\r\
-                   \ntext default\r\
-                   \n"))
-            ((name text1) (filename ()) (content_type text/plain) (parameters ())
+         ((File
+            ((filename (a.txt)) (content_type text/plain) (parameters ())
               (body  "\r\
                     \n\r\
-                    \na\207\137b\r\
-                    \n")))))) |}]
+                    \nContent of a.txt.\r\
+                    \n\r\
+                    \n")))
+           (File
+             ((filename (a.html)) (content_type text/html) (parameters ())
+               (body
+                  "\r\
+                 \n\r\
+                 \n<!DOCTYPE html><title>Content of a.html.</title>\r\
+                 \n\r\
+                 \n")))
+           (File
+             ((filename (binary)) (content_type application/octet-stream)
+               (parameters ()) (body  "\r\
+                                     \n\r\
+                                     \na\207\137b\r\
+                                     \n")))))
+        (text1
+          ((String (value  "\r\
+                          \n\r\
+                          \ntext default\r\
+                          \n"))
+            (String (value  "\r\
+                           \n\r\
+                           \na\207\137b\r\
+                           \n")))))) |}]
 
 let%test "find/body_parts" =
   let header =
