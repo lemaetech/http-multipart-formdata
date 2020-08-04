@@ -24,4 +24,4 @@ $ odig doc http-multipart-formdata
 
 Examples
 --------
-See https://github.com/bikallem/http-mutlipart-formdata/blob/master/test/test.ml
+See https://github.com/lemaetech/http-mutlipart-formdata/blob/master/test/test.ml
