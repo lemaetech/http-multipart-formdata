@@ -65,7 +65,7 @@ val find : string -> t -> Body_part.t list
 val body_parts : t -> Body_part.t list
 (** [body_parts t] returns all parsed body parts in [t]. *)
 
-(** {2 Pretty-printers *)
+(** {2 Pretty-printers} *)
 
 val sexp_of_error : error -> Sexplib0.Sexp.t
 
