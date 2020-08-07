@@ -13,8 +13,7 @@ jobs:
       matrix:
         os:
           - macos-latest
-          - ubuntu-latest
-          - windows-latest
+          - ubuntu-latest          
         ocaml-version:          
           - 4.10.0
 
@@ -31,15 +30,7 @@ jobs:
         with:
           path: "~/.opam"
           key: ${{ matrix.os }}-${{ matrix.ocaml-version }}
-
-      - name: Try to restore opam cache (Windows)
-        if: runner.os == 'Windows'
-        id: opam-cache-windows
-        uses: actions/cache@v2
-        with:
-          path: "C:\\cygwin\\home\\runneradmin\\.opam"
-          key: windows-cache--${{ matrix.ocaml-version }}
-
+      
       - name: Use OCaml ${{ matrix.ocaml-version }}
         uses: avsm/setup-ocaml@v1
         with:
