@@ -9,21 +9,11 @@
 open Reparse
 open Sexplib0
 open Sexplib0.Sexp_conv
-module String = StringLabels
-module R = Result
 
-type error =
-  [ `Boundary_parameter_not_found
-  | `Not_multipart_formdata_header
-  | `Invalid_multipart_body_header
-  | `Name_parameter_not_found
-  | Reparse.error ]
-[@@deriving sexp_of]
+exception Http_multipart_formdata of string
 
 module String_map = struct
   include Map.Make (String)
-
-  let union a b = union (fun _key a _b -> Some a) a b
 
   let sexp_of_t f t =
     let s = sexp_of_pair sexp_of_string f in
@@ -55,16 +45,10 @@ module File_part = struct
   let pp fmt t = Sexp.pp_hum_indent 2 fmt (sexp_of_t t)
 end
 
-type part = [ `File of File_part.t | `String of string ] [@@deriving sexp_of]
-
-type t = part list String_map.t
-
-let sexp_of_t t = String_map.sexp_of_t (sexp_of_list sexp_of_part) t
+type t = [ `File of File_part.t | `String of string ] list String_map.t
+[@@deriving sexp_of]
 
 let pp fmt t = Sexp.pp_hum_indent 2 fmt (sexp_of_t t)
-
-let find name t =
-  match String_map.find_opt name t with Some l -> l | None -> []
 
 type part_header =
   | Content_type of {
@@ -140,7 +124,7 @@ let p_comment =
            <|> p_quoted_pair
            <|> (loop_comment () >>| fun txt -> "(" ^ txt ^ ")")
            >>| ( ^ ) sp )
-    >>| String.concat ~sep:""
+    >>| String.concat ""
     >>= fun comment_text ->
     p_fws >>= fun sp -> ok @@ comment_text ^ sp <* char ')'
   in
@@ -157,7 +141,7 @@ let p_cfws =
 let p_quoted_string =
   let qcontent = satisfy is_qtext >>| String.make 1 <|> p_quoted_pair in
   p_cfws *> char '"' *> many (p_fws >>= fun sp -> qcontent >>| ( ^ ) sp)
-  >>| String.concat ~sep:""
+  >>| String.concat ""
   >>= fun q_string -> p_fws >>| (fun sp -> q_string ^ sp) <* char '"'
 
 let p_param_value = p_token <|> p_quoted_string
@@ -247,11 +231,17 @@ let body_part headers body =
         match header with
         | Content_type ct ->
             let content_type = Some (ct.ty ^ "/" ^ ct.subtype) in
-            (name, content_type, filename, String_map.union params ct.parameters)
+            ( name,
+              content_type,
+              filename,
+              String_map.union (fun _key a _b -> Some a) params ct.parameters )
         | Content_disposition params2 ->
             let name = String_map.find_opt "name" params2 in
             let filename = String_map.find_opt "filename" params2 in
-            (name, ct, filename, String_map.union params params2))
+            ( name,
+              ct,
+              filename,
+              String_map.union (fun _key a _b -> Some a) params params2 ))
       (None, None, None, String_map.empty)
       headers
   in
@@ -312,10 +302,11 @@ let p_multipart_bodyparts boundary_value =
   |> ok
 
 let parse ~header ~body =
-  let ( let* ) = Result.bind in
-  let* header_params = parse (`String header) p_multipart_formdata_header in
-  match String_map.find_opt "boundary" header_params with
-  | Some boundary_value -> parse body (p_multipart_bodyparts boundary_value)
-  | None -> Result.error `Boundary_parameter_not_found
-
-let parts (t : t) = String_map.to_seq t |> List.of_seq
+  let header_params =
+    parse (`String header) p_multipart_formdata_header |> Result.get_ok
+  in
+  match String_map.find "boundary" header_params with
+  | boundary_value ->
+      parse body (p_multipart_bodyparts boundary_value) |> Result.get_ok
+  | exception Not_found ->
+      raise @@ Http_multipart_formdata "Boundary paramater not found"

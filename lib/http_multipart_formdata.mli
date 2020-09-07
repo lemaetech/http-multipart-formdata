@@ -9,16 +9,10 @@
 
 (** {2 Types} *)
 
-type t
-(** Represents HTTP Multipart formadata. *)
-
-type nonrec error =
-  [ `Boundary_parameter_not_found
-  | `Not_multipart_formdata_header
-  | `Invalid_multipart_body_header
-  | `Name_parameter_not_found
-  | Reparse.error ]
+exception Http_multipart_formdata of string
 (** Represents error while parsing http multipart formdata. *)
+
+module String_map : Map.S with type key = string
 
 module File_part : sig
   type t
@@ -45,30 +39,19 @@ module File_part : sig
   val pp : Format.formatter -> t -> unit
 end
 
-type part = [ `File of File_part.t | `String of string ]
-(** Represents form part which can be either a string value or a File upload. *)
+type t = [ `File of File_part.t | `String of string ] list String_map.t
+(** HTTP multipart data. *)
 
 (** {2 Parsing} *)
 
 val parse :
-  header:string ->
-  body:[ `String of string | `Bigstring of Bigstringaf.t ] ->
-  (t, error) result
+  header:string -> body:[ `String of string | `Bigstring of Bigstringaf.t ] -> t
 (** [parse ~header ~body] parses [header] to retrieve boundary value and uses
-    that to parse [body] to return [t]. *)
+    that to parse [body] to return [t].
 
-(** {2 Query functions} *)
-
-val find : string -> t -> part list
-(** [find nm t] returns a list of [Body_part.t] associated with name [nm]. It
-    returns an empty list if [nm] is not found in [t]. *)
-
-val parts : t -> (string * part list) list
-(** [parts t] returns all parsed body parts in [t]. *)
+    @raise Http_multipart_formdata *)
 
 (** {2 Pretty-printers} *)
-
-val sexp_of_error : error -> Sexplib0.Sexp.t
 
 val sexp_of_t : t -> Sexplib0.Sexp.t
 
