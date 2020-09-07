@@ -1,5 +1,5 @@
 version=0.15.0
-profile = conventional
+profile = compact
 parse-docstrings = true
 break-infix = fit-or-vertical
 break-fun-decl = fit-or-vertical

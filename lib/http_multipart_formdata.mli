@@ -9,14 +9,14 @@
 
 (** {2 Types} *)
 
-exception Http_multipart_formdata of string
 (** Represents error while parsing http multipart formdata. *)
+exception Http_multipart_formdata of string
 
 module String_map : Map.S with type key = string
 
 module File_part : sig
-  type t
   (** Represents a File body part instance. *)
+  type t
 
   val filename : t -> string option
   (** [filename t] returns [Some s] which represents the [filename] parameter of
@@ -35,19 +35,18 @@ module File_part : sig
   (** {2 Pretty-printers}*)
 
   val sexp_of_t : t -> Sexplib0.Sexp.t
-
   val pp : Format.formatter -> t -> unit
 end
 
-type t = [ `File of File_part.t | `String of string ] list String_map.t
 (** HTTP multipart data. *)
+type t = [`File of File_part.t | `String of string] list String_map.t
 
 (** {2 Parsing} *)
 
 val parse :
-  content_type_header:string ->
-  body:[ `String of string | `Bigstring of Bigstringaf.t ] ->
-  t
+     content_type_header:string
+  -> body:[`String of string | `Bigstring of Bigstringaf.t]
+  -> t
 (** [parse ~content_type_header ~body] parses HTTP [Content-Type]
     [content_type_header] to retrieve boundary value. It then uses that to parse
     [body] to return HTTP multpart form data items in a key/value map data
@@ -58,5 +57,4 @@ val parse :
 (** {2 Pretty-printers} *)
 
 val sexp_of_t : t -> Sexplib0.Sexp.t
-
 val pp : Format.formatter -> t -> unit

@@ -1,43 +1,26 @@
 let%expect_test _ =
   let content_type_header =
     "Content-Type: multipart/form-data; \
-     boundary=---------------------------735323031399963166993862150"
-  in
+     boundary=---------------------------735323031399963166993862150" in
   let body =
-    [
-      {||};
-      {|-----------------------------735323031399963166993862150|};
-      {|Content-Disposition: form-data; name="text1"|};
-      {||};
-      {|text default|};
-      {|-----------------------------735323031399963166993862150|};
-      {|Content-Disposition: form-data; name="text2"|};
-      {||};
-      {|aωb|};
-      {|-----------------------------735323031399963166993862150|};
-      {|Content-Disposition: form-data; name="file1"; filename="a.txt"|};
-      {|Content-Type: text/plain|};
-      {||};
-      {|Content of a.txt.|};
-      {||};
-      {|-----------------------------735323031399963166993862150|};
-      {|Content-Disposition: form-data; name="file2"; filename="a.html"|};
-      {|Content-Type: text/html|};
-      {||};
-      {|<!DOCTYPE html><title>Content of a.html.</title>|};
-      {||};
-      {|-----------------------------735323031399963166993862150|};
-      {|Content-Disposition: form-data; name="file3"; filename="binary"|};
-      {|Content-Type: application/octet-stream|};
-      {||};
-      {|aωb|};
-      {|-----------------------------735323031399963166993862150--|};
-    ]
-    |> String.concat "\r\n"
-  in
+    [ {||}; {|-----------------------------735323031399963166993862150|}
+    ; {|Content-Disposition: form-data; name="text1"|}; {||}; {|text default|}
+    ; {|-----------------------------735323031399963166993862150|}
+    ; {|Content-Disposition: form-data; name="text2"|}; {||}; {|aωb|}
+    ; {|-----------------------------735323031399963166993862150|}
+    ; {|Content-Disposition: form-data; name="file1"; filename="a.txt"|}
+    ; {|Content-Type: text/plain|}; {||}; {|Content of a.txt.|}; {||}
+    ; {|-----------------------------735323031399963166993862150|}
+    ; {|Content-Disposition: form-data; name="file2"; filename="a.html"|}
+    ; {|Content-Type: text/html|}; {||}
+    ; {|<!DOCTYPE html><title>Content of a.html.</title>|}; {||}
+    ; {|-----------------------------735323031399963166993862150|}
+    ; {|Content-Disposition: form-data; name="file3"; filename="binary"|}
+    ; {|Content-Type: application/octet-stream|}; {||}; {|aωb|}
+    ; {|-----------------------------735323031399963166993862150--|} ]
+    |> String.concat "\r\n" in
   Http_multipart_formdata.(
-    parse ~content_type_header ~body:(`String body) |> pp Format.std_formatter);
-
+    parse ~content_type_header ~body:(`String body) |> pp Format.std_formatter) ;
   [%expect
     {|
     ((file1
@@ -76,43 +59,26 @@ let%expect_test _ =
 let%expect_test "multiple body parts with same form field." =
   let content_type_header =
     " multipart/form-data; \
-     boundary=---------------------------735323031399963166993862150"
-  in
+     boundary=---------------------------735323031399963166993862150" in
   let body =
-    [
-      {||};
-      {|-----------------------------735323031399963166993862150|};
-      {|Content-Disposition: form-data; name="text1"|};
-      {||};
-      {|text default|};
-      {|-----------------------------735323031399963166993862150|};
-      {|Content-Disposition: form-data; name="text1"|};
-      {||};
-      {|aωb|};
-      {|-----------------------------735323031399963166993862150|};
-      {|Content-Disposition: form-data; name="file1"; filename="a.txt"|};
-      {|Content-Type: text/plain|};
-      {||};
-      {|Content of a.txt.|};
-      {||};
-      {|-----------------------------735323031399963166993862150|};
-      {|Content-Disposition: form-data; name="file1"; filename="a.html"|};
-      {|Content-Type: text/html|};
-      {||};
-      {|<!DOCTYPE html><title>Content of a.html.</title>|};
-      {||};
-      {|-----------------------------735323031399963166993862150|};
-      {|Content-Disposition: form-data; name="file1"; filename="binary"|};
-      {|Content-Type: application/octet-stream|};
-      {||};
-      {|aωb|};
-      {|-----------------------------735323031399963166993862150--|};
-    ]
-    |> String.concat "\r\n"
-  in
+    [ {||}; {|-----------------------------735323031399963166993862150|}
+    ; {|Content-Disposition: form-data; name="text1"|}; {||}; {|text default|}
+    ; {|-----------------------------735323031399963166993862150|}
+    ; {|Content-Disposition: form-data; name="text1"|}; {||}; {|aωb|}
+    ; {|-----------------------------735323031399963166993862150|}
+    ; {|Content-Disposition: form-data; name="file1"; filename="a.txt"|}
+    ; {|Content-Type: text/plain|}; {||}; {|Content of a.txt.|}; {||}
+    ; {|-----------------------------735323031399963166993862150|}
+    ; {|Content-Disposition: form-data; name="file1"; filename="a.html"|}
+    ; {|Content-Type: text/html|}; {||}
+    ; {|<!DOCTYPE html><title>Content of a.html.</title>|}; {||}
+    ; {|-----------------------------735323031399963166993862150|}
+    ; {|Content-Disposition: form-data; name="file1"; filename="binary"|}
+    ; {|Content-Type: application/octet-stream|}; {||}; {|aωb|}
+    ; {|-----------------------------735323031399963166993862150--|} ]
+    |> String.concat "\r\n" in
   Http_multipart_formdata.(
-    parse ~content_type_header ~body:(`String body) |> pp Format.std_formatter);
-
+    parse ~content_type_header ~body:(`String body) |> pp Format.std_formatter) ;
   [%expect
     {|
     ((file1
@@ -152,40 +118,24 @@ module SM = Http_multipart_formdata.String_map
 let%test "find/body_parts" =
   let content_type_header =
     " multipart/form-data; \
-     boundary=---------------------------735323031399963166993862150"
-  in
+     boundary=---------------------------735323031399963166993862150" in
   let body =
-    [
-      {||};
-      {|-----------------------------735323031399963166993862150|};
-      {|Content-Disposition: form-data; name="text1"|};
-      {||};
-      {|text default|};
-      {|-----------------------------735323031399963166993862150|};
-      {|Content-Disposition: form-data; name="text1"|};
-      {||};
-      {|aωb|};
-      {|-----------------------------735323031399963166993862150|};
-      {|Content-Disposition: form-data; name="file1"; filename="a.txt"|};
-      {|Content-Type: text/plain|};
-      {||};
-      {|Content of a.txt.|};
-      {||};
-      {|-----------------------------735323031399963166993862150|};
-      {|Content-Disposition: form-data; name="file1"; filename="a.html"|};
-      {|Content-Type: text/html|};
-      {||};
-      {|<!DOCTYPE html><title>Content of a.html.</title>|};
-      {||};
-      {|-----------------------------735323031399963166993862150|};
-      {|Content-Disposition: form-data; name="file1"; filename="binary"|};
-      {|Content-Type: application/octet-stream|};
-      {||};
-      {|aωb|};
-      {|-----------------------------735323031399963166993862150--|};
-    ]
-    |> String.concat "\r\n"
-  in
+    [ {||}; {|-----------------------------735323031399963166993862150|}
+    ; {|Content-Disposition: form-data; name="text1"|}; {||}; {|text default|}
+    ; {|-----------------------------735323031399963166993862150|}
+    ; {|Content-Disposition: form-data; name="text1"|}; {||}; {|aωb|}
+    ; {|-----------------------------735323031399963166993862150|}
+    ; {|Content-Disposition: form-data; name="file1"; filename="a.txt"|}
+    ; {|Content-Type: text/plain|}; {||}; {|Content of a.txt.|}; {||}
+    ; {|-----------------------------735323031399963166993862150|}
+    ; {|Content-Disposition: form-data; name="file1"; filename="a.html"|}
+    ; {|Content-Type: text/html|}; {||}
+    ; {|<!DOCTYPE html><title>Content of a.html.</title>|}; {||}
+    ; {|-----------------------------735323031399963166993862150|}
+    ; {|Content-Disposition: form-data; name="file1"; filename="binary"|}
+    ; {|Content-Type: application/octet-stream|}; {||}; {|aωb|}
+    ; {|-----------------------------735323031399963166993862150--|} ]
+    |> String.concat "\r\n" in
   match
     Http_multipart_formdata.parse ~content_type_header ~body:(`String body)
   with
