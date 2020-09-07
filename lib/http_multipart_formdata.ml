@@ -301,9 +301,10 @@ let p_multipart_bodyparts boundary_value =
     String_map.empty parts
   |> ok
 
-let parse ~header ~body =
+let parse ~content_type_header ~body =
   let header_params =
-    parse (`String header) p_multipart_formdata_header |> Result.get_ok
+    parse (`String content_type_header) p_multipart_formdata_header
+    |> Result.get_ok
   in
   match String_map.find "boundary" header_params with
   | boundary_value ->

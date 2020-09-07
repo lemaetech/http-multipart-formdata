@@ -45,9 +45,13 @@ type t = [ `File of File_part.t | `String of string ] list String_map.t
 (** {2 Parsing} *)
 
 val parse :
-  header:string -> body:[ `String of string | `Bigstring of Bigstringaf.t ] -> t
-(** [parse ~header ~body] parses [header] to retrieve boundary value and uses
-    that to parse [body] to return [t].
+  content_type_header:string ->
+  body:[ `String of string | `Bigstring of Bigstringaf.t ] ->
+  t
+(** [parse ~content_type_header ~body] parses HTTP [Content-Type]
+    [content_type_header] to retrieve boundary value. It then uses that to parse
+    [body] to return HTTP multpart form data items in a key/value map data
+    structure.
 
     @raise Http_multipart_formdata *)
 
