@@ -40,8 +40,9 @@ module File_part = struct
   let pp fmt t = Sexp.pp_hum_indent 2 fmt (sexp_of_t t)
 end
 
-type t = [`File of File_part.t | `String of string] list String_map.t
-[@@deriving sexp_of]
+type t = part list String_map.t [@@deriving sexp_of]
+
+and part = File of File_part.t | String of string [@@deriving sexp_of]
 
 let pp fmt t = Sexp.pp_hum_indent 2 fmt (sexp_of_t t)
 
@@ -248,12 +249,12 @@ let body_part headers body =
       ( match filename with
       | Some _ ->
           ( nm
-          , `File
+          , File
               { File_part.filename
               ; content_type
               ; parameters
               ; body= Bytes.unsafe_of_string body } )
-      | None -> (nm, `String body) )
+      | None -> (nm, String body) )
       |> Reparse.ok
 
 let add_part (name, bp) m =

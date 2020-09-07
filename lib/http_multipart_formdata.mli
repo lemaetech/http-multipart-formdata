@@ -39,7 +39,9 @@ module File_part : sig
 end
 
 (** HTTP multipart data. *)
-type t = [`File of File_part.t | `String of string] list String_map.t
+type t = part list String_map.t
+
+and part = File of File_part.t | String of string
 
 (** {2 Parsing} *)
 
