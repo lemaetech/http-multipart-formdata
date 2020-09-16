@@ -364,11 +364,8 @@ let p_multipart_bodyparts boundary_value =
   |> return
 
 let parse ~content_type_header ~body =
-  let header_params =
-    (parse content_type_header) p_multipart_formdata_header |> Result.get_ok
-  in
+  let header_params = (parse content_type_header) p_multipart_formdata_header in
   match String_map.find "boundary" header_params with
-  | boundary_value      ->
-      parse body (p_multipart_bodyparts boundary_value) |> Result.get_ok
+  | boundary_value      -> parse body (p_multipart_bodyparts boundary_value)
   | exception Not_found ->
       raise @@ Http_multipart_formdata "Boundary paramater not found"
