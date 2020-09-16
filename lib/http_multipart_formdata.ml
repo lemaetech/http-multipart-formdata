@@ -116,9 +116,8 @@ let is_token_char c =
   && (not (is_control c))
   && not (is_tspecial c)
 
-let p_whitespace = skip whitespace
+let skip_whitespace = skip whitespace
 let implode l = List.to_seq l |> String.of_seq
-let f a () = a
 
 let p_token =
   many ~at_least:1 (satisfy is_token_char) >|= fun (_, chars) -> implode chars
@@ -133,11 +132,11 @@ let p_quoted_pair =
 
 (* https://tools.ietf.org/html/rfc5322#section-3.2.2 *)
 let p_fws =
-  skip p_whitespace
+  skip_whitespace
   >>= fun ws_count1 ->
-  skip (string "\x0D\x0A\x20" <|> delay (f (string "\x0D\x0A\x09")))
+  skip (string "\x0D\x0A\x20" <|> string "\x0D\x0A\x09")
   >>= fun lws_count ->
-  skip p_whitespace
+  skip_whitespace
   >|= fun ws_count2 -> if ws_count1 + lws_count + ws_count2 > 0 then " " else ""
 
 let p_comment =
@@ -148,8 +147,8 @@ let p_comment =
          ( p_fws
          >>= fun sp ->
          ctext
-         <|> delay (f p_quoted_pair)
-         <|> delay (f (loop_comment () >|= fun txt -> "(" ^ txt ^ ")"))
+         <|> p_quoted_pair
+         <|> (loop_comment () >|= fun txt -> "(" ^ txt ^ ")")
          >|= ( ^ ) sp )
     >|= (fun (_, chars) -> String.concat "" chars)
     >>= fun comment_text ->
@@ -169,10 +168,10 @@ let p_quoted_string =
   >|= (fun (_, l) -> String.concat "" l)
   >>= fun q_string -> p_fws >|= (fun sp -> q_string ^ sp) <* char '"'
 
-let p_param_value = p_token <|> delay (f p_quoted_string)
+let p_param_value = p_token <|> p_quoted_string
 
 let p_param =
-  p_whitespace *> char ';' *> p_whitespace *> p_token
+  skip_whitespace *> char ';' *> skip_whitespace *> p_token
   >>= fun attribute ->
   char '=' *> p_param_value >|= fun value -> (attribute, value)
 
@@ -202,9 +201,8 @@ let p_restricted_name =
   Buffer.contents buf
 
 let p_content_disposition =
-  string "Content-Disposition"
-  *> char ':'
-  *> p_whitespace
+  string "Content-Disposition:"
+  *> skip_whitespace
   *> string "form-data"
   *> many p_param
   >|= fun (_, params) ->
@@ -212,14 +210,13 @@ let p_content_disposition =
   Content_disposition params
 
 let p_content_type parse_header_name =
-  ( if parse_header_name then string "Content-Type:" *> char ':' *> unit
-  else unit )
-  *> p_whitespace
+  (if parse_header_name then string "Content-Type:" else unit)
+  *> skip_whitespace
   *> p_restricted_name
   >>= fun ty ->
   char '/' *> p_restricted_name
   >>= fun subtype ->
-  p_whitespace *> many p_param
+  many p_param
   >|= fun (_, params) ->
   let parameters = params |> List.to_seq |> String_map.of_seq in
   Content_type {ty; subtype; parameters}
@@ -267,7 +264,7 @@ let p_header_boundary =
 
 let p_multipart_formdata_header =
   let param =
-    p_whitespace *> char ';' *> p_whitespace *> p_token
+    skip_whitespace *> char ';' *> skip_whitespace *> p_token
     >>= fun attribute ->
     ( char '='
     *> if attribute = "boundary" then p_header_boundary else p_param_value )
@@ -275,10 +272,10 @@ let p_multipart_formdata_header =
   in
   ( optional R.crlf
     *> optional (string "Content-Type:")
-    *> p_whitespace
+    *> skip_whitespace
     *> string "multipart/form-data"
   <?> "Not multipart formdata header" )
-  *> p_whitespace
+  *> skip_whitespace
   *> many param
   >|= fun (_, params) -> params |> List.to_seq |> String_map.of_seq
 
@@ -346,9 +343,7 @@ let p_multipart_bodyparts boundary_value =
     | Some ln ->
         if ln = dash_boundary ^ "--" then return parts
         else if ln = dash_boundary then
-          many
-            ( string "\r\n" *> p_content_type true
-            <|> delay (f p_content_disposition) )
+          many (string "\r\n" *> p_content_type true <|> p_content_disposition)
           >>= fun (_, headers) ->
           loop_body (Buffer.create 0)
           >>= fun (body, ln) ->
