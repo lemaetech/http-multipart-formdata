@@ -94,16 +94,6 @@ let is_ascii_chars = function
   | '\x00' .. '\x7F' -> true
   | _                -> false
 
-let is_vchar = function
-  | '\x21' .. '\x7E' -> true
-  | _                -> false
-
-let is_whitespace = function
-  | '\x20'
-  | '\x09' ->
-      true
-  | _ -> false
-
 let is_ctext = function
   | '\x21' .. '\x27'
   | '\x2A' .. '\x5B'
@@ -129,16 +119,14 @@ let implode l = List.to_seq l |> String.of_seq
 let f a () = a
 
 let p_token =
-  satisfy is_token_char
-  >>= fun ch ->
-  many (satisfy is_token_char)
-  >|= fun (_, chars) -> String.make 1 ch ^ implode chars
+  many ~at_least:1 (satisfy is_token_char) >|= fun (_, chars) -> implode chars
 
 (* https://tools.ietf.org/html/rfc5322#section-3.2.1
    quoted-pair     =   ('\' (VCHAR / WSP)) / obs-qp
 *)
 let p_quoted_pair =
-  char '\\' *> satisfy (fun c -> is_whitespace c || is_vchar c)
+  char '\\' *> whitespace
+  <|> vchar
   >|= fun c -> String.make 1 '\\' ^ String.make 1 c
 
 (* https://tools.ietf.org/html/rfc5322#section-3.2.2 *)
