@@ -9,6 +9,8 @@
 open Reparse
 open Sexplib0
 open Sexplib0.Sexp_conv
+open Reparse.Infix
+module R = Reparse
 
 exception Http_multipart_formdata of string
 
@@ -271,7 +273,7 @@ let p_multipart_formdata_header =
     *> if attribute = "boundary" then p_header_boundary else p_param_value )
     >|= fun value -> (attribute, value)
   in
-  ( optional (string "\r\n")
+  ( optional R.crlf
     *> optional (string "Content-Type:")
     *> p_whitespace
     *> string "multipart/form-data"
@@ -364,7 +366,7 @@ let p_multipart_bodyparts boundary_value =
   |> return
 
 let parse ~content_type_header ~body =
-  let header_params = (parse content_type_header) p_multipart_formdata_header in
+  let header_params = parse content_type_header p_multipart_formdata_header in
   match String_map.find "boundary" header_params with
   | boundary_value      -> parse body (p_multipart_bodyparts boundary_value)
   | exception Not_found ->
