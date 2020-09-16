@@ -71,7 +71,7 @@ let is_control = function
       true
   | _ -> false
 
-let is_tspecials = function
+let is_tspecial = function
   | '('
   | ')'
   | '<'
@@ -90,7 +90,7 @@ let is_tspecials = function
       true
   | _ -> false
 
-let is_ascii_chars = function
+let is_ascii_char = function
   | '\x00' .. '\x7F' -> true
   | _                -> false
 
@@ -109,10 +109,10 @@ let is_qtext = function
   | _ -> false
 
 let is_token_char c =
-  is_ascii_chars c
+  is_ascii_char c
   && (not (is_space c))
   && (not (is_control c))
-  && not (is_tspecials c)
+  && not (is_tspecial c)
 
 let p_whitespace = skip whitespace
 let implode l = List.to_seq l |> String.of_seq
