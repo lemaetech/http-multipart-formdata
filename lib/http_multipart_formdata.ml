@@ -6,7 +6,6 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  *
  *-------------------------------------------------------------------------*)
-open Reparse
 open Sexplib0
 open Sexplib0.Sexp_conv
 open Reparse.Infix
@@ -116,7 +115,6 @@ let is_token_char c =
   && (not (is_control c))
   && not (is_tspecial c)
 
-let skip_whitespace = skip whitespace
 let implode l = List.to_seq l |> String.of_seq
 
 let token =
@@ -127,14 +125,23 @@ let token =
    quoted-pair     =   ('\' (VCHAR / WSP)) / obs-qp *)
 let quoted_pair = String.make 1 <$> R.char '\\' *> (R.whitespace <|> R.vchar)
 
-(* Folding whitespace and comments - https://tools.ietf.org/html/rfc5322#section-3.2.2 *)
+(* 
+  Folding whitespace and comments - https://tools.ietf.org/html/rfc5322#section-3.2.2 
+
+  let r = R.parse "    \r\n    " fws
+  r = " "
+ *)
 let fws =
   R.skip R.whitespace
   >>= fun ws_count1 ->
   R.skip (R.string "\r\n" *> R.skip ~at_least:1 R.whitespace)
   >|= fun lws_count -> if ws_count1 + lws_count > 0 then " " else ""
 
-let comments =
+(*
+  let r = R.parse "(    asdfasdfasdfasd(aaa) \\(cccc\\) (bbb(ddd)))" comments;;
+  r = " asdfasdfasdfasd;aaa (cccc) ;bbb;ddd";;
+ *)
+let comment =
   let ctext = R.satisfy is_ctext >|= String.make 1 in
   let rec loop_comments () =
     let ccontent =
@@ -153,28 +160,66 @@ let comments =
   in
   loop_comments ()
 
-let p_cfws =
-  take (fws >>= fun sp -> comments >|= fun comment_text -> sp ^ comment_text)
-  >>= (fun (_, l) ->
-        fws >|= fun sp -> if String.length sp > 0 then l @ [sp] else l)
-  <|> (fws >|= fun sp -> if String.length sp > 0 then [sp] else [])
+(*
+  let r = R.parse "  (    asdfasdfasdfasd(aaa) \\(cccc\\) (bbb(ddd)))   " cfws;;
+  r = " "
+ *)
+let cfws =
+  let one_or_more_comments =
+    R.take
+      ~at_least:1
+      (R.map2 (fun sp comment_txt -> sp ^ comment_txt) fws comment)
+    *> fws
+  in
+  one_or_more_comments <|> fws
 
-let p_quoted_string =
-  let qcontent = satisfy is_qtext >|= String.make 1 <|> quoted_pair in
-  p_cfws *> char '"' *> take (fws >>= fun sp -> qcontent >|= ( ^ ) sp)
-  >|= (fun (_, l) -> String.concat "" l)
-  >>= fun q_string -> fws >|= (fun sp -> q_string ^ sp) <* char '"'
+(* Test cases : 
+  let r = R.parse "\"    \r\n            hello   \r\n          \"" quoted_string;;
+  r = " hello ";;
 
-let p_param_value = token <|> p_quoted_string
+  R.parse "(comment1)\"hello\"(comment2)" quoted_string;;
+  r = "hello";;
+*)
+let quoted_string =
+  let qtext = String.make 1 <$> R.satisfy is_qtext in
+  let qcontent =
+    (fun (_, l) -> String.concat "" l)
+    <$> R.take
+          (R.map2
+             (fun sp qcontent' -> sp ^ qcontent')
+             fws
+             (qtext <|> quoted_pair))
+  in
+  cfws *> R.dquote *> R.map2 (fun qcontent' sp -> qcontent' ^ sp) qcontent fws
+  <* R.dquote
+  <* cfws
 
+(*
+  let r = R.parse "asdfasdf" p_param_value;;
+  r = "asdfasdf";;
+
+  R.parse "\"hello\"" p_param_value;;
+  r = "hello"
+ *)
+let param_value = token <|> quoted_string
+
+(*
+  let r = R.parse "; field1=value1;" p_param;;       
+  r = ("field1", "value1");;
+
+  let r = R.parse "; field1=\"value1\";" p_param;;
+  r = ("field1", "value1");;
+ *)
 let p_param =
-  let name = skip_whitespace *> char ';' *> skip_whitespace *> token in
-  let value = char '=' *> p_param_value in
-  map2 (fun name value -> (name, value)) name value
+  let name =
+    R.skip R.whitespace *> R.char ';' *> R.skip R.whitespace *> token
+  in
+  let value = R.char '=' *> param_value in
+  R.map2 (fun name value -> (name, value)) name value
 
 let p_restricted_name =
   let p_restricted_name_chars =
-    satisfy (function
+    R.satisfy (function
         | '!'
         | '#'
         | '$'
@@ -188,32 +233,32 @@ let p_restricted_name =
         | c when is_alpha_digit c -> true
         | _ -> false)
   in
-  satisfy is_alpha_digit
+  R.satisfy is_alpha_digit
   >>= fun first_ch ->
   let buf = Buffer.create 10 in
   Buffer.add_char buf first_ch ;
-  take ~up_to:126 p_restricted_name_chars
+  R.take ~up_to:126 p_restricted_name_chars
   >|= fun (_, restricted_name) ->
   Buffer.add_string buf (implode restricted_name) ;
   Buffer.contents buf
 
 let p_content_disposition =
-  string "Content-Disposition:"
-  *> skip_whitespace
-  *> string "form-data"
-  *> take p_param
-  >|= fun (_i, params) ->
+  R.string "Content-Disposition:"
+  *> R.skip R.whitespace
+  *> R.string "form-data"
+  *> R.take p_param
+  >|= fun (_, params) ->
   let params = List.to_seq params |> String_map.of_seq in
   Content_disposition params
 
 let p_content_type parse_header_name =
-  (if parse_header_name then string "Content-Type:" *> unit else unit)
-  *> skip_whitespace
+  (if parse_header_name then R.string "Content-Type:" *> R.unit else R.unit)
+  *> R.skip R.whitespace
   *> p_restricted_name
   >>= fun ty ->
-  char '/' *> p_restricted_name
+  R.char '/' *> p_restricted_name
   >>= fun subtype ->
-  take p_param
+  R.take p_param
   >|= fun (_, params) ->
   let parameters = params |> List.to_seq |> String_map.of_seq in
   Content_type {ty; subtype; parameters}
@@ -237,43 +282,38 @@ let p_header_boundary =
     | _ -> false
   in
   let p_bchars =
-    satisfy (function
+    R.satisfy (function
         | '\x20' -> true
         | c when is_bcharnospace c -> true
         | _ -> false)
   in
-  let is_dquote =
-    satisfy (function
-        | '"' -> true
-        | _   -> false)
-  in
   let boundary =
-    take ~up_to:70 p_bchars
+    R.take ~up_to:70 p_bchars
     >>= fun (_, bchars) ->
     let len = List.length bchars in
     if len > 0 then
       let last_char = List.nth bchars (len - 1) in
-      if is_bcharnospace last_char then return (implode bchars)
-      else fail "Invalid boundary value: invalid last char"
-    else fail "Invalid boundary value: 0 length"
+      if is_bcharnospace last_char then R.return (implode bchars)
+      else R.fail "Invalid boundary value: invalid last char"
+    else R.fail "Invalid boundary value: 0 length"
   in
-  optional is_dquote *> boundary <* optional is_dquote <|> token
+  R.optional R.dquote *> boundary <* R.optional R.dquote <|> token
 
 let p_multipart_formdata_header =
   let param =
-    skip_whitespace *> char ';' *> skip_whitespace *> token
+    R.skip R.whitespace *> R.char ';' *> R.skip R.whitespace *> token
     >>= fun attribute ->
-    ( char '='
-    *> if attribute = "boundary" then p_header_boundary else p_param_value )
+    ( R.char '='
+    *> if attribute = "boundary" then p_header_boundary else param_value )
     >|= fun value -> (attribute, value)
   in
-  ( optional R.crlf
-    *> optional (string "Content-Type:")
-    *> skip_whitespace
-    *> string "multipart/form-data"
+  ( R.optional R.crlf
+    *> R.optional (R.string "Content-Type:")
+    *> R.skip R.whitespace
+    *> R.string "multipart/form-data"
   <?> "Not multipart formdata header" )
-  *> skip_whitespace
-  *> take param
+  *> R.skip R.whitespace
+  *> R.take param
   >|= fun (_, params) -> params |> List.to_seq |> String_map.of_seq
 
 let body_part headers body =
@@ -298,7 +338,7 @@ let body_part headers body =
       headers
   in
   match name with
-  | None    -> fail "parameter 'name' not found"
+  | None    -> R.fail "parameter 'name' not found"
   | Some nm ->
       let content_type = try Option.get content_type with _ -> "text/plain" in
       let parameters =
@@ -317,7 +357,7 @@ let body_part headers body =
               ; parameters
               ; body = Bytes.unsafe_of_string body } )
       | None   -> (nm, String body) )
-      |> return
+      |> R.return
 
 let add_part (name, bp) m =
   match String_map.find_opt name m with
@@ -328,39 +368,40 @@ let p_multipart_bodyparts boundary_value =
   let dash_boundary = "--" ^ boundary_value in
   let len = String.length dash_boundary in
   let rec loop_body buf =
-    optional line
+    R.optional R.line
     >>= function
     | Some ((len', ln) as ln') ->
         if len <> len' && ln <> dash_boundary then (
           Buffer.add_string buf (ln ^ "\r\n") ;
           loop_body buf )
-        else (Buffer.contents buf, Some ln') |> return
-    | None                     -> (Buffer.contents buf, None) |> return
+        else (Buffer.contents buf, Some ln') |> R.return
+    | None                     -> (Buffer.contents buf, None) |> R.return
   in
   let rec loop_parts parts = function
     | Some (_, ln) ->
-        if ln = dash_boundary ^ "--" then return parts
+        if ln = dash_boundary ^ "--" then R.return parts
         else if ln = dash_boundary then
-          take (string "\r\n" *> p_content_type true <|> p_content_disposition)
+          R.take
+            (R.string "\r\n" *> p_content_type true <|> p_content_disposition)
           >>= fun (_, headers) ->
           loop_body (Buffer.create 0)
           >>= fun (body, ln) ->
           body_part headers body >>= fun bp -> loop_parts (bp :: parts) ln
-        else optional line >>= loop_parts parts
-    | None         -> return parts
+        else R.optional R.line >>= loop_parts parts
+    | None         -> R.return parts
   in
-  optional line
+  R.optional R.line
   >>= loop_parts []
   >>= fun parts ->
   List.fold_left
     (fun m (name, bp) -> add_part (name, bp) m)
     String_map.empty
     parts
-  |> return
+  |> R.return
 
 let parse ~content_type_header ~body =
-  let header_params = parse content_type_header p_multipart_formdata_header in
+  let header_params = R.parse content_type_header p_multipart_formdata_header in
   match String_map.find "boundary" header_params with
-  | boundary_value      -> parse body (p_multipart_bodyparts boundary_value)
+  | boundary_value      -> R.parse body (p_multipart_bodyparts boundary_value)
   | exception Not_found ->
       raise @@ Http_multipart_formdata "Boundary paramater not found"
