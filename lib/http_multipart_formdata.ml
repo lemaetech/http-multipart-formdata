@@ -210,7 +210,7 @@ let param_value = token <|> quoted_string
   let r = R.parse "; field1=\"value1\";" p_param;;
   r = ("field1", "value1");;
  *)
-let p_param =
+let param =
   let name =
     R.skip R.whitespace *> R.char ';' *> R.skip R.whitespace *> token
   in
@@ -242,28 +242,28 @@ let p_restricted_name =
   Buffer.add_string buf (implode restricted_name) ;
   Buffer.contents buf
 
-let p_content_disposition =
+let content_disposition =
   R.string "Content-Disposition:"
   *> R.skip R.whitespace
   *> R.string "form-data"
-  *> R.take p_param
+  *> R.take param
   >|= fun (_, params) ->
   let params = List.to_seq params |> String_map.of_seq in
   Content_disposition params
 
-let p_content_type parse_header_name =
+let content_type parse_header_name =
   (if parse_header_name then R.string "Content-Type:" *> R.unit else R.unit)
   *> R.skip R.whitespace
   *> p_restricted_name
   >>= fun ty ->
   R.char '/' *> p_restricted_name
   >>= fun subtype ->
-  R.take p_param
+  R.take param
   >|= fun (_, params) ->
   let parameters = params |> List.to_seq |> String_map.of_seq in
   Content_type {ty; subtype; parameters}
 
-let p_header_boundary =
+let header_boundary =
   let is_bcharnospace = function
     | '\''
     | '('
@@ -281,14 +281,14 @@ let p_header_boundary =
     | c when is_alpha_digit c -> true
     | _ -> false
   in
-  let p_bchars =
+  let bchars =
     R.satisfy (function
         | '\x20' -> true
         | c when is_bcharnospace c -> true
         | _ -> false)
   in
   let boundary =
-    R.take ~up_to:70 p_bchars
+    R.take ~up_to:70 bchars
     >>= fun (_, bchars) ->
     let len = List.length bchars in
     if len > 0 then
@@ -299,12 +299,12 @@ let p_header_boundary =
   in
   R.optional R.dquote *> boundary <* R.optional R.dquote <|> token
 
-let p_multipart_formdata_header =
+let multipart_formdata_header =
   let param =
     R.skip R.whitespace *> R.char ';' *> R.skip R.whitespace *> token
     >>= fun attribute ->
     ( R.char '='
-    *> if attribute = "boundary" then p_header_boundary else param_value )
+    *> if attribute = "boundary" then header_boundary else param_value )
     >|= fun value -> (attribute, value)
   in
   ( R.optional R.crlf
@@ -364,7 +364,7 @@ let add_part (name, bp) m =
   | Some l -> String_map.add name (bp :: l) m
   | None   -> String_map.add name [bp] m
 
-let p_multipart_bodyparts boundary_value =
+let multipart_bodyparts boundary_value =
   let dash_boundary = "--" ^ boundary_value in
   let len = String.length dash_boundary in
   let rec loop_body buf =
@@ -381,8 +381,7 @@ let p_multipart_bodyparts boundary_value =
     | Some (_, ln) ->
         if ln = dash_boundary ^ "--" then R.return parts
         else if ln = dash_boundary then
-          R.take
-            (R.string "\r\n" *> p_content_type true <|> p_content_disposition)
+          R.take (R.string "\r\n" *> content_type true <|> content_disposition)
           >>= fun (_, headers) ->
           loop_body (Buffer.create 0)
           >>= fun (body, ln) ->
@@ -400,8 +399,8 @@ let p_multipart_bodyparts boundary_value =
   |> R.return
 
 let parse ~content_type_header ~body =
-  let header_params = R.parse content_type_header p_multipart_formdata_header in
+  let header_params = R.parse content_type_header multipart_formdata_header in
   match String_map.find "boundary" header_params with
-  | boundary_value      -> R.parse body (p_multipart_bodyparts boundary_value)
+  | boundary_value      -> R.parse body (multipart_bodyparts boundary_value)
   | exception Not_found ->
       raise @@ Http_multipart_formdata "Boundary paramater not found"
