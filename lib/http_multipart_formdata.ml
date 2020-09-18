@@ -120,7 +120,7 @@ let skip_whitespace = skip whitespace
 let implode l = List.to_seq l |> String.of_seq
 
 let p_token =
-  many ~at_least:1 (satisfy is_token_char) >|= fun (_, chars) -> implode chars
+  take ~at_least:1 (satisfy is_token_char) >|= fun (_, chars) -> implode chars
 
 (* https://tools.ietf.org/html/rfc5322#section-3.2.1
    quoted-pair     =   ('\' (VCHAR / WSP)) / obs-qp
@@ -143,7 +143,7 @@ let p_comment =
   let ctext = satisfy is_ctext >|= String.make 1 in
   let rec loop_comment () =
     char '('
-    *> many
+    *> take
          ( p_fws
          >>= fun sp ->
          ctext
@@ -157,23 +157,23 @@ let p_comment =
   loop_comment ()
 
 let p_cfws =
-  many (p_fws >>= fun sp -> p_comment >|= fun comment_text -> sp ^ comment_text)
+  take (p_fws >>= fun sp -> p_comment >|= fun comment_text -> sp ^ comment_text)
   >>= (fun (_, l) ->
         p_fws >|= fun sp -> if String.length sp > 0 then l @ [sp] else l)
   <|> (p_fws >|= fun sp -> if String.length sp > 0 then [sp] else [])
 
 let p_quoted_string =
   let qcontent = satisfy is_qtext >|= String.make 1 <|> p_quoted_pair in
-  p_cfws *> char '"' *> many (p_fws >>= fun sp -> qcontent >|= ( ^ ) sp)
+  p_cfws *> char '"' *> take (p_fws >>= fun sp -> qcontent >|= ( ^ ) sp)
   >|= (fun (_, l) -> String.concat "" l)
   >>= fun q_string -> p_fws >|= (fun sp -> q_string ^ sp) <* char '"'
 
 let p_param_value = p_token <|> p_quoted_string
 
 let p_param =
-  skip_whitespace *> char ';' *> skip_whitespace *> p_token
-  >>= fun attribute ->
-  char '=' *> p_param_value >|= fun value -> (attribute, value)
+  let name = skip_whitespace *> char ';' *> skip_whitespace *> p_token in
+  let value = char '=' *> p_param_value in
+  map2 (fun name value -> (name, value)) name value
 
 let p_restricted_name =
   let p_restricted_name_chars =
@@ -195,7 +195,7 @@ let p_restricted_name =
   >>= fun first_ch ->
   let buf = Buffer.create 10 in
   Buffer.add_char buf first_ch ;
-  many ~up_to:126 p_restricted_name_chars
+  take ~up_to:126 p_restricted_name_chars
   >|= fun (_, restricted_name) ->
   Buffer.add_string buf (implode restricted_name) ;
   Buffer.contents buf
@@ -204,19 +204,19 @@ let p_content_disposition =
   string "Content-Disposition:"
   *> skip_whitespace
   *> string "form-data"
-  *> many p_param
-  >|= fun (_, params) ->
+  *> take p_param
+  >|= fun (_i, params) ->
   let params = List.to_seq params |> String_map.of_seq in
   Content_disposition params
 
 let p_content_type parse_header_name =
-  (if parse_header_name then string "Content-Type:" else unit)
+  (if parse_header_name then string "Content-Type:" *> unit else unit)
   *> skip_whitespace
   *> p_restricted_name
   >>= fun ty ->
   char '/' *> p_restricted_name
   >>= fun subtype ->
-  many p_param
+  take p_param
   >|= fun (_, params) ->
   let parameters = params |> List.to_seq |> String_map.of_seq in
   Content_type {ty; subtype; parameters}
@@ -251,7 +251,7 @@ let p_header_boundary =
         | _   -> false)
   in
   let boundary =
-    many ~up_to:70 p_bchars
+    take ~up_to:70 p_bchars
     >>= fun (_, bchars) ->
     let len = List.length bchars in
     if len > 0 then
@@ -276,7 +276,7 @@ let p_multipart_formdata_header =
     *> string "multipart/form-data"
   <?> "Not multipart formdata header" )
   *> skip_whitespace
-  *> many param
+  *> take param
   >|= fun (_, params) -> params |> List.to_seq |> String_map.of_seq
 
 let body_part headers body =
@@ -329,27 +329,28 @@ let add_part (name, bp) m =
 
 let p_multipart_bodyparts boundary_value =
   let dash_boundary = "--" ^ boundary_value in
+  let len = String.length dash_boundary in
   let rec loop_body buf =
     optional line
     >>= function
-    | Some ln ->
-        if ln <> dash_boundary then (
+    | Some ((len', ln) as ln') ->
+        if len <> len' && ln <> dash_boundary then (
           Buffer.add_string buf (ln ^ "\r\n") ;
           loop_body buf )
-        else (Buffer.contents buf, Some ln) |> return
-    | None    -> (Buffer.contents buf, None) |> return
+        else (Buffer.contents buf, Some ln') |> return
+    | None                     -> (Buffer.contents buf, None) |> return
   in
   let rec loop_parts parts = function
-    | Some ln ->
+    | Some (_, ln) ->
         if ln = dash_boundary ^ "--" then return parts
         else if ln = dash_boundary then
-          many (string "\r\n" *> p_content_type true <|> p_content_disposition)
+          take (string "\r\n" *> p_content_type true <|> p_content_disposition)
           >>= fun (_, headers) ->
           loop_body (Buffer.create 0)
           >>= fun (body, ln) ->
           body_part headers body >>= fun bp -> loop_parts (bp :: parts) ln
         else optional line >>= loop_parts parts
-    | None    -> return parts
+    | None         -> return parts
   in
   optional line
   >>= loop_parts []
