@@ -123,38 +123,34 @@ let p_token =
   take ~at_least:1 (satisfy is_token_char) >|= fun (_, chars) -> implode chars
 
 (* https://tools.ietf.org/html/rfc5322#section-3.2.1
-   quoted-pair     =   ('\' (VCHAR / WSP)) / obs-qp
-*)
-let p_quoted_pair =
-  char '\\' *> whitespace
-  <|> vchar
-  >|= fun c -> String.make 1 '\\' ^ String.make 1 c
+   quoted-pair     =   ('\' (VCHAR / WSP)) / obs-qp *)
+let p_quoted_pair = String.make 1 <$> char '\\' *> (whitespace <|> vchar)
 
-(* https://tools.ietf.org/html/rfc5322#section-3.2.2 *)
+(* Folding whitespace and comments - https://tools.ietf.org/html/rfc5322#section-3.2.2 *)
 let p_fws =
-  skip_whitespace
+  skip whitespace
   >>= fun ws_count1 ->
-  skip (string "\x0D\x0A\x20" <|> string "\x0D\x0A\x09")
-  >>= fun lws_count ->
-  skip_whitespace
-  >|= fun ws_count2 -> if ws_count1 + lws_count + ws_count2 > 0 then " " else ""
+  skip (string "\r\n" *> skip ~at_least:1 whitespace)
+  >|= fun lws_count -> if ws_count1 + lws_count > 0 then " " else ""
 
 let p_comment =
   let ctext = satisfy is_ctext >|= String.make 1 in
-  let rec loop_comment () =
-    char '('
-    *> take
-         ( p_fws
-         >>= fun sp ->
-         ctext
-         <|> p_quoted_pair
-         <|> (loop_comment () >|= fun txt -> "(" ^ txt ^ ")")
-         >|= ( ^ ) sp )
-    >|= (fun (_, chars) -> String.concat "" chars)
-    >>= fun comment_text ->
-    p_fws >>= fun sp -> return (comment_text ^ sp) <* char ')'
+  let rec loop_comments () =
+    let ccontent =
+      take
+        (map2
+           (fun sp content -> sp ^ content)
+           p_fws
+           (any
+              [ lazy ctext
+              ; lazy p_quoted_pair
+              ; lazy (loop_comments () >|= ( ^ ) ";") ]))
+      >|= fun (_, s) -> String.concat "" s
+    in
+    char '(' *> map2 (fun comment_txt sp -> comment_txt ^ sp) ccontent p_fws
+    <* char ')'
   in
-  loop_comment ()
+  loop_comments ()
 
 let p_cfws =
   take (p_fws >>= fun sp -> p_comment >|= fun comment_text -> sp ^ comment_text)
