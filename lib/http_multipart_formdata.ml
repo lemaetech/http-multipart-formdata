@@ -119,55 +119,56 @@ let is_token_char c =
 let skip_whitespace = skip whitespace
 let implode l = List.to_seq l |> String.of_seq
 
-let p_token =
-  take ~at_least:1 (satisfy is_token_char) >|= fun (_, chars) -> implode chars
+let token =
+  R.take ~at_least:1 (R.satisfy is_token_char)
+  >|= fun (_, chars) -> implode chars
 
 (* https://tools.ietf.org/html/rfc5322#section-3.2.1
    quoted-pair     =   ('\' (VCHAR / WSP)) / obs-qp *)
-let p_quoted_pair = String.make 1 <$> char '\\' *> (whitespace <|> vchar)
+let quoted_pair = String.make 1 <$> R.char '\\' *> (R.whitespace <|> R.vchar)
 
 (* Folding whitespace and comments - https://tools.ietf.org/html/rfc5322#section-3.2.2 *)
-let p_fws =
-  skip whitespace
+let fws =
+  R.skip R.whitespace
   >>= fun ws_count1 ->
-  skip (string "\r\n" *> skip ~at_least:1 whitespace)
+  R.skip (R.string "\r\n" *> R.skip ~at_least:1 R.whitespace)
   >|= fun lws_count -> if ws_count1 + lws_count > 0 then " " else ""
 
-let p_comment =
-  let ctext = satisfy is_ctext >|= String.make 1 in
+let comments =
+  let ctext = R.satisfy is_ctext >|= String.make 1 in
   let rec loop_comments () =
     let ccontent =
-      take
-        (map2
+      R.take
+        (R.map2
            (fun sp content -> sp ^ content)
-           p_fws
-           (any
+           fws
+           (R.any
               [ lazy ctext
-              ; lazy p_quoted_pair
+              ; lazy quoted_pair
               ; lazy (loop_comments () >|= ( ^ ) ";") ]))
       >|= fun (_, s) -> String.concat "" s
     in
-    char '(' *> map2 (fun comment_txt sp -> comment_txt ^ sp) ccontent p_fws
-    <* char ')'
+    R.char '(' *> R.map2 (fun comment_txt sp -> comment_txt ^ sp) ccontent fws
+    <* R.char ')'
   in
   loop_comments ()
 
 let p_cfws =
-  take (p_fws >>= fun sp -> p_comment >|= fun comment_text -> sp ^ comment_text)
+  take (fws >>= fun sp -> comments >|= fun comment_text -> sp ^ comment_text)
   >>= (fun (_, l) ->
-        p_fws >|= fun sp -> if String.length sp > 0 then l @ [sp] else l)
-  <|> (p_fws >|= fun sp -> if String.length sp > 0 then [sp] else [])
+        fws >|= fun sp -> if String.length sp > 0 then l @ [sp] else l)
+  <|> (fws >|= fun sp -> if String.length sp > 0 then [sp] else [])
 
 let p_quoted_string =
-  let qcontent = satisfy is_qtext >|= String.make 1 <|> p_quoted_pair in
-  p_cfws *> char '"' *> take (p_fws >>= fun sp -> qcontent >|= ( ^ ) sp)
+  let qcontent = satisfy is_qtext >|= String.make 1 <|> quoted_pair in
+  p_cfws *> char '"' *> take (fws >>= fun sp -> qcontent >|= ( ^ ) sp)
   >|= (fun (_, l) -> String.concat "" l)
-  >>= fun q_string -> p_fws >|= (fun sp -> q_string ^ sp) <* char '"'
+  >>= fun q_string -> fws >|= (fun sp -> q_string ^ sp) <* char '"'
 
-let p_param_value = p_token <|> p_quoted_string
+let p_param_value = token <|> p_quoted_string
 
 let p_param =
-  let name = skip_whitespace *> char ';' *> skip_whitespace *> p_token in
+  let name = skip_whitespace *> char ';' *> skip_whitespace *> token in
   let value = char '=' *> p_param_value in
   map2 (fun name value -> (name, value)) name value
 
@@ -256,11 +257,11 @@ let p_header_boundary =
       else fail "Invalid boundary value: invalid last char"
     else fail "Invalid boundary value: 0 length"
   in
-  optional is_dquote *> boundary <* optional is_dquote <|> p_token
+  optional is_dquote *> boundary <* optional is_dquote <|> token
 
 let p_multipart_formdata_header =
   let param =
-    skip_whitespace *> char ';' *> skip_whitespace *> p_token
+    skip_whitespace *> char ';' *> skip_whitespace *> token
     >>= fun attribute ->
     ( char '='
     *> if attribute = "boundary" then p_header_boundary else p_param_value )
