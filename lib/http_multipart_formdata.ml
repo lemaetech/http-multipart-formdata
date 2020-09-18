@@ -366,37 +366,39 @@ let add_part (name, bp) m =
 
 let multipart_bodyparts boundary_value =
   let dash_boundary = "--" ^ boundary_value in
-  let len = String.length dash_boundary in
+  let end_boundary = dash_boundary ^ "--" in
   let rec loop_body buf =
-    R.optional R.line
-    >>= function
-    | Some ((len', ln) as ln') ->
-        if len <> len' && ln <> dash_boundary then (
-          Buffer.add_string buf (ln ^ "\r\n") ;
-          loop_body buf )
-        else (Buffer.contents buf, Some ln') |> R.return
-    | None                     -> (Buffer.contents buf, None) |> R.return
+    R.line
+    >>= fun (_, ln) ->
+    if ln = dash_boundary then R.return (Buffer.contents buf, true)
+    else if ln = end_boundary then R.return (Buffer.contents buf, false)
+    else
+      R.crlf
+      >>= fun lf ->
+      Buffer.add_string buf ln ;
+      Buffer.add_string buf lf ;
+      loop_body buf
   in
-  let rec loop_parts parts = function
-    | Some (_, ln) ->
-        if ln = dash_boundary ^ "--" then R.return parts
-        else if ln = dash_boundary then
-          R.take (R.string "\r\n" *> content_type true <|> content_disposition)
-          >>= fun (_, headers) ->
-          loop_body (Buffer.create 0)
-          >>= fun (body, ln) ->
-          body_part headers body >>= fun bp -> loop_parts (bp :: parts) ln
-        else R.optional R.line >>= loop_parts parts
-    | None         -> R.return parts
+  let rec loop_parts parts =
+    let headers =
+      R.take
+        ~at_least:1
+        (R.any [lazy content_disposition; lazy (content_type true)] <* R.crlf)
+      <* R.crlf
+    in
+    headers
+    >>= fun (_, part_headers) ->
+    loop_body (Buffer.create 0)
+    >>= fun (body, continue) ->
+    body_part part_headers body
+    >>= fun bp -> if continue then loop_parts (bp :: parts) else R.return parts
   in
-  R.optional R.line
-  >>= loop_parts []
-  >>= fun parts ->
+  R.crlf *> R.string dash_boundary *> R.crlf *> loop_parts []
+  >|= fun parts ->
   List.fold_left
     (fun m (name, bp) -> add_part (name, bp) m)
     String_map.empty
     parts
-  |> R.return
 
 let parse ~content_type_header ~body =
   let header_params = R.parse content_type_header multipart_formdata_header in
