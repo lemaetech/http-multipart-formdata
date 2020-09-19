@@ -32,7 +32,15 @@ module File_part = struct
     ; content_type : string
     ; parameters : string String_map.t
     ; body : bytes }
-  [@@deriving sexp_of]
+
+  let sexp_of_t {filename; content_type; parameters; body} =
+    Sexp.List
+      [ Sexp.List [Sexp.Atom "filename"; sexp_of_option sexp_of_string filename]
+      ; Sexp.List [Sexp.Atom "content_type"; sexp_of_string content_type]
+      ; Sexp.List
+          [ Sexp.Atom "parameters"
+          ; String_map.sexp_of_t sexp_of_string parameters ]
+      ; Sexp.List [Sexp.Atom "body"; sexp_of_bytes body] ]
 
   let filename t = t.filename
   let content_type t = t.content_type
@@ -46,7 +54,12 @@ type t = part list String_map.t [@@deriving sexp_of]
 and part =
   | File   of File_part.t
   | String of string
-[@@deriving sexp_of]
+
+let rec sexp_of_t v = String_map.sexp_of_t (sexp_of_list sexp_of_part) v
+
+and sexp_of_part = function
+  | File f   -> Sexp.List [Sexp.Atom "File"; File_part.sexp_of_t f]
+  | String s -> Sexp.List [Sexp.Atom "String"; sexp_of_string s]
 
 let pp fmt t = Sexp.pp_hum_indent 2 fmt (sexp_of_t t)
 
