@@ -40,35 +40,20 @@ let%expect_test _ =
     ((file1
        ((File
           ((filename (a.txt)) (content_type text/plain) (parameters ())
-            (body  "\r\
-                  \n\r\
-                  \nContent of a.txt.\r\
+            (body  "Content of a.txt.\r\
                   \n\r\
                   \n")))))
       (file2
         ((File
            ((filename (a.html)) (content_type text/html) (parameters ())
-             (body
-                "\r\
-               \n\r\
-               \n<!DOCTYPE html><title>Content of a.html.</title>\r\
-               \n\r\
-               \n")))))
+             (body  "<!DOCTYPE html><title>Content of a.html.</title>\r\
+                   \n\r\
+                   \n")))))
       (file3
         ((File
            ((filename (binary)) (content_type application/octet-stream)
-             (parameters ()) (body  "\r\
-                                   \n\r\
-                                   \na\207\137b\r\
-                                   \n")))))
-      (text1 ((String  "\r\
-                      \n\r\
-                      \ntext default\r\
-                      \n")))
-      (text2 ((String  "\r\
-                      \n\r\
-                      \na\207\137b\r\
-                      \n"))))|}]
+             (parameters ()) (body "a\207\137b\r\n")))))
+      (text1 ((String "text default\r\n"))) (text2 ((String "a\207\137b\r\n"))))|}]
 
 let%expect_test "multiple body parts with same form field." =
   let content_type_header =
@@ -112,34 +97,18 @@ let%expect_test "multiple body parts with same form field." =
     ((file1
        ((File
           ((filename (a.txt)) (content_type text/plain) (parameters ())
-            (body  "\r\
-                  \n\r\
-                  \nContent of a.txt.\r\
+            (body  "Content of a.txt.\r\
                   \n\r\
                   \n")))
          (File
            ((filename (a.html)) (content_type text/html) (parameters ())
-             (body
-                "\r\
-               \n\r\
-               \n<!DOCTYPE html><title>Content of a.html.</title>\r\
-               \n\r\
-               \n")))
+             (body  "<!DOCTYPE html><title>Content of a.html.</title>\r\
+                   \n\r\
+                   \n")))
          (File
            ((filename (binary)) (content_type application/octet-stream)
-             (parameters ()) (body  "\r\
-                                   \n\r\
-                                   \na\207\137b\r\
-                                   \n")))))
-      (text1
-        ((String  "\r\
-                 \n\r\
-                 \ntext default\r\
-                 \n")
-          (String  "\r\
-                  \n\r\
-                  \na\207\137b\r\
-                  \n")))) |}]
+             (parameters ()) (body "a\207\137b\r\n")))))
+      (text1 ((String "text default\r\n") (String "a\207\137b\r\n")))) |}]
 
 module SM = Http_multipart_formdata.String_map
 
@@ -180,7 +149,6 @@ let%test "find/body_parts" =
   in
   match Http_multipart_formdata.parse ~content_type_header ~body with
   | parts       ->
-      Printf.printf "parts:%d\n" (SM.cardinal parts) ;
       List.length (SM.find "text1" parts) = 2
       && List.length (SM.find "file1" parts) = 3
       && SM.cardinal parts = 2

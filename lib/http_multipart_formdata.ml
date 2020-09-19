@@ -367,31 +367,32 @@ let add_part (name, bp) m =
 let multipart_bodyparts boundary_value =
   let dash_boundary = "--" ^ boundary_value in
   let end_boundary = dash_boundary ^ "--" in
+  let line = R.line `CRLF in
   let rec loop_body buf =
-    R.line
-    >>= fun (_, ln) ->
+    line
+    >>= fun ln ->
     if ln = dash_boundary then R.return (Buffer.contents buf, true)
     else if ln = end_boundary then R.return (Buffer.contents buf, false)
-    else
-      R.crlf
-      >>= fun lf ->
+    else (
       Buffer.add_string buf ln ;
-      Buffer.add_string buf lf ;
-      loop_body buf
+      Buffer.add_string buf "\r\n" ;
+      loop_body buf )
   in
   let rec loop_parts parts =
     let headers =
       R.take
         ~at_least:1
         (R.any [lazy content_disposition; lazy (content_type true)] <* R.crlf)
+      >|= snd
       <* R.crlf
     in
     headers
-    >>= fun (_, part_headers) ->
+    >>= fun part_headers ->
     loop_body (Buffer.create 0)
     >>= fun (body, continue) ->
     body_part part_headers body
-    >>= fun bp -> if continue then loop_parts (bp :: parts) else R.return parts
+    >>= fun bp ->
+    if continue then loop_parts (bp :: parts) else R.return (bp :: parts)
   in
   R.crlf *> R.string dash_boundary *> R.crlf *> loop_parts []
   >|= fun parts ->
