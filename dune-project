@@ -25,8 +25,6 @@
    (>= 4.10.0))
   dune
   reparse
-  ppx_sexp_conv
   (ppx_inline_test :with-test)
   (ppx_expect :with-test)
-  bigstringaf
   sexplib0))
