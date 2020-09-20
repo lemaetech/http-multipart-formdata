@@ -1,5 +1,4 @@
 (library
  (name http_multipart_formdata)
  (public_name http-multipart-formdata)
- (libraries sexplib0 reparse)
- (wrapped false))
+ (libraries sexplib0 reparse))

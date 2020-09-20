@@ -1,3 +1,5 @@
+open Http_multipart_formdata
+
 let%expect_test _ =
   let content_type_header =
     "Content-Type: multipart/form-data; \
@@ -33,7 +35,7 @@ let%expect_test _ =
     ; {|-----------------------------735323031399963166993862150--|} ]
     |> String.concat "\r\n"
   in
-  Http_multipart_formdata.(
+  Multipart_formdata.(
     parse ~content_type_header ~body |> pp Format.std_formatter) ;
   [%expect
     {|
@@ -90,7 +92,7 @@ let%expect_test "multiple body parts with same form field." =
     ; {|-----------------------------735323031399963166993862150--|} ]
     |> String.concat "\r\n"
   in
-  Http_multipart_formdata.(
+  Multipart_formdata.(
     parse ~content_type_header ~body |> pp Format.std_formatter) ;
   [%expect
     {|
@@ -110,7 +112,7 @@ let%expect_test "multiple body parts with same form field." =
              (parameters ()) (body "a\207\137b\r\n")))))
       (text1 ((String "text default\r\n") (String "a\207\137b\r\n")))) |}]
 
-module SM = Http_multipart_formdata.String_map
+module SM = Multipart_formdata.String_map
 
 let%test "find/body_parts" =
   let content_type_header =
@@ -147,7 +149,7 @@ let%test "find/body_parts" =
     ; {|-----------------------------735323031399963166993862150--|} ]
     |> String.concat "\r\n"
   in
-  match Http_multipart_formdata.parse ~content_type_header ~body with
+  match Multipart_formdata.parse ~content_type_header ~body with
   | parts       ->
       List.length (SM.find "text1" parts) = 2
       && List.length (SM.find "file1" parts) = 3
