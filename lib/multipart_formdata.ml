@@ -11,7 +11,7 @@ open Sexplib0.Sexp_conv
 open Reparse.Parse.Infix
 module P = Reparse.Parse
 
-exception Http_multipart_formdata of string
+exception Multipart_formdata of string
 
 module String_map = struct
   include Map.Make (String)
@@ -419,4 +419,4 @@ let parse ~content_type_header ~body =
   match String_map.find "boundary" header_params with
   | boundary_value      -> P.parse body (multipart_bodyparts boundary_value)
   | exception Not_found ->
-      raise @@ Http_multipart_formdata "Boundary paramater not found"
+      raise @@ Multipart_formdata "Boundary paramater not found"

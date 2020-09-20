@@ -9,7 +9,7 @@
 
 (** {2 Types} *)
 
-exception Http_multipart_formdata of string
+exception Multipart_formdata of string
 (** Represents error while parsing http multipart formdata. *)
 
 module String_map : Map.S with type key = string
