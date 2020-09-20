@@ -407,7 +407,7 @@ let multipart_bodyparts boundary_value =
     >>= fun bp ->
     if continue then loop_parts (bp :: parts) else P.return (bp :: parts)
   in
-  P.crlf *> P.string dash_boundary *> P.crlf *> loop_parts []
+  P.all_unit [P.crlf; P.string dash_boundary; P.crlf] *> loop_parts []
   >|= fun parts ->
   List.fold_left
     (fun m (name, bp) -> add_part (name, bp) m)
