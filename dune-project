@@ -24,7 +24,6 @@
   (ocaml
    (>= 4.10.0))
   dune
-  reparse
   (ppx_inline_test :with-test)
   (ppx_expect :with-test)
   sexplib0))

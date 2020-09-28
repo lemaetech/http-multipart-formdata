@@ -8,8 +8,8 @@
  *-------------------------------------------------------------------------*)
 open Sexplib0
 open Sexplib0.Sexp_conv
-open Reparse.Parse.Infix
-module P = Reparse.Parse
+module P = Reparse.Parse.String_parser
+open P.Infix
 
 exception Multipart_formdata of string
 
@@ -415,8 +415,15 @@ let multipart_bodyparts boundary_value =
     parts
 
 let parse ~content_type_header ~body =
-  let header_params = P.parse content_type_header multipart_formdata_header in
+  let header_params =
+    P.parse
+      (Reparse.IO.String.create content_type_header)
+      multipart_formdata_header
+  in
   match String_map.find "boundary" header_params with
-  | boundary_value      -> P.parse body (multipart_bodyparts boundary_value)
+  | boundary_value      ->
+      P.parse
+        (Reparse.IO.String.create body)
+        (multipart_bodyparts boundary_value)
   | exception Not_found ->
       raise @@ Multipart_formdata "Boundary paramater not found"

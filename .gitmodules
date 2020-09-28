@@ -1,0 +1,3 @@
+[submodule "vendor/reparse"]
+	path = vendor/reparse
+	url = git@github.com:lemaetech/reparse.git
