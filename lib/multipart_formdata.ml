@@ -417,13 +417,13 @@ let multipart_bodyparts boundary_value =
 let parse ~content_type_header ~body =
   let header_params =
     P.parse
-      (Reparse.Io.String.create content_type_header)
+      (Reparse.Source.String.create content_type_header)
       multipart_formdata_header
   in
   match String_map.find "boundary" header_params with
   | boundary_value      ->
       P.parse
-        (Reparse.Io.String.create body)
+        (Reparse.Source.String.create body)
         (multipart_bodyparts boundary_value)
   | exception Not_found ->
       raise @@ Multipart_formdata "Boundary paramater not found"
