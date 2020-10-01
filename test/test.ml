@@ -42,20 +42,30 @@ let%expect_test _ =
     ((file1
        ((File
           ((filename (a.txt)) (content_type text/plain) (parameters ())
-            (body  "Content of a.txt.\r\
+            (body  "\r\
+                  \nContent of a.txt.\r\
                   \n\r\
                   \n")))))
       (file2
         ((File
            ((filename (a.html)) (content_type text/html) (parameters ())
-             (body  "<!DOCTYPE html><title>Content of a.html.</title>\r\
-                   \n\r\
-                   \n")))))
+             (body
+                "\r\
+               \n<!DOCTYPE html><title>Content of a.html.</title>\r\
+               \n\r\
+               \n")))))
       (file3
         ((File
            ((filename (binary)) (content_type application/octet-stream)
-             (parameters ()) (body "a\207\137b\r\n")))))
-      (text1 ((String "text default\r\n"))) (text2 ((String "a\207\137b\r\n"))))|}]
+             (parameters ()) (body  "\r\
+                                   \na\207\137b\r\
+                                   \n")))))
+      (text1 ((String  "\r\
+                      \ntext default\r\
+                      \n")))
+      (text2 ((String  "\r\
+                      \na\207\137b\r\
+                      \n"))))|}]
 
 let%expect_test "multiple body parts with same form field." =
   let content_type_header =
@@ -99,18 +109,28 @@ let%expect_test "multiple body parts with same form field." =
     ((file1
        ((File
           ((filename (a.txt)) (content_type text/plain) (parameters ())
-            (body  "Content of a.txt.\r\
+            (body  "\r\
+                  \nContent of a.txt.\r\
                   \n\r\
                   \n")))
          (File
            ((filename (a.html)) (content_type text/html) (parameters ())
-             (body  "<!DOCTYPE html><title>Content of a.html.</title>\r\
-                   \n\r\
-                   \n")))
+             (body
+                "\r\
+               \n<!DOCTYPE html><title>Content of a.html.</title>\r\
+               \n\r\
+               \n")))
          (File
            ((filename (binary)) (content_type application/octet-stream)
-             (parameters ()) (body "a\207\137b\r\n")))))
-      (text1 ((String "text default\r\n") (String "a\207\137b\r\n")))) |}]
+             (parameters ()) (body  "\r\
+                                   \na\207\137b\r\
+                                   \n")))))
+      (text1
+        ((String  "\r\
+                 \ntext default\r\
+                 \n") (String  "\r\
+                              \na\207\137b\r\
+                              \n")))) |}]
 
 module SM = Multipart_formdata.String_map
 

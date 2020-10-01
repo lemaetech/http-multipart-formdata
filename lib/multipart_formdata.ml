@@ -132,6 +132,7 @@ let implode l = List.to_seq l |> String.of_seq
 
 let token =
   P.take ~at_least:1 (P.satisfy is_token_char)
+  <?> "[token]"
   >|= fun (_, chars) -> implode chars
 
 (* https://tools.ietf.org/html/rfc5322#section-3.2.1
@@ -256,25 +257,27 @@ let p_restricted_name =
   Buffer.contents buf
 
 let content_disposition =
-  P.string "Content-Disposition:"
-  *> P.skip P.whitespace
-  *> P.string "form-data"
-  *> P.take param
-  >|= fun (_, params) ->
-  let params = List.to_seq params |> String_map.of_seq in
-  Content_disposition params
+  lazy
+    ( P.string "Content-Disposition:"
+      *> P.skip P.whitespace
+      *> P.string "form-data"
+      *> P.take param
+    >|= fun (_, params) ->
+    let params = List.to_seq params |> String_map.of_seq in
+    Content_disposition params )
 
 let content_type parse_header_name =
-  (if parse_header_name then P.string "Content-Type:" *> P.unit else P.unit)
-  *> P.skip P.whitespace
-  *> p_restricted_name
-  >>= fun ty ->
-  P.char '/' *> p_restricted_name
-  >>= fun subtype ->
-  P.take param
-  >|= fun (_, params) ->
-  let parameters = params |> List.to_seq |> String_map.of_seq in
-  Content_type {ty; subtype; parameters}
+  lazy
+    ( (if parse_header_name then P.string "Content-Type:" *> P.unit else P.unit)
+      *> P.skip P.whitespace
+      *> p_restricted_name
+    >>= fun ty ->
+    P.char '/' *> p_restricted_name
+    >>= fun subtype ->
+    P.take param
+    >|= fun (_, params) ->
+    let parameters = params |> List.to_seq |> String_map.of_seq in
+    Content_type {ty; subtype; parameters} )
 
 let header_boundary =
   let is_bcharnospace = function
@@ -392,14 +395,11 @@ let multipart_bodyparts boundary_value =
       loop_body buf )
   in
   let rec loop_parts parts =
-    let headers =
-      P.take
-        ~at_least:1
-        (P.any [lazy content_disposition; lazy (content_type true)] <* P.crlf)
-      >|= snd
-      <* P.crlf
-    in
-    headers
+    P.take
+      ~at_least:1
+      ~sep_by:(P.crlf *> P.unit)
+      (P.any [content_disposition; content_type true])
+    >|= snd
     >>= fun part_headers ->
     loop_body (Buffer.create 0)
     >>= fun (body, continue) ->
@@ -417,13 +417,13 @@ let multipart_bodyparts boundary_value =
 let parse ~content_type_header ~body =
   let header_params =
     P.parse
-      (Reparse.IO.String.create content_type_header)
+      (Reparse.Io.String.create content_type_header)
       multipart_formdata_header
   in
   match String_map.find "boundary" header_params with
   | boundary_value      ->
       P.parse
-        (Reparse.IO.String.create body)
+        (Reparse.Io.String.create body)
         (multipart_bodyparts boundary_value)
   | exception Not_found ->
       raise @@ Multipart_formdata "Boundary paramater not found"
