@@ -397,7 +397,7 @@ let multipart_bodyparts boundary_value =
   let rec loop_parts parts =
     P.take
       ~at_least:1
-      ~sep_by:(P.crlf *> P.unit)
+      ~sep_by:P.crlf
       (P.any [content_disposition; content_type true])
     >|= snd
     >>= fun part_headers ->
