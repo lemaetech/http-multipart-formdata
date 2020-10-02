@@ -163,10 +163,7 @@ let comment =
         (P.map2
            (fun sp content -> sp ^ content)
            fws
-           (P.any
-              [ lazy ctext
-              ; lazy quoted_pair
-              ; lazy (loop_comments () >|= ( ^ ) ";") ]))
+           (P.any [ctext; quoted_pair; loop_comments () >|= ( ^ ) ";"]))
       >|= fun (_, s) -> String.concat "" s
     in
     P.char '(' *> P.map2 (fun comment_txt sp -> comment_txt ^ sp) ccontent fws
@@ -257,27 +254,30 @@ let p_restricted_name =
   Buffer.contents buf
 
 let content_disposition =
-  lazy
-    ( P.string "Content-Disposition:"
-      *> P.skip P.whitespace
-      *> P.string "form-data"
-      *> P.take param
-    >|= fun (_, params) ->
-    let params = List.to_seq params |> String_map.of_seq in
-    Content_disposition params )
+  P.delay
+    ( lazy
+      ( P.string "Content-Disposition:"
+        *> P.skip P.whitespace
+        *> P.string "form-data"
+        *> P.take param
+      >|= fun (_, params) ->
+      let params = List.to_seq params |> String_map.of_seq in
+      Content_disposition params ) )
 
 let content_type parse_header_name =
-  lazy
-    ( (if parse_header_name then P.string "Content-Type:" *> P.unit else P.unit)
-      *> P.skip P.whitespace
-      *> p_restricted_name
-    >>= fun ty ->
-    P.char '/' *> p_restricted_name
-    >>= fun subtype ->
-    P.take param
-    >|= fun (_, params) ->
-    let parameters = params |> List.to_seq |> String_map.of_seq in
-    Content_type {ty; subtype; parameters} )
+  P.delay
+    ( lazy
+      ( ( if parse_header_name then P.string "Content-Type:" *> P.unit
+        else P.unit )
+        *> P.skip P.whitespace
+        *> p_restricted_name
+      >>= fun ty ->
+      P.char '/' *> p_restricted_name
+      >>= fun subtype ->
+      P.take param
+      >|= fun (_, params) ->
+      let parameters = params |> List.to_seq |> String_map.of_seq in
+      Content_type {ty; subtype; parameters} ) )
 
 let header_boundary =
   let is_bcharnospace = function
