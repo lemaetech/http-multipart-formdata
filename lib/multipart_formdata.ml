@@ -159,12 +159,14 @@ let comment =
   let ctext = P.satisfy is_ctext >|= String.make 1 in
   let rec loop_comments () =
     let ccontent =
-      P.take
-        (P.map2
-           (fun sp content -> sp ^ content)
-           fws
-           (P.any [ctext; quoted_pair; loop_comments () >|= ( ^ ) ";"]))
-      >|= fun (_, s) -> String.concat "" s
+      P.delay
+      @@ lazy
+           ( P.take
+               (P.map2
+                  (fun sp content -> sp ^ content)
+                  fws
+                  (P.any [ctext; quoted_pair; loop_comments () >|= ( ^ ) ";"]))
+           >|= fun (_, s) -> String.concat "" s )
     in
     P.char '(' *> P.map2 (fun comment_txt sp -> comment_txt ^ sp) ccontent fws
     <* P.char ')'
