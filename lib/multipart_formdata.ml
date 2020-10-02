@@ -8,7 +8,7 @@
  *-------------------------------------------------------------------------*)
 open Sexplib0
 open Sexplib0.Sexp_conv
-module P = Reparse.Parse.String_parser
+module P = Reparse.Parser.String_parser
 open P.Infix
 
 exception Multipart_formdata of string
