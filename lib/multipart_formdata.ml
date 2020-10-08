@@ -133,7 +133,7 @@ let implode l = List.to_seq l |> String.of_seq
 let token =
   P.take ~at_least:1 (P.satisfy is_token_char)
   <?> "[token]"
-  >|= fun (_, chars) -> implode chars
+  >|= fun chars -> implode chars
 
 (* https://tools.ietf.org/html/rfc5322#section-3.2.1
    quoted-pair     =   ('\' (VCHAR / WSP)) / obs-qp *)
@@ -166,7 +166,7 @@ let comment =
                   (fun sp content -> sp ^ content)
                   fws
                   (P.any [ctext; quoted_pair; loop_comments () >|= ( ^ ) ";"]))
-           >|= fun (_, s) -> String.concat "" s )
+           >|= fun s -> String.concat "" s )
     in
     P.char '(' *> P.map2 (fun comment_txt sp -> comment_txt ^ sp) ccontent fws
     <* P.char ')'
@@ -196,7 +196,7 @@ let cfws =
 let quoted_string =
   let qtext = String.make 1 <$> P.satisfy is_qtext in
   let qcontent =
-    (fun (_, l) -> String.concat "" l)
+    (fun l -> String.concat "" l)
     <$> P.take
           (P.map2
              (fun sp qcontent' -> sp ^ qcontent')
@@ -251,7 +251,7 @@ let p_restricted_name =
   let buf = Buffer.create 10 in
   Buffer.add_char buf first_ch ;
   P.take ~up_to:126 p_restricted_name_chars
-  >|= fun (_, restricted_name) ->
+  >|= fun restricted_name ->
   Buffer.add_string buf (implode restricted_name) ;
   Buffer.contents buf
 
@@ -262,7 +262,7 @@ let content_disposition =
         *> P.skip P.whitespace
         *> P.string "form-data"
         *> P.take param
-      >|= fun (_, params) ->
+      >|= fun params ->
       let params = List.to_seq params |> String_map.of_seq in
       Content_disposition params ) )
 
@@ -277,7 +277,7 @@ let content_type parse_header_name =
       P.char '/' *> p_restricted_name
       >>= fun subtype ->
       P.take param
-      >|= fun (_, params) ->
+      >|= fun params ->
       let parameters = params |> List.to_seq |> String_map.of_seq in
       Content_type {ty; subtype; parameters} ) )
 
@@ -307,7 +307,7 @@ let header_boundary =
   in
   let boundary =
     P.take ~up_to:70 bchars
-    >>= fun (_, bchars) ->
+    >>= fun bchars ->
     let len = List.length bchars in
     if len > 0 then
       let last_char = List.nth bchars (len - 1) in
@@ -332,7 +332,7 @@ let multipart_formdata_header =
   <?> "Not multipart formdata header" )
   *> P.skip P.whitespace
   *> P.take param
-  >|= fun (_, params) -> params |> List.to_seq |> String_map.of_seq
+  >|= fun params -> params |> List.to_seq |> String_map.of_seq
 
 let body_part headers body =
   let name, content_type, filename, parameters =
@@ -401,7 +401,6 @@ let multipart_bodyparts boundary_value =
       ~at_least:1
       ~sep_by:P.crlf
       (P.any [content_disposition; content_type true])
-    >|= snd
     >>= fun part_headers ->
     loop_body (Buffer.create 0)
     >>= fun (body, continue) ->
