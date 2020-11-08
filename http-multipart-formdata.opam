@@ -12,9 +12,8 @@ bug-reports: "https://github.com/lemaetech/http-mutlipart-formdata/issues"
 depends: [
   "ocaml" {>= "4.10.0"}
   "dune" {>= "2.6"}
-  "ppx_inline_test" {with-test}
-  "ppx_expect" {with-test}
-  "sexplib0"
+  "fmt"
+  "alcotest" {with-test}
 ]
 build: [
   ["dune" "subst"] {pinned}

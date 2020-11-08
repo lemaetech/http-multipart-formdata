@@ -6,69 +6,70 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  *
  *-------------------------------------------------------------------------*)
-open Sexplib0
-open Sexplib0.Sexp_conv
 module P = Reparse.Parser.String_parser
 open P.Infix
 
-exception Multipart_formdata of string
+exception Multipart of string
 
-module String_map = struct
+module Map = struct
   include Map.Make (String)
 
-  let sexp_of_t f t =
-    let s = sexp_of_pair sexp_of_string f in
-    let l = to_seq t |> List.of_seq in
-    sexp_of_list s l
-
-  let pp f fmt t =
-    sexp_of_t f t |> Sexp.pp_hum_indent 2 fmt
-    [@@ocaml.toplevel_printer] [@@warning "-32"]
+  let pp pp_value fmt t =
+    let pp_kv = Fmt.pair ~sep:Fmt.comma Fmt.string pp_value in
+    let s = to_seq t in
+    Fmt.seq ~sep:Fmt.semi pp_kv fmt s
 end
 
-module File_part = struct
+let rec list_equal f l1 l2 =
+  match (l1, l2) with
+  | [], [] -> true
+  | [], _
+  | _, [] ->
+      false
+  | x1 :: l1', x2 :: l2' -> f x1 x2 && list_equal f l1' l2'
+
+module Part = struct
   type t =
-    { filename : string option
+    { body : bytes
+    ; name : string
     ; content_type : string
-    ; parameters : string String_map.t
-    ; body : bytes }
+    ; filename : string option
+    ; parameters : string Map.t }
 
-  let sexp_of_t {filename; content_type; parameters; body} =
-    Sexp.List
-      [ Sexp.List [Sexp.Atom "filename"; sexp_of_option sexp_of_string filename]
-      ; Sexp.List [Sexp.Atom "content_type"; sexp_of_string content_type]
-      ; Sexp.List
-          [ Sexp.Atom "parameters"
-          ; String_map.sexp_of_t sexp_of_string parameters ]
-      ; Sexp.List [Sexp.Atom "body"; sexp_of_bytes body] ]
+  let pp fmt p =
+    let fields =
+      [ Fmt.field "name" (fun p -> p.name) Fmt.string
+      ; Fmt.field "content_type" (fun p -> p.content_type) Fmt.string
+      ; Fmt.field "filename" (fun p -> p.filename) Fmt.(option string)
+      ; Fmt.field "parameters" (fun p -> p.parameters) (Map.pp Fmt.string)
+      ; Fmt.field "body" (fun p -> Bytes.to_string p.body) Fmt.string ]
+    in
+    Fmt.record ~sep:Fmt.semi fields fmt p
 
-  let filename t = t.filename
-  let content_type t = t.content_type
-  let body t = t.body
-  let find_parameter nm t = String_map.find_opt nm t.parameters
-  let pp fmt t = Sexp.pp_hum_indent 2 fmt (sexp_of_t t)
+  let equal p1 p2 =
+    let body = Bytes.compare p1.body p2.body in
+    let name = String.compare p1.name p2.name in
+    let content_type = String.compare p1.content_type p2.content_type in
+    let filename = Option.compare String.compare p1.filename p2.filename in
+    let parameters = Map.compare String.compare p1.parameters p2.parameters in
+    body + name + content_type + filename + parameters = 0
 end
 
-type t = part list String_map.t [@@deriving sexp_of]
+type t = parts Map.t
 
-and part =
-  | File   of File_part.t
-  | String of string
+and parts = Part.t list
 
-let rec sexp_of_t v = String_map.sexp_of_t (sexp_of_list sexp_of_part) v
-
-and sexp_of_part = function
-  | File f   -> Sexp.List [Sexp.Atom "File"; File_part.sexp_of_t f]
-  | String s -> Sexp.List [Sexp.Atom "String"; sexp_of_string s]
-
-let pp fmt t = Sexp.pp_hum_indent 2 fmt (sexp_of_t t)
+let pp_parts = Fmt.list ~sep:Fmt.semi Part.pp
+let equal_parts = list_equal Part.equal
+let pp fmt (m : t) = Map.pp pp_parts fmt m
+let equal (m1 : t) (m2 : t) = Map.equal equal_parts m1 m2
 
 type part_header =
   | Content_type        of
       { ty : string
       ; subtype : string
-      ; parameters : string String_map.t }
-  | Content_disposition of string String_map.t
+      ; parameters : string Map.t }
+  | Content_disposition of string Map.t
 
 let is_alpha_digit = function
   | '0' .. '9'
@@ -131,9 +132,8 @@ let is_token_char c =
 let implode l = List.to_seq l |> String.of_seq
 
 let token =
-  P.take ~at_least:1 (P.satisfy is_token_char)
-  <?> "[token]"
-  >|= fun chars -> implode chars
+  let+ chars = P.take ~at_least:1 (P.satisfy is_token_char) <?> "[token]" in
+  implode chars
 
 (* https://tools.ietf.org/html/rfc5322#section-3.2.1
    quoted-pair     =   ('\' (VCHAR / WSP)) / obs-qp *)
@@ -146,10 +146,11 @@ let quoted_pair = String.make 1 <$> P.char '\\' *> (P.whitespace <|> P.vchar)
   r = " "
  *)
 let fws =
-  P.skip P.whitespace
-  >>= fun ws_count1 ->
-  P.skip (P.string "\r\n" *> P.skip ~at_least:1 P.whitespace)
-  >|= fun lws_count -> if ws_count1 + lws_count > 0 then " " else ""
+  let* ws_count1 = P.skip P.whitespace in
+  let+ lws_count =
+    P.skip (P.string "\r\n" *> P.skip ~at_least:1 P.whitespace)
+  in
+  if ws_count1 + lws_count > 0 then " " else ""
 
 (*
   let r = P.parse "(    asdfasdfasdfasd(aaa) \\(cccc\\) (bbb(ddd)))" comments;;
@@ -161,12 +162,14 @@ let comment =
     let ccontent =
       P.delay
       @@ lazy
-           ( P.take
-               (P.map2
-                  (fun sp content -> sp ^ content)
-                  fws
-                  (P.any [ctext; quoted_pair; loop_comments () >|= ( ^ ) ";"]))
-           >|= fun s -> String.concat "" s )
+           (let+ s =
+              P.take
+                (P.map2
+                   (fun sp content -> sp ^ content)
+                   fws
+                   (P.any [ctext; quoted_pair; loop_comments () >|= ( ^ ) ";"]))
+            in
+            String.concat "" s)
     in
     P.char '(' *> P.map2 (fun comment_txt sp -> comment_txt ^ sp) ccontent fws
     <* P.char ')'
@@ -246,40 +249,38 @@ let p_restricted_name =
         | c when is_alpha_digit c -> true
         | _ -> false)
   in
-  P.satisfy is_alpha_digit
-  >>= fun first_ch ->
+  let* first_ch = P.satisfy is_alpha_digit in
   let buf = Buffer.create 10 in
   Buffer.add_char buf first_ch ;
-  P.take ~up_to:126 p_restricted_name_chars
-  >|= fun restricted_name ->
+  let+ restricted_name = P.take ~up_to:126 p_restricted_name_chars in
   Buffer.add_string buf (implode restricted_name) ;
   Buffer.contents buf
 
 let content_disposition =
   P.delay
     ( lazy
-      ( P.string "Content-Disposition:"
-        *> P.skip P.whitespace
-        *> P.string "form-data"
-        *> P.take param
-      >|= fun params ->
-      let params = List.to_seq params |> String_map.of_seq in
-      Content_disposition params ) )
+      (let+ params =
+         P.string "Content-Disposition:"
+         *> P.skip P.whitespace
+         *> P.string "form-data"
+         *> P.take param
+       in
+       let params = List.to_seq params |> Map.of_seq in
+       Content_disposition params) )
 
 let content_type parse_header_name =
   P.delay
     ( lazy
-      ( ( if parse_header_name then P.string "Content-Type:" *> P.unit
-        else P.unit )
-        *> P.skip P.whitespace
-        *> p_restricted_name
-      >>= fun ty ->
-      P.char '/' *> p_restricted_name
-      >>= fun subtype ->
-      P.take param
-      >|= fun params ->
-      let parameters = params |> List.to_seq |> String_map.of_seq in
-      Content_type {ty; subtype; parameters} ) )
+      (let* ty =
+         ( if parse_header_name then P.string "Content-Type:" *> P.unit
+         else P.unit )
+         *> P.skip P.whitespace
+         *> p_restricted_name
+       in
+       let* subtype = P.char '/' *> p_restricted_name in
+       let+ params = P.take param in
+       let parameters = params |> List.to_seq |> Map.of_seq in
+       Content_type {ty; subtype; parameters}) )
 
 let header_boundary =
   let is_bcharnospace = function
@@ -306,8 +307,7 @@ let header_boundary =
         | _ -> false)
   in
   let boundary =
-    P.take ~up_to:70 bchars
-    >>= fun bchars ->
+    let* bchars = P.take ~up_to:70 bchars in
     let len = List.length bchars in
     if len > 0 then
       let last_char = List.nth bchars (len - 1) in
@@ -319,20 +319,25 @@ let header_boundary =
 
 let multipart_formdata_header =
   let param =
-    P.skip P.whitespace *> P.char ';' *> P.skip P.whitespace *> token
-    >>= fun attribute ->
-    ( P.char '='
-    *> if attribute = "boundary" then header_boundary else param_value )
-    >|= fun value -> (attribute, value)
+    let* attribute =
+      P.skip P.whitespace *> P.char ';' *> P.skip P.whitespace *> token
+    in
+    let+ value =
+      P.char '='
+      *> if attribute = "boundary" then header_boundary else param_value
+    in
+    (attribute, value)
   in
-  ( P.optional P.crlf
-    *> P.optional (P.string "Content-Type:")
+  let+ params =
+    ( P.optional P.crlf
+      *> P.optional (P.string "Content-Type:")
+      *> P.skip P.whitespace
+      *> P.string "multipart/form-data"
+    <?> "Not multipart formdata header" )
     *> P.skip P.whitespace
-    *> P.string "multipart/form-data"
-  <?> "Not multipart formdata header" )
-  *> P.skip P.whitespace
-  *> P.take param
-  >|= fun params -> params |> List.to_seq |> String_map.of_seq
+    *> P.take param
+  in
+  params |> List.to_seq |> Map.of_seq
 
 let body_part headers body =
   let name, content_type, filename, parameters =
@@ -344,51 +349,46 @@ let body_part headers body =
             ( name
             , content_type
             , filename
-            , String_map.union (fun _key a _b -> Some a) params ct.parameters )
+            , Map.union (fun _key a _b -> Some a) params ct.parameters )
         | Content_disposition params2 ->
-            let name = String_map.find_opt "name" params2 in
-            let filename = String_map.find_opt "filename" params2 in
+            let name = Map.find_opt "name" params2 in
+            let filename = Map.find_opt "filename" params2 in
             ( name
             , ct
             , filename
-            , String_map.union (fun _key a _b -> Some a) params params2 ))
-      (None, None, None, String_map.empty)
+            , Map.union (fun _key a _b -> Some a) params params2 ))
+      (None, None, None, Map.empty)
       headers
   in
   match name with
-  | None    -> P.fail "parameter 'name' not found"
-  | Some nm ->
+  | None      -> P.fail "parameter 'name' not found"
+  | Some name ->
       let content_type = try Option.get content_type with _ -> "text/plain" in
+      let parameters = Map.remove "name" parameters in
       let parameters =
-        String_map.remove "name" parameters
-        |> fun parameters ->
         match filename with
-        | Some _ -> String_map.remove "filename" parameters
+        | Some _ -> Map.remove "filename" parameters
         | None   -> parameters
       in
-      ( match filename with
-      | Some _ ->
-          ( nm
-          , File
-              { File_part.filename
-              ; content_type
-              ; parameters
-              ; body = Bytes.unsafe_of_string body } )
-      | None   -> (nm, String body) )
-      |> P.return
+      P.return
+        ( name
+        , { Part.body = Bytes.unsafe_of_string body
+          ; name
+          ; content_type
+          ; filename
+          ; parameters } )
 
 let add_part (name, bp) m =
-  match String_map.find_opt name m with
-  | Some l -> String_map.add name (bp :: l) m
-  | None   -> String_map.add name [bp] m
+  match Map.find_opt name m with
+  | Some l -> Map.add name (bp :: l) m
+  | None   -> Map.add name [bp] m
 
 let multipart_bodyparts boundary_value =
   let dash_boundary = "--" ^ boundary_value in
   let end_boundary = dash_boundary ^ "--" in
   let line = P.line `CRLF in
   let rec loop_body buf =
-    line
-    >>= fun ln ->
+    let* ln = line in
     if ln = dash_boundary then P.return (Buffer.contents buf, true)
     else if ln = end_boundary then P.return (Buffer.contents buf, false)
     else (
@@ -397,23 +397,20 @@ let multipart_bodyparts boundary_value =
       loop_body buf )
   in
   let rec loop_parts parts =
-    P.take
-      ~at_least:1
-      ~sep_by:P.crlf
-      (P.any [content_disposition; content_type true])
-    >>= fun part_headers ->
-    loop_body (Buffer.create 0)
-    >>= fun (body, continue) ->
-    body_part part_headers body
-    >>= fun bp ->
+    let* part_headers =
+      P.take
+        ~at_least:1
+        ~sep_by:P.crlf
+        (P.any [content_disposition; content_type true])
+    in
+    let* body, continue = loop_body (Buffer.create 0) in
+    let* bp = body_part part_headers body in
     if continue then loop_parts (bp :: parts) else P.return (bp :: parts)
   in
-  P.all_unit [P.crlf; P.string dash_boundary; P.crlf] *> loop_parts []
-  >|= fun parts ->
-  List.fold_left
-    (fun m (name, bp) -> add_part (name, bp) m)
-    String_map.empty
-    parts
+  let+ parts =
+    P.all_unit [P.crlf; P.string dash_boundary; P.crlf] *> loop_parts []
+  in
+  List.fold_left (fun m (name, bp) -> add_part (name, bp) m) Map.empty parts
 
 let parse ~content_type_header ~body =
   let header_params =
@@ -421,10 +418,9 @@ let parse ~content_type_header ~body =
       (Reparse.Source.String.create content_type_header)
       multipart_formdata_header
   in
-  match String_map.find "boundary" header_params with
+  match Map.find "boundary" header_params with
   | boundary_value      ->
       P.parse
         (Reparse.Source.String.create body)
         (multipart_bodyparts boundary_value)
-  | exception Not_found ->
-      raise @@ Multipart_formdata "Boundary paramater not found"
+  | exception Not_found -> raise @@ Multipart "Boundary paramater not found"

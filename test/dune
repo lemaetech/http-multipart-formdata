@@ -1,6 +1,3 @@
-(library
+(test
  (name test)
- (inline_tests)
- (libraries http-multipart-formdata sexplib0)
- (preprocess
-  (pps ppx_expect ppx_inline_test)))
+ (libraries http-multipart-formdata alcotest))

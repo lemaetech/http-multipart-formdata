@@ -24,6 +24,5 @@
   (ocaml
    (>= 4.10.0))
   dune
-  (ppx_inline_test :with-test)
-  (ppx_expect :with-test)
-  sexplib0))
+  fmt
+  (alcotest :with-test)))
