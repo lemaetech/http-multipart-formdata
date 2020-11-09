@@ -6,7 +6,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  *
  *-------------------------------------------------------------------------*)
-module P = Reparse.Parser.String_parser
+module P = Reparse.String_parser
 open P.Infix
 
 exception Multipart of string
@@ -412,15 +412,13 @@ let multipart_bodyparts boundary_value =
   in
   List.fold_left (fun m (name, bp) -> add_part (name, bp) m) Map.empty parts
 
+let create_input = Reparse.Input.String.create
+
 let parse ~content_type_header ~body =
   let header_params =
-    P.parse
-      (Reparse.Source.String.create content_type_header)
-      multipart_formdata_header
+    P.parse (create_input content_type_header) multipart_formdata_header
   in
   match Map.find "boundary" header_params with
   | boundary_value      ->
-      P.parse
-        (Reparse.Source.String.create body)
-        (multipart_bodyparts boundary_value)
+      P.parse (create_input body) (multipart_bodyparts boundary_value)
   | exception Not_found -> raise @@ Multipart "Boundary paramater not found"
