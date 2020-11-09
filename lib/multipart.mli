@@ -22,7 +22,7 @@ module Part : sig
     ; filename : string option
     ; parameters : string Map.t }
 
-  val pp : Format.formatter -> t -> unit
+  val pp : Format.formatter -> t -> unit [@@ocaml.toplevel_printer]
   val equal : t -> t -> bool
 end
 
@@ -31,9 +31,9 @@ type t = parts Map.t
 
 and parts = Part.t list
 
-val pp_parts : Format.formatter -> parts -> unit
+val pp_parts : Format.formatter -> parts -> unit [@@ocaml.toplevel_printer]
 val equal_parts : parts -> parts -> bool
-val pp : Format.formatter -> t -> unit
+val pp : Format.formatter -> t -> unit [@@ocaml.toplevel_printer]
 val equal : t -> t -> bool
 
 (** {2 Parsing} *)
