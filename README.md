@@ -1,27 +1,20 @@
-http-mutlipart-formdata
-=======================
+# http-mutlipart-formdata
 
-OCaml implementation of RFC 7578 (Returning Values from Forms: multipart/form-data)
-- https://tools.ietf.org/html/rfc7578")
+[http-multipart-formdata] is an ocaml library which provides support for parsing HTTP multipart/form-data media content types. It implements [RFC 7578](https://tools.ietf.org/html/rfc7578).
 
-Requirements
-------------
-Reparse requires OCaml version 4.10.0.
+## Installation
 
-Installation
------------
 ```sh
 $ opam install http-multipart-formdata
 ```
 
-API documentation
------------------
+## API documentation
 
 ```sh
-$ opam install odig 
-$ odig doc http-multipart-formdata 
+$ opam install odig
+$ odig doc http-multipart-formdata
 ```
 
-Examples
---------
+## Examples
+
 See https://github.com/lemaetech/http-mutlipart-formdata/blob/master/test/test.ml
