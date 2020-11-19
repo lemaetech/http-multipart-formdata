@@ -16,11 +16,11 @@ module Map : Map.S with type key = string
 
 module Part : sig
   type t =
-    { body : bytes
-    ; name : string
-    ; content_type : string
-    ; filename : string option
-    ; parameters : string Map.t }
+    { body: bytes
+    ; name: string
+    ; content_type: string
+    ; filename: string option
+    ; parameters: string Map.t }
 
   val pp : Format.formatter -> t -> unit [@@ocaml.toplevel_printer]
   val equal : t -> t -> bool
