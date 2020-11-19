@@ -16,13 +16,7 @@ $ opam install http-multipart-formdata
 
 ```ocaml
 let mp = Multipart.parse ~content_type_header ~body in
-  let file1_1 = Multipart.Map.find "file1" mp in
-  let file1_2 =
-    [ { Multipart.Part.body = Bytes.of_string "\r\nContent of a.txt.\r\n\r\n"
-      ; name = "file1"
-      ; content_type = "text/plain"
-      ; filename = Some "a.txt"
-      ; parameters = Multipart.Map.empty } ]
+let file1 = Multipart.Map.find "file1" mp
 ```
 
 [Full API Usage](https://github.com/lemaetech/http-mutlipart-formdata/blob/master/test/test.ml)
