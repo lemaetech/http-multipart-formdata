@@ -201,30 +201,25 @@ let p_restricted_name =
   Buffer.contents buf
 
 let content_disposition =
-  P.delay
-    ( lazy
-      (let+ params =
-         P.string "Content-Disposition:"
-         *> P.skip P.whitespace
-         *> P.string "form-data"
-         *> P.take param
-       in
-       let params = List.to_seq params |> Map.of_seq in
-       Content_disposition params) )
+  let+ params =
+    P.string "Content-Disposition:"
+    *> P.skip P.whitespace
+    *> P.string "form-data"
+    *> P.take param
+  in
+  let params = List.to_seq params |> Map.of_seq in
+  Content_disposition params
 
 let content_type parse_header_name =
-  P.delay
-    ( lazy
-      (let* ty =
-         ( if parse_header_name then P.string "Content-Type:" *> P.unit
-         else P.unit )
-         *> P.skip P.whitespace
-         *> p_restricted_name
-       in
-       let* subtype = P.char '/' *> p_restricted_name in
-       let+ params = P.take param in
-       let parameters = params |> List.to_seq |> Map.of_seq in
-       Content_type {ty; subtype; parameters}) )
+  let* ty =
+    (if parse_header_name then P.string "Content-Type:" *> P.unit else P.unit)
+    *> P.skip P.whitespace
+    *> p_restricted_name
+  in
+  let* subtype = P.char '/' *> p_restricted_name in
+  let+ params = P.take param in
+  let parameters = params |> List.to_seq |> Map.of_seq in
+  Content_type {ty; subtype; parameters}
 
 let header_boundary =
   let is_bcharnospace = function
