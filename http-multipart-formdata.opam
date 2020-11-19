@@ -10,13 +10,15 @@ tags: ["http" "multipart" "formadata" "form" "web"]
 homepage: "https://github.com/lemaetech/http-mutlipart-formdata"
 bug-reports: "https://github.com/lemaetech/http-mutlipart-formdata/issues"
 depends: [
+  "dune" {>= "2.7"}
   "ocaml" {>= "4.10.0"}
-  "dune" {>= "2.6"}
   "fmt"
+  "reparse"
   "alcotest" {with-test}
+  "odoc" {with-doc}
 ]
 build: [
-  ["dune" "subst"] {pinned}
+  ["dune" "subst"] {dev}
   [
     "dune"
     "build"

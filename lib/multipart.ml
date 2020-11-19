@@ -120,26 +120,23 @@ let fws =
   if ws_count1 + lws_count > 0 then " " else ""
 
 (*
-  let r = P.parse "(    asdfasdfasdfasd(aaa) \\(cccc\\) (bbb(ddd)))" comments;;
-  r = " asdfasdfasdfasd;aaa (cccc) ;bbb;ddd";;
+  let v = P.parse_string comment "(    asdfasdfasdfasd(aaa) \\(cccc\\) (bbb(ddd)))" in 
+  v = " asdfasdfasdfasd;aaa (cccc) ;bbb;ddd";;
  *)
 let comment =
   let ctext = P.char_if is_ctext >|= String.make 1 in
-  let rec loop_comments () =
-    let ccontent =
-      P.delay
-      @@ lazy
-           (let+ s =
-              P.take
-                (P.map2
-                   (fun sp content -> sp ^ content)
-                   fws
-                   (P.any [ctext; quoted_pair; loop_comments () >|= ( ^ ) ";"]) )
-            in
-            String.concat "" s) in
-    P.char '(' *> P.map2 (fun comment_txt sp -> comment_txt ^ sp) ccontent fws
-    <* P.char ')' in
-  loop_comments ()
+  P.recur (fun comments ->
+      let ccontent =
+        let+ s =
+          P.take
+            (P.map2
+               (fun sp content -> sp ^ content)
+               fws
+               (P.any [ctext; quoted_pair; comments >|= ( ^ ) ";"]) )
+        in
+        String.concat "" s in
+      P.char '(' *> P.map2 (fun comment_txt sp -> comment_txt ^ sp) ccontent fws
+      <* P.char ')' )
 
 (*
   let r = P.parse "  (    asdfasdfasdfasd(aaa) \\(cccc\\) (bbb(ddd)))   " cfws;;
