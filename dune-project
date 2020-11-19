@@ -1,4 +1,4 @@
-(lang dune 2.6)
+(lang dune 2.7)
 
 (name http-multipart-formdata)
 
@@ -23,6 +23,6 @@
  (depends
   (ocaml
    (>= 4.10.0))
-  dune
   fmt
+  reparse
   (alcotest :with-test)))

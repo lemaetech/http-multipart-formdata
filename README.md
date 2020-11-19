@@ -1,27 +1,28 @@
-http-mutlipart-formdata
-=======================
+# http-mutlipart-formdata
 
-OCaml implementation of RFC 7578 (Returning Values from Forms: multipart/form-data)
-- https://tools.ietf.org/html/rfc7578")
+A library which enables HTTP file uploads in ocaml web applications. HTTP file upload requests are generally encoded as `multipart/form-data` media content type. The library provides a simple api to parse and process such requests.
 
-Requirements
-------------
-Reparse requires OCaml version 4.10.0.
+The parser implements HTTP `multipart/form-data` standard as defined in [RFC 7578](https://tools.ietf.org/html/rfc7578).
 
-Installation
------------
+[API Documentation](https://lemaetech.co.uk/http-mutlipart-formdata/)
+
+## Installation
+
 ```sh
 $ opam install http-multipart-formdata
 ```
 
-API documentation
------------------
+## Examples
 
-```sh
-$ opam install odig 
-$ odig doc http-multipart-formdata 
+```ocaml
+let mp = Multipart.parse ~content_type_header ~body in
+  let file1_1 = Multipart.Map.find "file1" mp in
+  let file1_2 =
+    [ { Multipart.Part.body = Bytes.of_string "\r\nContent of a.txt.\r\n\r\n"
+      ; name = "file1"
+      ; content_type = "text/plain"
+      ; filename = Some "a.txt"
+      ; parameters = Multipart.Map.empty } ]
 ```
 
-Examples
---------
-See https://github.com/lemaetech/http-mutlipart-formdata/blob/master/test/test.ml
+[Full API Usage](https://github.com/lemaetech/http-mutlipart-formdata/blob/master/test/test.ml)
