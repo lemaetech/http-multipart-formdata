@@ -4,6 +4,6 @@ A library which enables HTTP file uploads in ocaml web applications. HTTP file u
 
 The parser implements HTTP [multipart/form-data] standard as defined in {{:https://tools.ietf.org/html/rfc7578} RFC 7578}.
 
-{1 API Documentation & Usage}
+{1 Modules}
 
 {!module:Http_multipart_formdata.Multipart}
