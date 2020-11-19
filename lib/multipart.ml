@@ -52,9 +52,7 @@ module Part = struct
     body + name + content_type + filename + parameters = 0
 end
 
-type t = parts Map.t
-
-and parts = Part.t list
+type t = Part.t list Map.t
 
 let pp_parts = Fmt.list ~sep:Fmt.semi Part.pp
 let equal_parts = list_equal Part.equal
