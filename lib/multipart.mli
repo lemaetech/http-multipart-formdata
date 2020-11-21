@@ -9,41 +9,40 @@
 
 (** {2 Types} *)
 
-module Map : Map.S with type key = string
 (** An ocaml [Stdlib] Map with [string] as key. *)
+module Map : Map.S with type key = string
 
 (** Represents a parsed multipart part. A part corresponds to a submitted form
     field data in a HTTP request. *)
 module Part : sig
   type t =
-    { body: bytes  (** Body content *)
-    ; name: string  (** Name of the part - form field name *)
-    ; content_type: string
+    { body : bytes (** Body content *)
+    ; name : string (** Name of the part - form field name *)
+    ; content_type : string
           (** HTTP content type of the part [body]. "text/plain" is default *)
-    ; filename: string option  (** [filename] form field attribute. *)
-    ; parameters: string Map.t
-          (** Additional [key = value] params of the form field. *) }
+    ; filename : string option (** [filename] form field attribute. *)
+    ; parameters : string Map.t (** Additional [key = value] params of the form field. *)
+    }
 
+  (** [pp fmt part] is the pretty printer for [t]. *)
   val pp : Format.formatter -> t -> unit
     [@@ocaml.toplevel_printer]
-  (** [pp fmt part] is the pretty printer for [t]. *)
 
-  val equal : t -> t -> bool
   (** [equal part1 part2] returns [true] if [part1] and [part2] are equal. *)
+  val equal : t -> t -> bool
 end
 
-type t = Part.t list Map.t
 (** Represents a parsed HTTP [multipart/form-data] request as a [key/value] map.
     Submitted form field name is the key value.
 
     A key may be associated in zero or more values.*)
+type t = Part.t list Map.t
 
-exception Multipart of string
 (** Represents error while parsing http multipart formdata. *)
+exception Multipart of string
 
 (** {2 Parse} *)
 
-val parse : content_type_header:string -> body:string -> t
 (** [parse ~content_type_header ~body] returns a parsed HTTP multiparts such
     that it can be queried using ocaml [Stdlib.Map] functions.
 
@@ -88,23 +87,24 @@ val parse : content_type_header:string -> body:string -> t
       Multipart.equal_parts file1_1 file1_2
     ]}
     @raise Multipart *)
+val parse : content_type_header:string -> body:string -> t
 
 (** {2 Pretty Printers} *)
 
+(** [pp_parts fmt parts] pretty prints a list of [Part.t] *)
 val pp_parts : Format.formatter -> Part.t list -> unit
   [@@ocaml.toplevel_printer]
-(** [pp_parts fmt parts] pretty prints a list of [Part.t] *)
 
+(** [pp fmt part] pretty prints a [part]. *)
 val pp : Format.formatter -> t -> unit
   [@@ocaml.toplevel_printer]
-(** [pp fmt part] pretty prints a [part]. *)
 
 (** {2 Equals} *)
 
-val equal_parts : Part.t list -> Part.t list -> bool
 (** [equal_parts parts1 parts2] returns [true] if [parts1] and [parts2] are
     equal, [false] otherwise. *)
+val equal_parts : Part.t list -> Part.t list -> bool
 
-val equal : t -> t -> bool
 (** [equal t1 t2] returns [true] if [Part.] [t1] and [t2] are equal, [false]
     otherwise. *)
+val equal : t -> t -> bool
