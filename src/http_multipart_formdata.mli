@@ -12,8 +12,8 @@
 (** An ocaml [Stdlib] Map with [string] as key. *)
 module Map : Map.S with type key = string
 
-(** Represents a parsed multipart part. A part corresponds to a submitted form
-    field data in a HTTP request. *)
+(** Represents a parsed multipart part. A part corresponds to a submitted form field data
+    in a HTTP request. *)
 module Part : sig
   type t =
     { body : bytes (** Body content *)
@@ -32,8 +32,8 @@ module Part : sig
   val equal : t -> t -> bool
 end
 
-(** Represents a parsed HTTP [multipart/form-data] request as a [key/value] map.
-    Submitted form field name is the key value.
+(** Represents a parsed HTTP [multipart/form-data] request as a [key/value] map. Submitted
+    form field name is the key value.
 
     A key may be associated in zero or more values.*)
 type t = Part.t list Map.t
@@ -43,48 +43,67 @@ exception Multipart of string
 
 (** {2 Parse} *)
 
-(** [parse ~content_type_header ~body] returns a parsed HTTP multiparts such
-    that it can be queried using ocaml [Stdlib.Map] functions.
+(** [parse ~content_type_header ~body] returns a parsed HTTP multiparts such that it can
+    be queried using ocaml [Stdlib.Map] functions.
 
-    [content_type_header] is the HTTP request [Content-Type] header. Note the
-    value contains both the header name and value. It is used to parse a
-    [boundary] value.
+    [content_type_header] is the HTTP request [Content-Type] header. Note the value
+    contains both the header name and value. It is used to parse a [boundary] value.
 
     [body] is the raw HTTP POST request body content.
 
     {4 Examples}
 
     {[
+      module M = Http_multipart_formdata
+
+      ;;
       let content_type_header =
         "Content-Type: multipart/form-data; \
-         boundary=---------------------------735323031399963166993862150" in
+         boundary=---------------------------735323031399963166993862150"
+      in
       let body =
-        [ {||}; {|-----------------------------735323031399963166993862150|}
-        ; {|Content-Disposition: form-data; name="text1"|}; {||}
+        [ {||}
+        ; {|-----------------------------735323031399963166993862150|}
+        ; {|Content-Disposition: form-data; name="text1"|}
+        ; {||}
         ; {|text default|}
         ; {|-----------------------------735323031399963166993862150|}
-        ; {|Content-Disposition: form-data; name="text2"|}; {||}; {|aωb|}
+        ; {|Content-Disposition: form-data; name="text2"|}
+        ; {||}
+        ; {|aωb|}
         ; {|-----------------------------735323031399963166993862150|}
         ; {|Content-Disposition: form-data; name="file1"; filename="a.txt"|}
-        ; {|Content-Type: text/plain|}; {||}; {|Content of a.txt.|}; {||}
+        ; {|Content-Type: text/plain|}
+        ; {||}
+        ; {|Content of a.txt.|}
+        ; {||}
         ; {|-----------------------------735323031399963166993862150|}
         ; {|Content-Disposition: form-data; name="file2"; filename="a.html"|}
-        ; {|Content-Type: text/html|}; {||}
-        ; {|<!DOCTYPE html><title>Content of a.html.</title>|}; {||}
+        ; {|Content-Type: text/html|}
+        ; {||}
+        ; {|<!DOCTYPE html><title>Content of a.html.</title>|}
+        ; {||}
         ; {|-----------------------------735323031399963166993862150|}
         ; {|Content-Disposition: form-data; name="file3"; filename="binary"|}
-        ; {|Content-Type: application/octet-stream|}; {||}; {|aωb|}
-        ; {|-----------------------------735323031399963166993862150--|} ]
-        |> String.concat "\r\n" in
-      let mp = Multipart.parse ~content_type_header ~body in
-      let file1_1 = Multipart.Map.find "file1" mp in
+        ; {|Content-Type: application/octet-stream|}
+        ; {||}
+        ; {|aωb|}
+        ; {|-----------------------------735323031399963166993862150--|}
+        ]
+        |> String.concat "\r\n"
+      in
+      let mp = M.parse ~content_type_header ~body in
+      let file1_1 = M.Map.find "file1" mp in
       let file1_2 =
-        [ { Multipart.Part.body= Bytes.of_string "\r\nContent of a.txt.\r\n\r\n"
-          ; name= "file1"
-          ; content_type= "text/plain"
-          ; filename= Some "a.txt"
-          ; parameters= Multipart.Map.empty } ] in
-      Multipart.equal_parts file1_1 file1_2
+        [ { M.Part.body = Bytes.of_string "\r\nContent of a.txt.\r\n\r\n"
+          ; name = "file1"
+          ; content_type = "text/plain"
+          ; filename = Some "a.txt"
+          ; parameters = M.Map.empty
+          }
+        ]
+      in
+      M.equal_parts file1_1 file1_2
     ]}
     @raise Multipart *)
 val parse : content_type_header:string -> body:string -> t
@@ -101,10 +120,9 @@ val pp : Format.formatter -> t -> unit
 
 (** {2 Equals} *)
 
-(** [equal_parts parts1 parts2] returns [true] if [parts1] and [parts2] are
-    equal, [false] otherwise. *)
+(** [equal_parts parts1 parts2] returns [true] if [parts1] and [parts2] are equal, [false]
+    otherwise. *)
 val equal_parts : Part.t list -> Part.t list -> bool
 
-(** [equal t1 t2] returns [true] if [Part.] [t1] and [t2] are equal, [false]
-    otherwise. *)
+(** [equal t1 t2] returns [true] if [Part.] [t1] and [t2] are equal, [false] otherwise. *)
 val equal : t -> t -> bool

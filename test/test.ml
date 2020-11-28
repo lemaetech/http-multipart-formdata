@@ -1,6 +1,6 @@
-open Http_multipart_formdata
+module M = Http_multipart_formdata
 
-let parts = Alcotest.testable Multipart.pp_parts Multipart.equal_parts
+let parts = Alcotest.testable M.pp_parts M.equal_parts
 
 let single_value_suite =
   let content_type_header =
@@ -38,55 +38,55 @@ let single_value_suite =
     ]
     |> String.concat "\r\n"
   in
-  let mp = Multipart.parse ~content_type_header ~body in
-  let file1_1 = Multipart.Map.find "file1" mp in
+  let mp = M.parse ~content_type_header ~body in
+  let file1_1 = M.Map.find "file1" mp in
   let file1_2 =
-    [ { Multipart.Part.body = Bytes.of_string "\r\nContent of a.txt.\r\n\r\n"
+    [ { M.Part.body = Bytes.of_string "\r\nContent of a.txt.\r\n\r\n"
       ; name = "file1"
       ; content_type = "text/plain"
       ; filename = Some "a.txt"
-      ; parameters = Multipart.Map.empty
+      ; parameters = M.Map.empty
       }
     ]
   in
-  let file2_1 = Multipart.Map.find "file2" mp in
+  let file2_1 = M.Map.find "file2" mp in
   let file2_2 =
-    [ { Multipart.Part.body =
+    [ { M.Part.body =
           Bytes.of_string "\r\n<!DOCTYPE html><title>Content of a.html.</title>\r\n\r\n"
       ; name = "file2"
       ; content_type = "text/html"
       ; filename = Some "a.html"
-      ; parameters = Multipart.Map.empty
+      ; parameters = M.Map.empty
       }
     ]
   in
-  let file3_1 = Multipart.Map.find "file3" mp in
+  let file3_1 = M.Map.find "file3" mp in
   let file3_2 =
-    [ { Multipart.Part.body = Bytes.of_string "\r\na\207\137b\r\n"
+    [ { M.Part.body = Bytes.of_string "\r\na\207\137b\r\n"
       ; name = "file3"
       ; content_type = "application/octet-stream"
       ; filename = Some "binary"
-      ; parameters = Multipart.Map.empty
+      ; parameters = M.Map.empty
       }
     ]
   in
-  let text1_1 = Multipart.Map.find "text1" mp in
+  let text1_1 = M.Map.find "text1" mp in
   let text1_2 =
-    [ { Multipart.Part.body = Bytes.of_string "\r\ntext default\r\n"
+    [ { M.Part.body = Bytes.of_string "\r\ntext default\r\n"
       ; name = "text1"
       ; content_type = "text/plain"
       ; filename = None
-      ; parameters = Multipart.Map.empty
+      ; parameters = M.Map.empty
       }
     ]
   in
-  let text2_1 = Multipart.Map.find "text2" mp in
+  let text2_1 = M.Map.find "text2" mp in
   let text2_2 =
-    [ { Multipart.Part.body = Bytes.of_string "\r\na\207\137b\r\n"
+    [ { M.Part.body = Bytes.of_string "\r\na\207\137b\r\n"
       ; name = "text2"
       ; content_type = "text/plain"
       ; filename = None
-      ; parameters = Multipart.Map.empty
+      ; parameters = M.Map.empty
       }
     ]
   in
@@ -134,43 +134,43 @@ let multi_values_suite =
     ]
     |> String.concat "\r\n"
   in
-  let mp = Multipart.parse ~content_type_header ~body in
-  let files_actual = Multipart.Map.find "file1" mp in
+  let mp = M.parse ~content_type_header ~body in
+  let files_actual = M.Map.find "file1" mp in
   let files_expected =
-    [ { Multipart.Part.body = Bytes.of_string "\r\nContent of a.txt.\r\n\r\n"
+    [ { M.Part.body = Bytes.of_string "\r\nContent of a.txt.\r\n\r\n"
       ; name = "file1"
       ; content_type = "text/plain"
       ; filename = Some "a.txt"
-      ; parameters = Multipart.Map.empty
+      ; parameters = M.Map.empty
       }
-    ; { Multipart.Part.body =
+    ; { M.Part.body =
           Bytes.of_string "\r\n<!DOCTYPE html><title>Content of a.html.</title>\r\n\r\n"
       ; name = "file1"
       ; content_type = "text/html"
       ; filename = Some "a.html"
-      ; parameters = Multipart.Map.empty
+      ; parameters = M.Map.empty
       }
-    ; { Multipart.Part.body = Bytes.of_string "\r\naωb\r\n"
+    ; { M.Part.body = Bytes.of_string "\r\naωb\r\n"
       ; name = "file1"
       ; content_type = "application/octet-stream"
       ; filename = Some "binary"
-      ; parameters = Multipart.Map.empty
+      ; parameters = M.Map.empty
       }
     ]
   in
-  let text1_a = Multipart.Map.find "text1" mp in
+  let text1_a = M.Map.find "text1" mp in
   let text1_e =
-    [ { Multipart.Part.body = Bytes.of_string "\r\ntext default\r\n"
+    [ { M.Part.body = Bytes.of_string "\r\ntext default\r\n"
       ; name = "text1"
       ; content_type = "text/plain"
       ; filename = None
-      ; parameters = Multipart.Map.empty
+      ; parameters = M.Map.empty
       }
-    ; { Multipart.Part.body = Bytes.of_string "\r\naωb\r\n"
+    ; { M.Part.body = Bytes.of_string "\r\naωb\r\n"
       ; name = "text1"
       ; content_type = "text/plain"
       ; filename = None
-      ; parameters = Multipart.Map.empty
+      ; parameters = M.Map.empty
       }
     ]
   in
@@ -182,6 +182,6 @@ let multi_values_suite =
 let () =
   Printexc.record_backtrace true;
   Alcotest.run
-    "Multipart"
+    "M"
     [ "Single Values", single_value_suite; "Multi Values", multi_values_suite ]
 ;;

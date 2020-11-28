@@ -6,4 +6,4 @@ The parser implements HTTP [multipart/form-data] standard as defined in {{:https
 
 {1 Modules}
 
-{!module:Http_multipart_formdata.Multipart}
+{!module:Http_multipart_formdata}
