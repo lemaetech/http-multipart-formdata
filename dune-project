@@ -25,6 +25,7 @@
  (depends
   (ocaml
    (>= 4.10.0))
-  fmt
+  (fmt
+   (>= 0.8.9))
   reparse
   (alcotest :with-test)))
