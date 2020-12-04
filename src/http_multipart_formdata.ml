@@ -50,12 +50,12 @@ module Part = struct
   ;;
 
   let equal p1 p2 =
-    let body = Bytes.compare p1.body p2.body in
-    let name = String.compare p1.name p2.name in
-    let content_type = String.compare p1.content_type p2.content_type in
-    let filename = Option.compare String.compare p1.filename p2.filename in
-    let parameters = Map.compare String.compare p1.parameters p2.parameters in
-    body + name + content_type + filename + parameters = 0
+    let body = Bytes.compare p1.body p2.body = 0 in
+    let name = String.compare p1.name p2.name = 0 in
+    let content_type = String.compare p1.content_type p2.content_type = 0 in
+    let filename = Option.compare String.compare p1.filename p2.filename = 0 in
+    let parameters = Map.compare String.compare p1.parameters p2.parameters = 0 in
+    body && name && content_type && filename && parameters
   ;;
 end
 
