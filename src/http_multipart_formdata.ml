@@ -7,7 +7,7 @@
  *
  *-------------------------------------------------------------------------*)
 module P = Reparse.Parser
-open P.Infix
+open P
 
 exception Multipart of string
 
@@ -152,19 +152,19 @@ let fws =
   v = " asdfasdfasdfasd;aaa (cccc) ;bbb;ddd";;
  *)
 let comment =
-  let ctext = P.char_if is_ctext >|= String.make 1 in
+  let ctext = P.char_if is_ctext >>| String.make 1 in
   P.recur (fun comments ->
       let ccontent =
         let+ s =
           P.take
             (P.map2
-               (fun sp content -> sp ^ content)
+               ~f:(fun sp content -> sp ^ content)
                fws
-               (P.any [ ctext; quoted_pair; comments >|= ( ^ ) ";" ]))
+               (P.any [ ctext; quoted_pair; comments >>| ( ^ ) ";" ]))
         in
         String.concat "" s
       in
-      P.char '(' *> P.map2 (fun comment_txt sp -> comment_txt ^ sp) ccontent fws
+      P.char '(' *> P.map2 ~f:(fun comment_txt sp -> comment_txt ^ sp) ccontent fws
       <* P.char ')')
 ;;
 
@@ -174,7 +174,7 @@ let comment =
  *)
 let cfws =
   let one_or_more_comments =
-    P.take ~at_least:1 (P.map2 (fun sp comment_txt -> sp ^ comment_txt) fws comment)
+    P.take ~at_least:1 (P.map2 ~f:(fun sp comment_txt -> sp ^ comment_txt) fws comment)
     *> fws
   in
   one_or_more_comments <|> fws
@@ -191,9 +191,10 @@ let quoted_string =
   let qtext = String.make 1 <$> P.char_if is_qtext in
   let qcontent =
     (fun l -> String.concat "" l)
-    <$> P.take (P.map2 (fun sp qcontent' -> sp ^ qcontent') fws (qtext <|> quoted_pair))
+    <$> P.take
+          (P.map2 ~f:(fun sp qcontent' -> sp ^ qcontent') fws (qtext <|> quoted_pair))
   in
-  cfws *> P.dquote *> P.map2 (fun qcontent' sp -> qcontent' ^ sp) qcontent fws
+  cfws *> P.dquote *> P.map2 ~f:(fun qcontent' sp -> qcontent' ^ sp) qcontent fws
   <* P.dquote
   <* cfws
 ;;
@@ -217,7 +218,7 @@ let param_value = token <|> quoted_string
 let param =
   let name = P.skip P.whitespace *> P.char ';' *> P.skip P.whitespace *> token in
   let value = P.char '=' *> param_value in
-  P.map2 (fun name value -> name, value) name value
+  P.map2 ~f:(fun name value -> name, value) name value
 ;;
 
 let p_restricted_name =
@@ -277,7 +278,7 @@ let header_boundary =
     then (
       let last_char = List.nth bchars (len - 1) in
       if is_bcharnospace last_char
-      then P.pure (implode bchars)
+      then P.return (implode bchars)
       else P.fail "Invalid boundary value: invalid last char")
     else P.fail "Invalid boundary value: 0 length"
   in
@@ -335,7 +336,7 @@ let body_part headers body =
       | Some _ -> Map.remove "filename" parameters
       | None -> parameters
     in
-    P.pure
+    P.return
       ( name
       , { Part.body = Bytes.unsafe_of_string body
         ; name
@@ -358,9 +359,9 @@ let multipart_bodyparts boundary_value =
   let rec loop_body buf =
     let* ln = line in
     if ln = dash_boundary
-    then P.pure (Buffer.contents buf, true)
+    then P.return (Buffer.contents buf, true)
     else if ln = end_boundary
-    then P.pure (Buffer.contents buf, false)
+    then P.return (Buffer.contents buf, false)
     else (
       Buffer.add_string buf ln;
       Buffer.add_string buf "\r\n";
@@ -372,9 +373,12 @@ let multipart_bodyparts boundary_value =
     in
     let* body, continue = loop_body (Buffer.create 0) in
     let* bp = body_part part_headers body in
-    if continue then loop_parts (bp :: parts) else P.pure (bp :: parts)
+    if continue then loop_parts (bp :: parts) else P.return (bp :: parts)
   in
-  let+ parts = P.all_unit [ P.crlf; P.string dash_boundary; P.crlf ] *> loop_parts [] in
+  let+ parts =
+    P.all_unit [ ignore_m @@ P.crlf; ignore_m @@ string dash_boundary; ignore_m @@ crlf ]
+    *> loop_parts []
+  in
   List.fold_left (fun m (name, bp) -> add_part (name, bp) m) Map.empty parts
 ;;
 

@@ -4,7 +4,7 @@
 
 (generate_opam_files true)
 
-(version 1.0.1)
+(version 1.2.0)
 
 (source
  (github lemaetech/http-mutlipart-formdata))
@@ -21,11 +21,12 @@
  (tags
   ("http" "multipart" "formadata" "form" "web"))
  (description
-   "OCaml implementation of RFC 7578 (Returning Values from Forms: multipart/form-data)- https://tools.ietf.org/html/rfc7578")
+  "OCaml implementation of RFC 7578 (Returning Values from Forms: multipart/form-data)- https://tools.ietf.org/html/rfc7578")
  (depends
   (ocaml
    (>= 4.10.0))
   (fmt
    (>= 0.8.9))
-  reparse
+  (reparse
+   (>= 3.0.0))
   (alcotest :with-test)))
