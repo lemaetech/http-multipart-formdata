@@ -52,7 +52,8 @@ let single_value_suite =
   let file2_1 = M.Map.find "file2" mp in
   let file2_2 =
     [ { M.Part.body =
-          Bytes.of_string "\r\n<!DOCTYPE html><title>Content of a.html.</title>\r\n\r\n"
+          Bytes.of_string
+            "\r\n<!DOCTYPE html><title>Content of a.html.</title>\r\n\r\n"
       ; name = "file2"
       ; content_type = "text/html"
       ; filename = Some "a.html"
@@ -96,7 +97,6 @@ let single_value_suite =
   ; ("text1", `Quick, fun () -> Alcotest.check parts "equal" text1_1 text1_2)
   ; ("text2", `Quick, fun () -> Alcotest.check parts "equal" text2_1 text2_2)
   ]
-;;
 
 let multi_values_suite =
   let content_type_header =
@@ -144,7 +144,8 @@ let multi_values_suite =
       ; parameters = M.Map.empty
       }
     ; { M.Part.body =
-          Bytes.of_string "\r\n<!DOCTYPE html><title>Content of a.html.</title>\r\n\r\n"
+          Bytes.of_string
+            "\r\n<!DOCTYPE html><title>Content of a.html.</title>\r\n\r\n"
       ; name = "file1"
       ; content_type = "text/html"
       ; filename = Some "a.html"
@@ -174,14 +175,15 @@ let multi_values_suite =
       }
     ]
   in
-  [ ("file1", `Quick, fun () -> Alcotest.check parts "equal" files_actual files_expected)
+  [ ( "file1"
+    , `Quick
+    , fun () -> Alcotest.check parts "equal" files_actual files_expected )
   ; ("text1", `Quick, fun () -> Alcotest.check parts "equal" text1_a text1_e)
   ]
-;;
 
 let () =
   Printexc.record_backtrace true;
-  Alcotest.run
-    "M"
-    [ "Single Values", single_value_suite; "Multi Values", multi_values_suite ]
-;;
+  Alcotest.run "M"
+    [ ("Single Values", single_value_suite)
+    ; ("Multi Values", multi_values_suite)
+    ]

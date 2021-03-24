@@ -12,16 +12,17 @@
 (** An ocaml [Stdlib] Map with [string] as key. *)
 module Map : Map.S with type key = string
 
-(** Represents a parsed multipart part. A part corresponds to a submitted form field data
-    in a HTTP request. *)
+(** Represents a parsed multipart part. A part corresponds to a submitted form
+    field data in a HTTP request. *)
 module Part : sig
   type t =
-    { body : bytes (** Body content *)
-    ; name : string (** Name of the part - form field name *)
+    { body : bytes  (** Body content *)
+    ; name : string  (** Name of the part - form field name *)
     ; content_type : string
           (** HTTP content type of the part [body]. "text/plain" is default *)
-    ; filename : string option (** [filename] form field attribute. *)
-    ; parameters : string Map.t (** Additional [key = value] params of the form field. *)
+    ; filename : string option  (** [filename] form field attribute. *)
+    ; parameters : string Map.t
+          (** Additional [key = value] params of the form field. *)
     }
 
   (** [pp fmt part] is the pretty printer for [t]. *)
@@ -32,8 +33,8 @@ module Part : sig
   val equal : t -> t -> bool
 end
 
-(** Represents a parsed HTTP [multipart/form-data] request as a [key/value] map. Submitted
-    form field name is the key value.
+(** Represents a parsed HTTP [multipart/form-data] request as a [key/value] map.
+    Submitted form field name is the key value.
 
     A key may be associated in zero or more values.*)
 type t = Part.t list Map.t
@@ -43,11 +44,12 @@ exception Multipart of string
 
 (** {2 Parse} *)
 
-(** [parse ~content_type_header ~body] returns a parsed HTTP multiparts such that it can
-    be queried using ocaml [Stdlib.Map] functions.
+(** [parse ~content_type_header ~body] returns a parsed HTTP multiparts such
+    that it can be queried using ocaml [Stdlib.Map] functions.
 
-    [content_type_header] is the HTTP request [Content-Type] header. Note the value
-    contains both the header name and value. It is used to parse a [boundary] value.
+    [content_type_header] is the HTTP request [Content-Type] header. Note the
+    value contains both the header name and value. It is used to parse a
+    [boundary] value.
 
     [body] is the raw HTTP POST request body content.
 
@@ -120,9 +122,10 @@ val pp : Format.formatter -> t -> unit
 
 (** {2 Equals} *)
 
-(** [equal_parts parts1 parts2] returns [true] if [parts1] and [parts2] are equal, [false]
-    otherwise. *)
+(** [equal_parts parts1 parts2] returns [true] if [parts1] and [parts2] are
+    equal, [false] otherwise. *)
 val equal_parts : Part.t list -> Part.t list -> bool
 
-(** [equal t1 t2] returns [true] if [Part.] [t1] and [t2] are equal, [false] otherwise. *)
+(** [equal t1 t2] returns [true] if [Part.] [t1] and [t2] are equal, [false]
+    otherwise. *)
 val equal : t -> t -> bool
