@@ -95,5 +95,5 @@ val parse_boundary : content_type:string -> (boundary, string) Lwt_result.t
 val parse :
      boundary:boundary
   -> http_body:char Lwt_stream.t
-  -> on_part:(Part_header.t -> char Lwt_stream.t -> unit)
+  -> on_part:(Part_header.t -> char Lwt_stream.t -> unit Lwt.t)
   -> (unit, string) Lwt_result.t

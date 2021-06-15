@@ -295,7 +295,8 @@ let multipart_bodyparts ?(part_body_buf_size = 4096) ~boundary on_part =
       let part_body_stream, pusher =
         Lwt_stream.create_bounded part_body_buf_size
       in
-      on_part header part_body_stream;
+      of_promise (on_part header part_body_stream)
+      >>= fun () ->
       take_while_cbp
         ~while_:(is_not crlf_dash_boundary)
         ~on_take_cb:(fun x -> pusher#push x)
