@@ -18,7 +18,17 @@ module Part_header : sig
   val filename : t -> string option
 
   val param_value : string -> t -> string option
+
+  val compare : t -> t -> int
+
+  val equal : t -> t -> bool
+
+  val pp : Format.formatter -> t -> unit
 end
+
+type boundary = string
+
+val parse_boundary : content_type:string -> (boundary, string) Lwt_result.t
 
 (** [parse ~content_type_header ~body part_handler] parses [body] and streams
     [part_header] and [part_body_data] to [part_handler].
@@ -83,7 +93,7 @@ end
       M.equal_parts file1_1 file1_2
     ]} *)
 val parse :
-     content_type:string
+     boundary:boundary
   -> http_body:char Lwt_stream.t
   -> part_writer:(Part_header.t -> char option -> unit Lwt.t)
   -> (unit, string) Lwt_result.t

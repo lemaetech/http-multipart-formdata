@@ -4,7 +4,7 @@
 
 (generate_opam_files true)
 
-(version 1.1.0)
+(version 2.0.0)
 
 (source
  (github lemaetech/http-mutlipart-formdata))
@@ -25,8 +25,10 @@
  (depends
   (ocaml
    (>= 4.10.0))
-  (fmt
-   (>= 0.8.9))
+  fmt
+  lwt
   (reparse
-   (= 2.1.0))
-  (alcotest :with-test)))
+   (>= 3.0.0))
+  (reparse-lwt
+   (>= 3.0.0))
+  (popper :with-test)))

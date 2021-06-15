@@ -7,7 +7,15 @@
  *
  *-------------------------------------------------------------------------*)
 open! Reparse_lwt.Stream
-module Map = Map.Make (String)
+
+module Map = struct
+  include Map.Make (String)
+
+  let pp pp_value fmt t =
+    let pp_kv = Fmt.pair ~sep:Fmt.comma Fmt.string pp_value in
+    let s = to_seq t in
+    Fmt.seq ~sep:Fmt.semi pp_kv fmt s
+end
 
 module Part_header = struct
   type t =
@@ -24,6 +32,20 @@ module Part_header = struct
   let filename t = t.filename
 
   let param_value name t = Map.find_opt name t.parameters
+
+  let compare (a : t) (b : t) = compare a b
+
+  let equal a b = compare a b = 0
+
+  let pp fmt p =
+    let fields =
+      [ Fmt.field "name" (fun p -> p.name) Fmt.string
+      ; Fmt.field "content_type" (fun p -> p.content_type) Fmt.string
+      ; Fmt.field "filename" (fun p -> p.filename) Fmt.(option string)
+      ; Fmt.field "parameters" (fun p -> p.parameters) (Map.pp Fmt.string)
+      ]
+    in
+    Fmt.record ~sep:Fmt.semi fields fmt p
 end
 
 let is_alpha_digit = function
@@ -64,13 +86,6 @@ let is_ascii_char = function
   | '\x00' .. '\x7F' -> true
   | _ -> false
 
-let is_ctext = function
-  | '\x21' .. '\x27'
-  | '\x2A' .. '\x5B'
-  | '\x5D' .. '\x7E' ->
-    true
-  | _ -> false
-
 let is_qtext = function
   | '\x21'
   | '\x23' .. '\x5B'
@@ -101,14 +116,8 @@ let quoted_string =
   in
   dquote *> qcontent <* dquote
 
-(* let r = parse "asdfasdf" p_param_value;; r = "asdfasdf";;
-
-   let r = parse "\"hello\"" p_param_value;; r = "hello" *)
 let param_value = token <|> quoted_string
 
-(* let r = parse "; field1=value1;" p_param;; r = ("field1", "value1");;
-
-   let r = parse "; field1=\"value1\";" p_param;; r = ("field1", "value1");; *)
 let param =
   let name = skip whitespace *> char ';' *> skip whitespace *> token in
   let value = char '=' *> param_value in
@@ -137,7 +146,73 @@ let p_restricted_name =
   Buffer.add_string buf (implode restricted_name);
   Buffer.contents buf
 
-type part_header =
+type boundary = string
+
+let parse_boundary ~content_type =
+  let boundary =
+    let is_bcharnospace = function
+      | '\''
+      | '('
+      | ')'
+      | '+'
+      | '_'
+      | ','
+      | '-'
+      | '.'
+      | '/'
+      | ':'
+      | '='
+      | '?' ->
+        true
+      | c when is_alpha_digit c -> true
+      | _ -> false
+    in
+    let bchars =
+      char_if (function
+        | '\x20' -> true
+        | c when is_bcharnospace c -> true
+        | _ -> false)
+    in
+    let boundary =
+      let* bchars = take ~up_to:70 bchars in
+      let len = List.length bchars in
+      if len > 0 then
+        let last_char = List.nth bchars (len - 1) in
+        if is_bcharnospace last_char then
+          return (implode bchars)
+        else
+          fail "Invalid boundary value: invalid last char"
+      else
+        fail "Invalid boundary value: 0 length"
+    in
+    optional dquote *> boundary <* optional dquote <|> token
+  in
+  let param =
+    let* attribute = skip whitespace *> char ';' *> skip whitespace *> token in
+    let+ value =
+      char '='
+      *>
+      if attribute = "boundary" then
+        boundary
+      else
+        param_value
+    in
+    (attribute, value)
+  in
+  let boundary_parser =
+    skip whitespace
+    *> (string_cs "multipart/form-data" <?> "Not multipart formdata header")
+    *> skip whitespace
+    *> take param
+    >>= fun params ->
+    match List.assoc_opt "boundary" params with
+    | Some b -> return b
+    | None -> fail "'boundary' parameter not found"
+  in
+  let input = input_of_stream (Lwt_stream.of_string content_type) in
+  parse boundary_parser input
+
+type part_body_header =
   | Content_type of
       { ty : string
       ; subtype : string
@@ -169,70 +244,7 @@ let content_type parse_header_name =
   let parameters = params |> List.to_seq |> Map.of_seq in
   Content_type { ty; subtype; parameters }
 
-let header_boundary =
-  let is_bcharnospace = function
-    | '\''
-    | '('
-    | ')'
-    | '+'
-    | '_'
-    | ','
-    | '-'
-    | '.'
-    | '/'
-    | ':'
-    | '='
-    | '?' ->
-      true
-    | c when is_alpha_digit c -> true
-    | _ -> false
-  in
-  let bchars =
-    char_if (function
-      | '\x20' -> true
-      | c when is_bcharnospace c -> true
-      | _ -> false)
-  in
-  let boundary =
-    let* bchars = take ~up_to:70 bchars in
-    let len = List.length bchars in
-    if len > 0 then
-      let last_char = List.nth bchars (len - 1) in
-      if is_bcharnospace last_char then
-        return (implode bchars)
-      else
-        fail "Invalid boundary value: invalid last char"
-    else
-      fail "Invalid boundary value: 0 length"
-  in
-  optional dquote *> boundary <* optional dquote <|> token
-
-let parse_boundary content_type =
-  let param =
-    let* attribute = skip whitespace *> char ';' *> skip whitespace *> token in
-    let+ value =
-      char '='
-      *>
-      if attribute = "boundary" then
-        header_boundary
-      else
-        param_value
-    in
-    (attribute, value)
-  in
-  let boundary_parser =
-    skip whitespace
-    *> (string_cs "multipart/form-data" <?> "Not multipart formdata header")
-    *> skip whitespace
-    *> take param
-    >>= fun params ->
-    match List.assoc_opt "boundary" params with
-    | Some b -> return b
-    | None -> fail "'boundary' parameter not found"
-  in
-  parse boundary_parser content_type
-
-let create_part_header headers =
+let part_body_header headers =
   let name, content_type, filename, parameters =
     List.fold_left
       (fun (name, ct, filename, params) header ->
@@ -272,7 +284,7 @@ let multipart_bodyparts ~boundary f =
   let part_header =
     take ~at_least:1 ~sep_by:crlf
       (any [ content_disposition; content_type true ])
-    >>= create_part_header
+    >>= part_body_header
   in
   let crlf_dash_boundary = string_cs @@ Format.sprintf "\r\n--%s" boundary in
   let boundary_type =
@@ -292,7 +304,7 @@ let multipart_bodyparts ~boundary f =
         ~while_:(is_not crlf_dash_boundary)
         ~on_take_cb:(fun x -> stream_push (Some x))
         any_char
-      *> (loop_parts [@tailcall]) ()
+      *> loop_parts ()
   in
   (*** Ignore preamble - any text before first boundary value. ***)
   take_while_cb
@@ -301,7 +313,6 @@ let multipart_bodyparts ~boundary f =
     any_char
   *> loop_parts ()
 
-let parse ~content_type ~body ~part_writer =
-  match parse_boundary content_type with
-  | Ok boundary -> (multipart_bodyparts boundary) body
-  | Error e -> fail "Invalid boundary value in content_type"
+let parse ~boundary ~http_body ~part_writer =
+  let input = input_of_stream http_body in
+  parse (multipart_bodyparts ~boundary part_writer) input
