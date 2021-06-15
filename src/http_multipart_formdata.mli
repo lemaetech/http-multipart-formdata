@@ -93,7 +93,8 @@ val parse_boundary : content_type:string -> (boundary, string) Lwt_result.t
       M.equal_parts file1_1 file1_2
     ]} *)
 val parse :
-     boundary:boundary
-  -> http_body:char Lwt_stream.t
+     ?part_body_buf_size:int
+  -> boundary:boundary
   -> on_part:(Part_header.t -> char Lwt_stream.t -> unit Lwt.t)
+  -> char Lwt_stream.t
   -> (unit, string) Lwt_result.t
