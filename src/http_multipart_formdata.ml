@@ -13,8 +13,7 @@ module Map = struct
 
   let pp pp_value fmt t =
     let pp_kv = Fmt.pair ~sep:Fmt.comma Fmt.string pp_value in
-    let s = to_seq t in
-    Fmt.seq ~sep:Fmt.semi pp_kv fmt s
+    Fmt.seq ~sep:Fmt.semi pp_kv fmt (to_seq t)
 end
 
 module Part_header = struct
@@ -35,9 +34,9 @@ module Part_header = struct
 
   let compare (a : t) (b : t) = compare a b
 
-  let equal a b = compare a b = 0
+  let equal (a : t) (b : t) = compare a b = 0
 
-  let pp fmt p =
+  let pp fmt t =
     let fields =
       [ Fmt.field "name" (fun p -> p.name) Fmt.string
       ; Fmt.field "content_type" (fun p -> p.content_type) Fmt.string
@@ -45,7 +44,7 @@ module Part_header = struct
       ; Fmt.field "parameters" (fun p -> p.parameters) (Map.pp Fmt.string)
       ]
     in
-    Fmt.record ~sep:Fmt.semi fields fmt p
+    Fmt.record ~sep:Fmt.semi fields fmt t
 end
 
 let is_alpha_digit = function
