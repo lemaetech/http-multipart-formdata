@@ -243,7 +243,9 @@ let content_type parse_header_name =
   let parameters = params |> List.to_seq |> Map.of_seq in
   Content_type { ty; subtype; parameters }
 
-let part_body_header headers =
+let part_body_header =
+  take ~at_least:1 ~sep_by:crlf (any [ content_disposition; content_type true ])
+  >>= fun headers ->
   let name, content_type, filename, parameters =
     List.fold_left
       (fun (name, ct, filename, params) header ->
@@ -267,10 +269,7 @@ let part_body_header headers =
   match name with
   | None -> fail "Invalid part. parameter 'name' not found"
   | Some name ->
-    let content_type =
-      try Option.get content_type with
-      | _ -> "text/plain"
-    in
+    let content_type = Option.value content_type ~default:"text/plain" in
     let parameters = Map.remove "name" parameters in
     let parameters =
       match filename with
@@ -279,12 +278,7 @@ let part_body_header headers =
     in
     return { Part_header.name; content_type; filename; parameters }
 
-let multipart_bodyparts ~boundary f =
-  let part_header =
-    take ~at_least:1 ~sep_by:crlf
-      (any [ content_disposition; content_type true ])
-    >>= part_body_header
-  in
+let multipart_bodyparts ?(part_body_buf_size = 4096) ~boundary on_part =
   let crlf_dash_boundary = string_cs @@ Format.sprintf "\r\n--%s" boundary in
   let boundary_type =
     let body_end = string_cs "--\r\n" $> `Body_end in
@@ -296,12 +290,15 @@ let multipart_bodyparts ~boundary f =
     >>= function
     | `Body_end -> unit
     | `Part_start ->
-      part_header
+      part_body_header
       >>= fun header ->
-      let stream_push = f header in
+      let part_body_stream, pusher =
+        Lwt_stream.create_bounded part_body_buf_size
+      in
+      on_part header part_body_stream;
       take_while_cbp
         ~while_:(is_not crlf_dash_boundary)
-        ~on_take_cb:(fun x -> stream_push (Some x))
+        ~on_take_cb:(fun x -> pusher#push x)
         any_char
       *> loop_parts ()
   in
@@ -312,6 +309,6 @@ let multipart_bodyparts ~boundary f =
     any_char
   *> loop_parts ()
 
-let parse ~boundary ~http_body ~part_writer =
+let parse ~boundary ~http_body ~on_part =
   let input = input_of_stream http_body in
-  parse (multipart_bodyparts ~boundary part_writer) input
+  parse (multipart_bodyparts ~boundary on_part) input
