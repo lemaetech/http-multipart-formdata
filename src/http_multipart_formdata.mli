@@ -7,51 +7,26 @@
  *
  *-------------------------------------------------------------------------*)
 
-(** {2 Types} *)
+(** Represents a parsed multipart part header data. *)
+module Part_header : sig
+  type t
 
-(** An ocaml [Stdlib] Map with [string] as key. *)
-module Map : Map.S with type key = string
+  val name : t -> string
 
-(** Represents a parsed multipart part. A part corresponds to a submitted form
-    field data in a HTTP request. *)
-module Part : sig
-  type t =
-    { body : bytes  (** Body content *)
-    ; name : string  (** Name of the part - form field name *)
-    ; content_type : string
-          (** HTTP content type of the part [body]. "text/plain" is default *)
-    ; filename : string option  (** [filename] form field attribute. *)
-    ; parameters : string Map.t
-          (** Additional [key = value] params of the form field. *)
-    }
+  val content_type : t -> string
 
-  (** [pp fmt part] is the pretty printer for [t]. *)
-  val pp : Format.formatter -> t -> unit
-    [@@ocaml.toplevel_printer]
+  val filename : t -> string option
 
-  (** [equal part1 part2] returns [true] if [part1] and [part2] are equal. *)
-  val equal : t -> t -> bool
+  val param_value : string -> t -> string option
 end
 
-(** Represents a parsed HTTP [multipart/form-data] request as a [key/value] map.
-    Submitted form field name is the key value.
+(** [parse ~content_type_header ~body part_handler] parses [body] and streams
+    [part_header] and [part_body_data] to [part_handler].
 
-    A key may be associated in zero or more values.*)
-type t = Part.t list Map.t
+    [content_type_header] is the HTTP request [Content-Type] header value. It is
+    used to parse a [boundary] value.
 
-(** Represents error while parsing http multipart formdata. *)
-exception Multipart of string
-
-(** {2 Parse} *)
-
-(** [parse ~content_type_header ~body] returns a parsed HTTP multiparts such
-    that it can be queried using ocaml [Stdlib.Map] functions.
-
-    [content_type_header] is the HTTP request [Content-Type] header. Note the
-    value contains both the header name and value. It is used to parse a
-    [boundary] value.
-
-    [body] is the raw HTTP POST request body content.
+    [body] is the raw HTTP POST request body content stream.
 
     {4 Examples}
 
@@ -60,7 +35,7 @@ exception Multipart of string
 
       ;;
       let content_type_header =
-        "Content-Type: multipart/form-data; \
+        "multipart/form-data; \
          boundary=---------------------------735323031399963166993862150"
       in
       let body =
@@ -106,26 +81,9 @@ exception Multipart of string
         ]
       in
       M.equal_parts file1_1 file1_2
-    ]}
-    @raise Multipart *)
-val parse : content_type_header:string -> body:string -> t
-
-(** {2 Pretty Printers} *)
-
-(** [pp_parts fmt parts] pretty prints a list of [Part.t] *)
-val pp_parts : Format.formatter -> Part.t list -> unit
-  [@@ocaml.toplevel_printer]
-
-(** [pp fmt part] pretty prints a [part]. *)
-val pp : Format.formatter -> t -> unit
-  [@@ocaml.toplevel_printer]
-
-(** {2 Equals} *)
-
-(** [equal_parts parts1 parts2] returns [true] if [parts1] and [parts2] are
-    equal, [false] otherwise. *)
-val equal_parts : Part.t list -> Part.t list -> bool
-
-(** [equal t1 t2] returns [true] if [Part.] [t1] and [t2] are equal, [false]
-    otherwise. *)
-val equal : t -> t -> bool
+    ]} *)
+val parse :
+     content_type:string
+  -> http_body:char Lwt_stream.t
+  -> part_writer:(Part_header.t -> char option -> unit Lwt.t)
+  -> (unit, string) Lwt_result.t
