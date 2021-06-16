@@ -297,7 +297,7 @@ let parse ?(part_body_buf_size = 1024) ~boundary ~on_part http_body =
         let part_body_stream, pusher =
           Lwt_stream.create_bounded part_body_buf_size
         in
-        let* () = of_promise (on_part header part_body_stream) in
+        on_part header part_body_stream;
         take_while_cbp
           ~while_:(is_not crlf_dash_boundary)
           ~on_take_cb:(fun x -> pusher#push x)
