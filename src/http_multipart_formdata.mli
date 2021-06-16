@@ -95,6 +95,6 @@ val parse_boundary : content_type:string -> (boundary, string) Lwt_result.t
 val parse :
      ?part_body_buf_size:int
   -> boundary:boundary
-  -> on_part:(Part_header.t -> char Lwt_stream.t -> unit Lwt.t)
+  -> on_part:(Part_header.t -> char Lwt_stream.t -> unit)
   -> char Lwt_stream.t
   -> (unit, string) Lwt_result.t

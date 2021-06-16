@@ -302,7 +302,8 @@ let parse ?(part_body_buf_size = 1024) ~boundary ~on_part http_body =
           ~while_:(is_not crlf_dash_boundary)
           ~on_take_cb:(fun x -> pusher#push x)
           any_char_unbuffered
-        *> trim_input_buffer ()
+        *> (pusher#close;
+            trim_input_buffer ())
         *> loop_parts ()
     in
     (*** Ignore preamble - any text before first boundary value. ***)
