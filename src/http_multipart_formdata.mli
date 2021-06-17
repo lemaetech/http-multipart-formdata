@@ -28,7 +28,7 @@ end
 
 type boundary = string
 
-val parse_boundary : content_type:string -> (boundary, string) Lwt_result.t
+val parse_boundary : content_type:string -> (boundary, string) result Lwt.t
 
 (** [parse ~content_type_header ~body part_handler] parses [body] and streams
     [part_header] and [part_body_data] to [part_handler].
@@ -97,4 +97,4 @@ val parse :
   -> boundary:boundary
   -> on_part:(Part_header.t -> char Lwt_stream.t -> unit)
   -> char Lwt_stream.t
-  -> (unit, string) Lwt_result.t
+  -> (unit, string) result Lwt.t

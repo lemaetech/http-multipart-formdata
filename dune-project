@@ -31,4 +31,5 @@
    (>= 3.0.0))
   (reparse-lwt
    (>= 3.0.0))
-  (popper :with-test)))
+  (ppx_expect :with-test)
+  (ppx_deriving :with-test)))
