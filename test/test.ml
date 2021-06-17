@@ -1,20 +1,21 @@
 open! Http_multipart_formdata
 
-type string_result = (string, string) result [@@deriving show, ord]
+(* type string_result = (string, string) result [@@deriving show, ord] *)
 
-let%expect_test "parse_boundary" =
-  let content_type =
-    {|multipart/form-data; boundary=---------------------------735323031399963166993862150|}
-  in
-  parse_boundary ~content_type
-  |> Lwt_main.run
-  |> pp_string_result Format.std_formatter;
-  [%expect {| (Ok "---------------------------735323031399963166993862150") |}]
+(* let%expect_test "parse_boundary" = *)
+(*   let content_type = *)
+(* {|multipart/form-data;
+   boundary=---------------------------735323031399963166993862150|} *)
+(*   in *)
+(*   parse_boundary ~content_type *)
+(*   |> Lwt_main.run *)
+(*   |> pp_string_result Format.std_formatter; *)
+(* [%expect {| (Ok "---------------------------735323031399963166993862150") |}] *)
 
 type parse_result = ((Part_header.t * string) list, string) result
 [@@deriving show, ord]
 
-let%expect_test "parse" =
+let () =
   let body =
     [ {||}
     ; {|-----------------------------735323031399963166993862150|}
@@ -49,18 +50,19 @@ let%expect_test "parse" =
   in
   let parts = ref [] in
   let on_part header body_stream =
+    Format.fprintf Format.std_formatter "\npart:%a\n\n%!" Part_header.pp header;
     let part_body = Buffer.create 0 in
-    Lwt.(
-      async (fun () ->
-          let rec loop () =
-            Lwt_stream.get body_stream
-            >>= function
-            | Some c ->
-              Buffer.add_char part_body c;
-              loop ()
-            | None -> Lwt.return @@ Buffer.contents part_body
-          in
-          loop () >|= fun contents -> parts := (header, contents) :: !parts))
+    let rec part_reader () =
+      Lwt.(
+        Lwt_stream.get body_stream
+        >>= function
+        | Some c ->
+          Format.fprintf Format.std_formatter "%c%!" c;
+          Buffer.add_char part_body c;
+          part_reader ()
+        | None -> return (header, Buffer.contents part_body))
+    in
+    parts := part_reader () :: !parts
   in
   let content_type =
     {|multipart/form-data; boundary=---------------------------735323031399963166993862150|}
@@ -68,11 +70,10 @@ let%expect_test "parse" =
   Lwt_result.(
     parse_boundary ~content_type
     >>= fun boundary ->
-    parse ~boundary ~on_part body >|= fun () -> List.rev !parts)
+    parse ~boundary ~on_part body >>= fun () -> ok @@ Lwt.all !parts)
   |> Lwt_main.run
-  |> pp_parse_result Format.std_formatter;
-  [%expect
-    {| (Error "[string_cs] \"\\r\\n-----------------------------735323031399963166993862150\"") |}]
+  |> pp_parse_result Format.std_formatter
+(* [%expect {| (Ok []) |}] *)
 
 (* let multi_values_suite = *)
 (*   let content_type_header = *)

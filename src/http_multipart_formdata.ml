@@ -279,19 +279,17 @@ let part_body_header =
 let parse ?(part_body_buf_size = 1024) ~boundary ~on_part http_body =
   let p =
     let boundary_type =
-      let body_end = string_cs "--\r\n" $> `Body_end in
+      let body_end = string_cs "--" *> optional crlf $> `Body_end in
       let part_start = string_cs "\r\n" $> `Part_start in
       body_end <|> part_start <?> "Invalid 'multipart/formdata' boundary value"
     in
     let crlf_dash_boundary = string_cs @@ Format.sprintf "\r\n--%s" boundary in
     let rec loop_parts () =
-      let* boundary_type' =
-        crlf_dash_boundary *> boundary_type <* trim_input_buffer ()
-      in
+      let* boundary_type' = crlf_dash_boundary *> boundary_type in
       match boundary_type' with
       | `Body_end -> unit
       | `Part_start ->
-        let* header = part_body_header <* trim_input_buffer () in
+        let* header = part_body_header in
         let part_body_stream, pusher =
           Lwt_stream.create_bounded part_body_buf_size
         in
@@ -299,9 +297,9 @@ let parse ?(part_body_buf_size = 1024) ~boundary ~on_part http_body =
         take_while_cbp
           ~while_:(is_not crlf_dash_boundary)
           ~on_take_cb:(fun x -> pusher#push x)
-          any_char_unbuffered
-        *> (pusher#close;
-            trim_input_buffer ())
+          any_char
+        (* *> trim_input_buffer () *)
+        *> return (Lwt_stream.closed part_body_stream)
         *> loop_parts ()
     in
     (*** Ignore preamble - any text before first boundary value. ***)
@@ -309,7 +307,6 @@ let parse ?(part_body_buf_size = 1024) ~boundary ~on_part http_body =
       ~while_:(is_not crlf_dash_boundary)
       ~on_take_cb:(fun (_ : char) -> ())
       any_char_unbuffered
-    *> trim_input_buffer ()
     *> loop_parts ()
   in
   let input = input_of_stream http_body in
