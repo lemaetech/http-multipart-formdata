@@ -106,13 +106,11 @@ let token =
 
 (* https://tools.ietf.org/html/rfc5322#section-3.2.1 quoted-pair = ('\' (VCHAR /
    WSP)) / obs-qp *)
-let quoted_pair = String.make 1 <$> char '\\' *> (whitespace <|> vchar)
+let quoted_pair = char '\\' *> (whitespace <|> vchar) <$> String.make 1
 
 let quoted_string =
-  let qtext = String.make 1 <$> char_if is_qtext in
-  let qcontent =
-    (fun l -> String.concat "" l) <$> take (qtext <|> quoted_pair)
-  in
+  let qtext = char_if is_qtext <$> String.make 1 in
+  let qcontent = take (qtext <|> quoted_pair) <$> fun l -> String.concat "" l in
   dquote *> qcontent <* dquote
 
 let param_value = token <|> quoted_string
@@ -120,7 +118,7 @@ let param_value = token <|> quoted_string
 let param =
   let name = skip whitespace *> char ';' *> skip whitespace *> token in
   let value = char '=' *> param_value in
-  map2 (fun name value -> (name, value)) name value
+  (name, value) <$$> fun name value -> (name, value)
 
 let p_restricted_name =
   let p_restricted_name_chars =
