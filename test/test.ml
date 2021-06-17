@@ -1,16 +1,16 @@
 open! Http_multipart_formdata
 
-(* type string_result = (string, string) result [@@deriving show, ord] *)
+type string_result = (string, string) result [@@deriving show, ord]
 
-(* let%expect_test "parse_boundary" = *)
-(*   let content_type = *)
-(* {|multipart/form-data;
-   boundary=---------------------------735323031399963166993862150|} *)
-(*   in *)
-(*   parse_boundary ~content_type *)
-(*   |> Lwt_main.run *)
-(*   |> pp_string_result Format.std_formatter; *)
-(* [%expect {| (Ok "---------------------------735323031399963166993862150") |}] *)
+let%expect_test "parse_boundary" =
+  let content_type =
+    {|multipart/form-data;
+   boundary=---------------------------735323031399963166993862150|}
+  in
+  parse_boundary ~content_type
+  |> Lwt_main.run
+  |> pp_string_result Format.std_formatter;
+  [%expect {| (Ok "---------------------------735323031399963166993862150") |}]
 
 type parse_result = ((Part_header.t * string) list, string) result
 [@@deriving show, ord]
