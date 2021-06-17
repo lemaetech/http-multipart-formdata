@@ -49,18 +49,18 @@ let%expect_test "parse" =
   in
   let parts = ref [] in
   let on_part header body_stream =
-    let open Lwt.Infix in
     let part_body = Buffer.create 0 in
-    Lwt.async (fun () ->
-        let rec loop () =
-          Lwt_stream.get body_stream
-          >>= function
-          | Some c ->
-            Buffer.add_char part_body c;
-            loop ()
-          | None -> Lwt.return @@ Buffer.contents part_body
-        in
-        loop () >|= fun contents -> parts := (header, contents) :: !parts)
+    Lwt.(
+      async (fun () ->
+          let rec loop () =
+            Lwt_stream.get body_stream
+            >>= function
+            | Some c ->
+              Buffer.add_char part_body c;
+              loop ()
+            | None -> Lwt.return @@ Buffer.contents part_body
+          in
+          loop () >|= fun contents -> parts := (header, contents) :: !parts))
   in
   let content_type =
     {|multipart/form-data; boundary=---------------------------735323031399963166993862150|}
