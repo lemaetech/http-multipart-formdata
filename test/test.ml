@@ -57,10 +57,9 @@ let%expect_test "parse" =
     {|multipart/form-data; boundary=---------------------------735323031399963166993862150|}
   in
   Lwt_result.(
-    parse_boundary ~content_type
-    >>= fun boundary ->
-    parse ~boundary ~on_part (Lwt_stream.of_string body)
-    >>= fun () ->
+    let open Syntax in
+    let* boundary = parse_boundary ~content_type in
+    let* () = parse ~boundary ~on_part (Lwt_stream.of_string body) in
     Queue.to_seq parts
     |> List.of_seq
     |> Lwt_list.map_p (fun (hd, push, stream) ->
