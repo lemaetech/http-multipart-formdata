@@ -92,7 +92,7 @@ val parse_boundary : content_type:string -> (boundary, string) result Lwt.t
       in
       M.equal_parts file1_1 file1_2
     ]} *)
-type push = char option -> unit
+type push = char -> unit
 
 val parse :
      boundary:boundary

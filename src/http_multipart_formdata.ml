@@ -277,7 +277,7 @@ let part_body_header =
     in
     return { Part_header.name; content_type; filename; parameters }
 
-type push = char option -> unit
+type push = char -> unit
 
 let parse ~boundary ~on_part http_body =
   let p =
@@ -296,7 +296,7 @@ let parse ~boundary ~on_part http_body =
         let push = on_part header in
         take_while_cb
           ~while_:(is_not crlf_dash_boundary)
-          ~on_take_cb:(fun x -> push (Some x))
+          ~on_take_cb:(fun x -> push x)
           any_char
         (* *> trim_input_buffer () *)
         *> loop_parts ()

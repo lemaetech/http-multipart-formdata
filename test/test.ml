@@ -51,15 +51,16 @@ let%expect_test "parse" =
   let on_part header =
     let stream, push = Lwt_stream.create () in
     Queue.push (header, push, stream) parts;
-    push
+    fun c -> push (Some c)
   in
   let content_type =
     {|multipart/form-data; boundary=---------------------------735323031399963166993862150|}
   in
   Lwt_result.(
-    let open Syntax in
-    let* boundary = parse_boundary ~content_type in
-    let* () = parse ~boundary ~on_part (Lwt_stream.of_string body) in
+    parse_boundary ~content_type
+    >>= fun boundary ->
+    parse ~boundary ~on_part (Lwt_stream.of_string body)
+    >>= fun () ->
     Queue.to_seq parts
     |> List.of_seq
     |> Lwt_list.map_p (fun (hd, push, stream) ->
