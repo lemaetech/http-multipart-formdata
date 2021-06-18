@@ -48,10 +48,10 @@ let%expect_test "parse" =
     |> String.concat "\r\n"
     |> Lwt_stream.of_string
   in
-  let parts = ref [] in
+  let parts = Queue.create () in
   let on_part header =
     let stream, push = Lwt_stream.create () in
-    parts := (header, push, stream) :: !parts;
+    Queue.push (header, push, stream) parts;
     push
   in
   let content_type =
@@ -62,40 +62,40 @@ let%expect_test "parse" =
     >>= fun boundary ->
     parse ~boundary ~on_part body
     >>= fun () ->
-    ok
-    @@ Lwt_list.map_p
-         (fun (hd, push, stream) ->
+    Queue.to_seq parts
+    |> List.of_seq
+    |> Lwt_list.map_p (fun (hd, push, stream) ->
            push None;
            Lwt.map
              (fun s -> (hd, s))
              (Lwt.bind (Lwt_stream.closed stream) (fun () ->
                   Lwt_stream.to_string stream)))
-         !parts)
+    |> ok)
   |> Lwt_main.run
   |> pp_parse_result Format.std_formatter;
   [%expect
     {|
-    (Ok [(name: file3;
-          content_type: application/octet-stream;
-          filename: binary;
-          parameters: , "\r\na\207\137b");
+    (Ok [(name: text1;
+          content_type: text/plain;
+          filename: ;
+          parameters: , "\r\ntext default");
+          (name: text2;
+           content_type: text/plain;
+           filename: ;
+           parameters: , "\r\na\207\137b");
+          (name: file1;
+           content_type: text/plain;
+           filename: a.txt;
+           parameters: , "\r\nContent of a.txt.\r\n");
           (name: file2;
            content_type: text/html;
            filename: a.html;
            parameters: ,
            "\r\n<!DOCTYPE html><title>Content of a.html.</title>\r\n");
-          (name: file1;
-           content_type: text/plain;
-           filename: a.txt;
-           parameters: , "\r\nContent of a.txt.\r\n");
-          (name: text2;
-           content_type: text/plain;
-           filename: ;
-           parameters: , "\r\na\207\137b");
-          (name: text1;
-           content_type: text/plain;
-           filename: ;
-           parameters: , "\r\ntext default")
+          (name: file3;
+           content_type: application/octet-stream;
+           filename: binary;
+           parameters: , "\r\na\207\137b")
           ]) |}]
 
 (* let multi_values_suite = *)
