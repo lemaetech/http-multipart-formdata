@@ -47,7 +47,6 @@ let%expect_test "parse" =
       ; {|-----------------------------735323031399963166993862150--|}
       ]
   in
-  (* Printf.printf "s: %s\n" body; *)
   let parts = Queue.create () in
   let on_part header =
     let stream, push = Lwt_stream.create () in
@@ -78,24 +77,23 @@ let%expect_test "parse" =
     (Ok [(name: text1;
           content_type: text/plain;
           filename: ;
-          parameters: , "\r\ntext default");
+          parameters: , "text default");
           (name: text2;
            content_type: text/plain;
            filename: ;
-           parameters: , "\r\na\207\137b");
+           parameters: , "a\207\137b");
           (name: file1;
            content_type: text/plain;
            filename: a.txt;
-           parameters: , "\r\nContent of a.txt.\r\n");
+           parameters: , "Content of a.txt.\r\n");
           (name: file2;
            content_type: text/html;
            filename: a.html;
-           parameters: ,
-           "\r\n<!DOCTYPE html><title>Content of a.html.</title>\r\n");
+           parameters: , "<!DOCTYPE html><title>Content of a.html.</title>\r\n");
           (name: file3;
            content_type: application/octet-stream;
            filename: binary;
-           parameters: , "\r\na\207\137b")
+           parameters: , "a\207\137b")
           ]) |}]
 
 (* let multi_values_suite = *)
