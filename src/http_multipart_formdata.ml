@@ -243,6 +243,7 @@ let content_type parse_header_name =
 
 let part_body_header =
   take ~at_least:1 ~sep_by:crlf (any [ content_disposition; content_type true ])
+  <* crlf
   >>= fun headers ->
   let name, content_type, filename, parameters =
     List.fold_left

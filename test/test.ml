@@ -17,37 +17,37 @@ type parse_result = ((Part_header.t * string) list, string) result
 
 let%expect_test "parse" =
   let body =
-    [ {||}
-    ; {|-----------------------------735323031399963166993862150|}
-    ; {|Content-Disposition: form-data; name="text1"|}
-    ; {||}
-    ; {|text default|}
-    ; {|-----------------------------735323031399963166993862150|}
-    ; {|Content-Disposition: form-data; name="text2"|}
-    ; {||}
-    ; {|aωb|}
-    ; {|-----------------------------735323031399963166993862150|}
-    ; {|Content-Disposition: form-data; name="file1"; filename="a.txt"|}
-    ; {|Content-Type: text/plain|}
-    ; {||}
-    ; {|Content of a.txt.|}
-    ; {||}
-    ; {|-----------------------------735323031399963166993862150|}
-    ; {|Content-Disposition: form-data; name="file2"; filename="a.html"|}
-    ; {|Content-Type: text/html|}
-    ; {||}
-    ; {|<!DOCTYPE html><title>Content of a.html.</title>|}
-    ; {||}
-    ; {|-----------------------------735323031399963166993862150|}
-    ; {|Content-Disposition: form-data; name="file3"; filename="binary"|}
-    ; {|Content-Type: application/octet-stream|}
-    ; {||}
-    ; {|aωb|}
-    ; {|-----------------------------735323031399963166993862150--|}
-    ]
-    |> String.concat "\r\n"
-    |> Lwt_stream.of_string
+    String.concat "\r\n"
+      [ {||}
+      ; {|-----------------------------735323031399963166993862150|}
+      ; {|Content-Disposition: form-data; name="text1"|}
+      ; {||}
+      ; {|text default|}
+      ; {|-----------------------------735323031399963166993862150|}
+      ; {|Content-Disposition: form-data; name="text2"|}
+      ; {||}
+      ; {|aωb|}
+      ; {|-----------------------------735323031399963166993862150|}
+      ; {|Content-Disposition: form-data; name="file1"; filename="a.txt"|}
+      ; {|Content-Type: text/plain|}
+      ; {||}
+      ; {|Content of a.txt.|}
+      ; {||}
+      ; {|-----------------------------735323031399963166993862150|}
+      ; {|Content-Disposition: form-data; name="file2"; filename="a.html"|}
+      ; {|Content-Type: text/html|}
+      ; {||}
+      ; {|<!DOCTYPE html><title>Content of a.html.</title>|}
+      ; {||}
+      ; {|-----------------------------735323031399963166993862150|}
+      ; {|Content-Disposition: form-data; name="file3"; filename="binary"|}
+      ; {|Content-Type: application/octet-stream|}
+      ; {||}
+      ; {|aωb|}
+      ; {|-----------------------------735323031399963166993862150--|}
+      ]
   in
+  (* Printf.printf "s: %s\n" body; *)
   let parts = Queue.create () in
   let on_part header =
     let stream, push = Lwt_stream.create () in
@@ -60,7 +60,7 @@ let%expect_test "parse" =
   Lwt_result.(
     parse_boundary ~content_type
     >>= fun boundary ->
-    parse ~boundary ~on_part body
+    parse ~boundary ~on_part (Lwt_stream.of_string body)
     >>= fun () ->
     Queue.to_seq parts
     |> List.of_seq
