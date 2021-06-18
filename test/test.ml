@@ -4,8 +4,8 @@ type string_result = (string, string) result [@@deriving show, ord]
 
 let%expect_test "parse_boundary" =
   let content_type =
-    {|multipart/form-data;
-   boundary=---------------------------735323031399963166993862150|}
+    "multipart/form-data; \
+     boundary=---------------------------735323031399963166993862150"
   in
   parse_boundary ~content_type
   |> Lwt_main.run
@@ -49,31 +49,54 @@ let%expect_test "parse" =
     |> Lwt_stream.of_string
   in
   let parts = ref [] in
-  let on_part header body_stream =
-    Format.fprintf Format.std_formatter "\npart:%a\n\n%!" Part_header.pp header;
-    let part_body = Buffer.create 0 in
-    let rec part_reader () =
-      Lwt.(
-        Lwt_stream.get body_stream
-        >>= function
-        | Some c ->
-          Format.fprintf Format.std_formatter "%c%!" c;
-          Buffer.add_char part_body c;
-          part_reader ()
-        | None -> return (header, Buffer.contents part_body))
-    in
-    parts := part_reader () :: !parts
+  let on_part header =
+    let stream, push = Lwt_stream.create () in
+    parts := (header, push, stream) :: !parts;
+    push
   in
   let content_type =
     {|multipart/form-data; boundary=---------------------------735323031399963166993862150|}
   in
   Lwt_result.(
     parse_boundary ~content_type
-    >>= fun boundary -> parse ~boundary ~on_part body >|= fun () -> []
-    (*@@ Lwt.all !parts *))
+    >>= fun boundary ->
+    parse ~boundary ~on_part body
+    >>= fun () ->
+    ok
+    @@ Lwt_list.map_p
+         (fun (hd, push, stream) ->
+           push None;
+           Lwt.map
+             (fun s -> (hd, s))
+             (Lwt.bind (Lwt_stream.closed stream) (fun () ->
+                  Lwt_stream.to_string stream)))
+         !parts)
   |> Lwt_main.run
   |> pp_parse_result Format.std_formatter;
-  [%expect {| (Ok []) |}]
+  [%expect
+    {|
+    (Ok [(name: file3;
+          content_type: application/octet-stream;
+          filename: binary;
+          parameters: , "\r\na\207\137b");
+          (name: file2;
+           content_type: text/html;
+           filename: a.html;
+           parameters: ,
+           "\r\n<!DOCTYPE html><title>Content of a.html.</title>\r\n");
+          (name: file1;
+           content_type: text/plain;
+           filename: a.txt;
+           parameters: , "\r\nContent of a.txt.\r\n");
+          (name: text2;
+           content_type: text/plain;
+           filename: ;
+           parameters: , "\r\na\207\137b");
+          (name: text1;
+           content_type: text/plain;
+           filename: ;
+           parameters: , "\r\ntext default")
+          ]) |}]
 
 (* let multi_values_suite = *)
 (*   let content_type_header = *)
