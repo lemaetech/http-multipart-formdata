@@ -277,6 +277,54 @@ let part_body_header =
     in
     return { Part_header.name; content_type; filename; parameters }
 
+let parse_stream ~boundary ~on_part http_body =
+  let p =
+    let boundary_type =
+      let body_end = string_cs "--" *> optional crlf $> `Body_end in
+      let part_start = string_cs "\r\n" $> `Part_start in
+      body_end <|> part_start <?> "Invalid 'multipart/formdata' boundary value"
+    in
+    let crlf_dash_boundary = string_cs @@ Format.sprintf "\r\n--%s" boundary in
+    let parts = Queue.create () in
+    let rec loop_parts () =
+      let* boundary_type' = crlf_dash_boundary *> boundary_type in
+      match boundary_type' with
+      | `Body_end -> unit
+      | `Part_start ->
+        let* header = part_body_header in
+        let stream, push = Lwt_stream.create_bounded 1024 in
+        let writer = on_part header stream in
+        Queue.push (writer, push) parts;
+        take_while_cbp
+          ~while_:(is_not crlf_dash_boundary)
+          ~on_take_cb:(fun x -> push#push x)
+          any_char
+        (* *> (of_promise @@ Lwt_stream.is_empty stream *)
+        (*    >>| fun _b -> Printf.printf "\n%b\n" _b) *)
+        (* *> (push#close; *)
+        (*     unit) *)
+        (* *> writer *)
+        (* *> trim_input_buffer () *)
+        *> loop_parts ()
+    in
+    (*** Ignore preamble - any text before first boundary value. ***)
+    take_while_cb
+      ~while_:(is_not crlf_dash_boundary)
+      ~on_take_cb:(fun (_ : char) -> ())
+      any_char_unbuffered
+    *> loop_parts ()
+    *> of_promise
+         (Queue.to_seq parts
+         |> List.of_seq
+         |> Lwt_list.map_p (fun (writer, push) ->
+                push#close;
+                writer))
+    *> unit
+  in
+
+  let input = input_of_stream http_body in
+  parse p input
+
 type push = char -> unit
 
 let parse ~boundary ~on_part http_body =

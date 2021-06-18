@@ -99,3 +99,9 @@ val parse :
   -> on_part:(Part_header.t -> push)
   -> char Lwt_stream.t
   -> (unit, string) result Lwt.t
+
+val parse_stream :
+     boundary:boundary
+  -> on_part:(Part_header.t -> char Lwt_stream.t -> unit Lwt.t)
+  -> char Lwt_stream.t
+  -> (unit, string) result Lwt.t
