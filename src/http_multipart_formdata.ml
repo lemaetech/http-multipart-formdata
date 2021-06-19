@@ -277,7 +277,7 @@ let part_body_header =
     in
     return { Part_header.name; content_type; filename; parameters }
 
-let parse_stream ~boundary ~on_part http_body =
+let parse_stream ?(part_stream_size = 1024) ~boundary ~on_part http_body =
   let p =
     let boundary_type =
       let body_end = string_cs "--" *> optional crlf $> `Body_end in
@@ -291,7 +291,7 @@ let parse_stream ~boundary ~on_part http_body =
       | `Body_end -> unit
       | `Part_start ->
         let* header = part_body_header in
-        let stream, push = Lwt_stream.create_bounded 1024 in
+        let stream, push = Lwt_stream.create_bounded part_stream_size in
         take_while_cbp any_char ~while_:(is_not crlf_dash_boundary)
           ~on_take_cb:(fun x -> push#push x)
         >>= fun _ ->

@@ -101,7 +101,8 @@ val parse :
   -> (unit, string) result Lwt.t
 
 val parse_stream :
-     boundary:boundary
+     ?part_stream_size:int
+  -> boundary:boundary
   -> on_part:(Part_header.t -> char Lwt_stream.t -> unit Lwt.t)
   -> char Lwt_stream.t
   -> (unit, string) result Lwt.t
