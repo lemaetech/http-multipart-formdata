@@ -278,30 +278,30 @@ let part_body_header =
     return { Part_header.name; content_type; filename; parameters }
 
 let parse_parts ?(part_stream_size = 1024) ~boundary ~on_part http_body =
+  let boundary_type =
+    let body_end = string_cs "--" *> optional crlf $> `Body_end in
+    let part_start = string_cs "\r\n" $> `Part_start in
+    body_end <|> part_start <?> "Invalid 'multipart/formdata' boundary value"
+  in
+  let crlf_dash_boundary = string_cs @@ Format.sprintf "\r\n--%s" boundary in
+  let rec loop_parts () =
+    let* boundary_type' = crlf_dash_boundary *> boundary_type in
+    match boundary_type' with
+    | `Body_end -> unit
+    | `Part_start ->
+      let* header = part_body_header in
+      let stream, push = Lwt_stream.create_bounded part_stream_size in
+      take_while_cbp any_char ~while_:(is_not crlf_dash_boundary)
+        ~on_take_cb:(fun x -> push#push x)
+      >>= fun () ->
+      (push#close;
+       unit)
+      *> (of_promise @@ on_part header stream)
+      (* *> trim_input_buffer () *)
+      *> loop_parts ()
+  in
+  (*** Ignore preamble - any text before first boundary value. ***)
   let p =
-    let boundary_type =
-      let body_end = string_cs "--" *> optional crlf $> `Body_end in
-      let part_start = string_cs "\r\n" $> `Part_start in
-      body_end <|> part_start <?> "Invalid 'multipart/formdata' boundary value"
-    in
-    let crlf_dash_boundary = string_cs @@ Format.sprintf "\r\n--%s" boundary in
-    let rec loop_parts () =
-      let* boundary_type' = crlf_dash_boundary *> boundary_type in
-      match boundary_type' with
-      | `Body_end -> unit
-      | `Part_start ->
-        let* header = part_body_header in
-        let stream, push = Lwt_stream.create_bounded part_stream_size in
-        take_while_cbp any_char ~while_:(is_not crlf_dash_boundary)
-          ~on_take_cb:(fun x -> push#push x)
-        >>= fun () ->
-        (push#close;
-         unit)
-        *> (of_promise @@ on_part header stream)
-        (* *> trim_input_buffer () *)
-        *> loop_parts ()
-    in
-    (*** Ignore preamble - any text before first boundary value. ***)
     take_while_cb
       ~while_:(is_not crlf_dash_boundary)
       ~on_take_cb:(fun (_ : char) -> ())
