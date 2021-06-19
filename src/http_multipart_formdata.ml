@@ -307,7 +307,6 @@ let parse_parts ?(part_stream_size = 1024) ~boundary ~on_part http_body =
       ~on_take_cb:(fun (_ : char) -> ())
       any_char_unbuffered
     *> loop_parts ()
-    *> unit
   in
   let input = input_of_stream http_body in
   parse p input
