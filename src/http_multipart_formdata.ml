@@ -294,7 +294,7 @@ let parse_stream ?(part_stream_size = 1024) ~boundary ~on_part http_body =
         let stream, push = Lwt_stream.create_bounded part_stream_size in
         take_while_cbp any_char ~while_:(is_not crlf_dash_boundary)
           ~on_take_cb:(fun x -> push#push x)
-        >>= fun _ ->
+        >>= fun () ->
         (push#close;
          unit)
         *> (of_promise @@ on_part header stream)
