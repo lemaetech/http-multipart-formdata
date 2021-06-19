@@ -92,15 +92,8 @@ val parse_boundary : content_type:string -> (boundary, string) result Lwt.t
       in
       M.equal_parts file1_1 file1_2
     ]} *)
-type push = char -> unit
 
-val parse :
-     boundary:boundary
-  -> on_part:(Part_header.t -> push)
-  -> char Lwt_stream.t
-  -> (unit, string) result Lwt.t
-
-val parse_stream :
+val parse_parts :
      ?part_stream_size:int
   -> boundary:boundary
   -> on_part:(Part_header.t -> char Lwt_stream.t -> unit Lwt.t)
