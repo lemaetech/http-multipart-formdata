@@ -135,12 +135,9 @@ let%expect_test "parse_stream" =
     let rec loop () =
       Lwt_stream.get stream
       >>= function
-      | None ->
-        Printf.printf "\nfinish%!";
-        Lwt.return_unit
+      | None -> Lwt.return_unit
       | Some c ->
         Buffer.add_char buf c;
-        Printf.printf "%c%!" c;
         loop ()
     in
     Lwt.bind (loop ()) (fun () ->
