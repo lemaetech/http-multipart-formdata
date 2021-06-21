@@ -94,7 +94,7 @@ val parse_boundary : content_type:string -> (boundary, string) result Lwt.t
     ]} *)
 
 val parse_parts :
-     ?part_stream_size:int
+     ?part_stream_chunk_size:int
   -> boundary:boundary
   -> on_part:(Part_header.t -> char Lwt_stream.t -> unit Lwt.t)
   -> char Lwt_stream.t
