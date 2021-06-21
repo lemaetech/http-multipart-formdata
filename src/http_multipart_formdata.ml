@@ -17,12 +17,12 @@ module Map = struct
 end
 
 module Part_header = struct
-  type t = {
-    name : string;
-    content_type : string;
-    filename : string option;
-    parameters : string Map.t;
-  }
+  type t =
+    { name : string
+    ; content_type : string
+    ; filename : string option
+    ; parameters : string Map.t
+    }
 
   let name t = t.name
 
@@ -38,34 +38,58 @@ module Part_header = struct
 
   let pp fmt t =
     let fields =
-      [
-        Fmt.field "name" (fun p -> p.name) Fmt.string;
-        Fmt.field "content_type" (fun p -> p.content_type) Fmt.string;
-        Fmt.field "filename" (fun p -> p.filename) Fmt.(option string);
-        Fmt.field "parameters" (fun p -> p.parameters) (Map.pp Fmt.string);
+      [ Fmt.field "name" (fun p -> p.name) Fmt.string
+      ; Fmt.field "content_type" (fun p -> p.content_type) Fmt.string
+      ; Fmt.field "filename" (fun p -> p.filename) Fmt.(option string)
+      ; Fmt.field "parameters" (fun p -> p.parameters) (Map.pp Fmt.string)
       ]
     in
     Fmt.record ~sep:Fmt.semi fields fmt t
 end
 
 let is_alpha_digit = function
-  | '0' .. '9' | 'a' .. 'z' | 'A' .. 'Z' -> true
+  | '0' .. '9'
+  | 'a' .. 'z'
+  | 'A' .. 'Z' ->
+    true
   | _ -> false
 
 let is_space c = c == '\x20'
 
-let is_control = function '\x00' .. '\x1F' | '\x7F' -> true | _ -> false
-
-let is_tspecial = function
-  | '(' | ')' | '<' | '>' | '@' | ',' | ';' | ':' | '\\' | '"' | '/' | '[' | ']'
-  | '?' | '=' ->
-      true
+let is_control = function
+  | '\x00' .. '\x1F'
+  | '\x7F' ->
+    true
   | _ -> false
 
-let is_ascii_char = function '\x00' .. '\x7F' -> true | _ -> false
+let is_tspecial = function
+  | '('
+  | ')'
+  | '<'
+  | '>'
+  | '@'
+  | ','
+  | ';'
+  | ':'
+  | '\\'
+  | '"'
+  | '/'
+  | '['
+  | ']'
+  | '?'
+  | '=' ->
+    true
+  | _ -> false
+
+let is_ascii_char = function
+  | '\x00' .. '\x7F' -> true
+  | _ -> false
 
 let is_qtext = function
-  | '\x21' | '\x23' .. '\x5B' | '\x5D' .. '\x7E' -> true
+  | '\x21'
+  | '\x23' .. '\x5B'
+  | '\x5D' .. '\x7E' ->
+    true
   | _ -> false
 
 let is_token_char c =
@@ -99,7 +123,16 @@ let param =
 let p_restricted_name =
   let p_restricted_name_chars =
     char_if (function
-      | '!' | '#' | '$' | '&' | '-' | '^' | '_' | '.' | '+' -> true
+      | '!'
+      | '#'
+      | '$'
+      | '&'
+      | '-'
+      | '^'
+      | '_'
+      | '.'
+      | '+' ->
+        true
       | c when is_alpha_digit c -> true
       | _ -> false)
   in
@@ -115,9 +148,19 @@ type boundary = string
 let parse_boundary ~content_type =
   let boundary =
     let is_bcharnospace = function
-      | '\'' | '(' | ')' | '+' | '_' | ',' | '-' | '.' | '/' | ':' | '=' | '?'
-        ->
-          true
+      | '\''
+      | '('
+      | ')'
+      | '+'
+      | '_'
+      | ','
+      | '-'
+      | '.'
+      | '/'
+      | ':'
+      | '='
+      | '?' ->
+        true
       | c when is_alpha_digit c -> true
       | _ -> false
     in
@@ -132,23 +175,32 @@ let parse_boundary ~content_type =
       let len = List.length bchars in
       if len > 0 then
         let last_char = List.nth bchars (len - 1) in
-        if is_bcharnospace last_char then return (implode bchars)
-        else fail "Invalid boundary value: invalid last char"
-      else fail "Invalid boundary value: 0 length"
+        if is_bcharnospace last_char then
+          return (implode bchars)
+        else
+          fail "Invalid boundary value: invalid last char"
+      else
+        fail "Invalid boundary value: 0 length"
     in
     optional dquote *> boundary <* optional dquote <|> token
   in
   let param =
     let* attribute = skip whitespace *> char ';' *> skip whitespace *> token in
     let+ value =
-      char '=' *> if attribute = "boundary" then boundary else param_value
+      char '='
+      *>
+      if attribute = "boundary" then
+        boundary
+      else
+        param_value
     in
     (attribute, value)
   in
   let boundary_parser =
     skip whitespace
     *> (string_cs "multipart/form-data" <?> "Not multipart formdata header")
-    *> skip whitespace *> take param
+    *> skip whitespace
+    *> take param
     >>= fun params ->
     match List.assoc_opt "boundary" params with
     | Some b -> return b
@@ -158,21 +210,31 @@ let parse_boundary ~content_type =
   parse boundary_parser input
 
 type part_body_header =
-  | Content_type of { ty : string; subtype : string; parameters : string Map.t }
+  | Content_type of
+      { ty : string
+      ; subtype : string
+      ; parameters : string Map.t
+      }
   | Content_disposition of string Map.t
 
 let content_disposition =
   let+ params =
     string_cs "Content-Disposition:"
-    *> skip whitespace *> string_cs "form-data" *> take param
+    *> skip whitespace
+    *> string_cs "form-data"
+    *> take param
   in
   let params = List.to_seq params |> Map.of_seq in
   Content_disposition params
 
 let content_type parse_header_name =
   let* ty =
-    (if parse_header_name then string_cs "Content-Type:" *> unit else unit)
-    *> skip whitespace *> p_restricted_name
+    (if parse_header_name then
+      string_cs "Content-Type:" *> unit
+    else
+      unit)
+    *> skip whitespace
+    *> p_restricted_name
   in
   let* subtype = char '/' *> p_restricted_name in
   let+ params = take param in
@@ -188,32 +250,32 @@ let part_body_header =
       (fun (name, ct, filename, params) header ->
         match header with
         | Content_type ct ->
-            let content_type = Some (ct.ty ^ "/" ^ ct.subtype) in
-            ( name,
-              content_type,
-              filename,
-              Map.union (fun _key a _b -> Some a) params ct.parameters )
+          let content_type = Some (ct.ty ^ "/" ^ ct.subtype) in
+          ( name
+          , content_type
+          , filename
+          , Map.union (fun _key a _b -> Some a) params ct.parameters )
         | Content_disposition params2 ->
-            let name = Map.find_opt "name" params2 in
-            let filename = Map.find_opt "filename" params2 in
-            ( name,
-              ct,
-              filename,
-              Map.union (fun _key a _b -> Some a) params params2 ))
+          let name = Map.find_opt "name" params2 in
+          let filename = Map.find_opt "filename" params2 in
+          ( name
+          , ct
+          , filename
+          , Map.union (fun _key a _b -> Some a) params params2 ))
       (None, None, None, Map.empty)
       headers
   in
   match name with
   | None -> fail "Invalid part. parameter 'name' not found"
   | Some name ->
-      let content_type = Option.value content_type ~default:"text/plain" in
-      let parameters = Map.remove "name" parameters in
-      let parameters =
-        match filename with
-        | Some _ -> Map.remove "filename" parameters
-        | None -> parameters
-      in
-      return { Part_header.name; content_type; filename; parameters }
+    let content_type = Option.value content_type ~default:"text/plain" in
+    let parameters = Map.remove "name" parameters in
+    let parameters =
+      match filename with
+      | Some _ -> Map.remove "filename" parameters
+      | None -> parameters
+    in
+    return { Part_header.name; content_type; filename; parameters }
 
 let parse_parts ?(part_stream_size = 1024) ~boundary ~on_part http_body =
   let boundary_type =
@@ -227,16 +289,17 @@ let parse_parts ?(part_stream_size = 1024) ~boundary ~on_part http_body =
     match boundary_type' with
     | `Body_end -> unit
     | `Part_start ->
-        let* header = part_body_header in
-        let stream, push = Lwt_stream.create_bounded part_stream_size in
-        trim_input_buffer () >>= fun () ->
-        take_while_cbt any_char ~while_:(is_not crlf_dash_boundary)
-          ~on_take_cb:(fun x -> of_promise @@ push#push x)
-        >>= fun () ->
-        (push#close;
-         unit)
-        *> (of_promise @@ on_part header stream)
-        *> trim_input_buffer () *> loop_parts ()
+      let* header = part_body_header in
+      let stream, push = Lwt_stream.create_bounded part_stream_size in
+      trim_input_buffer ()
+      *> take_while_cbt any_char ~while_:(is_not crlf_dash_boundary)
+           ~on_take_cb:(fun x -> of_promise @@ push#push x)
+      >>= fun () ->
+      (push#close;
+       unit)
+      *> (of_promise @@ on_part header stream)
+      *> trim_input_buffer ()
+      *> loop_parts ()
   in
   (*** Ignore preamble - any text before first boundary value. ***)
   let p =
@@ -244,7 +307,8 @@ let parse_parts ?(part_stream_size = 1024) ~boundary ~on_part http_body =
       ~while_:(is_not crlf_dash_boundary)
       ~on_take_cb:(fun (_ : char) -> ())
       any_char
-    *> trim_input_buffer () *> loop_parts ()
+    *> trim_input_buffer ()
+    *> loop_parts ()
   in
   let input = input_of_stream http_body in
   parse p input
