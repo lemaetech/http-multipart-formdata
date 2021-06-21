@@ -196,18 +196,15 @@ let parse_boundary ~content_type =
     in
     (attribute, value)
   in
-  let boundary_parser =
-    skip whitespace
-    *> (string_cs "multipart/form-data" <?> "Not multipart formdata header")
-    *> skip whitespace
-    *> take param
-    >>= fun params ->
-    match List.assoc_opt "boundary" params with
-    | Some b -> return b
-    | None -> fail "'boundary' parameter not found"
-  in
-  let input = input_of_stream (Lwt_stream.of_string content_type) in
-  parse boundary_parser input
+  skip whitespace
+  *> (string_cs "multipart/form-data" <?> "Not multipart formdata header")
+  *> skip whitespace
+  *> take param
+  >>= (fun params ->
+        match List.assoc_opt "boundary" params with
+        | Some b -> return b
+        | None -> fail "'boundary' parameter not found")
+  |> parse (input_of_stream (Lwt_stream.of_string content_type))
 
 type part_body_header =
   | Content_type of
@@ -304,13 +301,10 @@ let parse_parts ?(part_stream_size = 1024) ~boundary ~on_part http_body =
       *> loop_parts ()
   in
   (*** Ignore preamble - any text before first boundary value. ***)
-  let p =
-    take_while_cb
-      ~while_:(is_not crlf_dash_boundary)
-      ~on_take_cb:(fun (_ : char) -> ())
-      any_char
-    *> trim_input_buffer
-    *> loop_parts ()
-  in
-  let input = input_of_stream http_body in
-  parse p input
+  take_while_cb
+    ~while_:(is_not crlf_dash_boundary)
+    ~on_take_cb:(fun (_ : char) -> ())
+    any_char
+  *> trim_input_buffer
+  *> loop_parts ()
+  |> parse (input_of_stream http_body)
