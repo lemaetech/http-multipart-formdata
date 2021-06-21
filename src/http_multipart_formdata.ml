@@ -285,20 +285,22 @@ let parse_parts ?(part_stream_size = 1024) ~boundary ~on_part http_body =
   in
   let crlf_dash_boundary = string_cs @@ Format.sprintf "\r\n--%s" boundary in
   let rec loop_parts () =
-    let* boundary_type' = crlf_dash_boundary *> boundary_type in
+    let* boundary_type' =
+      crlf_dash_boundary *> boundary_type <* trim_input_buffer
+    in
     match boundary_type' with
     | `Body_end -> unit
     | `Part_start ->
       let* header = part_body_header in
       let stream, push = Lwt_stream.create_bounded part_stream_size in
-      trim_input_buffer ()
+      trim_input_buffer
       *> take_while_cbt any_char ~while_:(is_not crlf_dash_boundary)
            ~on_take_cb:(fun x -> of_promise @@ push#push x)
+      *> trim_input_buffer
       >>= fun () ->
       (push#close;
        unit)
       *> (of_promise @@ on_part header stream)
-      *> trim_input_buffer ()
       *> loop_parts ()
   in
   (*** Ignore preamble - any text before first boundary value. ***)
@@ -307,7 +309,7 @@ let parse_parts ?(part_stream_size = 1024) ~boundary ~on_part http_body =
       ~while_:(is_not crlf_dash_boundary)
       ~on_take_cb:(fun (_ : char) -> ())
       any_char
-    *> trim_input_buffer ()
+    *> trim_input_buffer
     *> loop_parts ()
   in
   let input = input_of_stream http_body in
