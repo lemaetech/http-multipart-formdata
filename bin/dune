@@ -1,0 +1,5 @@
+(executable
+ (name parse_parts)
+ (libraries http-multipart-formdata lwt lwt.unix)
+ (preprocess
+  (pps ppx_deriving.show ppx_deriving.ord ppx_expect)))
