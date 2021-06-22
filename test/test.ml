@@ -18,34 +18,35 @@ type parse_result = ((Part_header.t * string) list, string) result
 let%expect_test "parse_parts" =
   let body =
     String.concat "\r\n"
-      [ {||}
-      ; {| this is a preamble text.  |}
-      ; {|-----------------------------735323031399963166993862150|}
-      ; {|Content-Disposition: form-data; name="text1"|}
-      ; {||}
-      ; {|text default|}
-      ; {|-----------------------------735323031399963166993862150|}
-      ; {|Content-Disposition: form-data; name="text2"|}
-      ; {||}
-      ; {|aωb|}
-      ; {|-----------------------------735323031399963166993862150|}
-      ; {|Content-Disposition: form-data; name="file1"; filename="a.txt"|}
-      ; {|Content-Type: text/plain|}
-      ; {||}
-      ; {|Content of a.txt.|}
-      ; {||}
-      ; {|-----------------------------735323031399963166993862150|}
-      ; {|Content-Disposition: form-data; name="file2"; filename="a.html"|}
-      ; {|Content-Type: text/html|}
-      ; {||}
-      ; {|<!DOCTYPE html><title>Content of a.html.</title>|}
-      ; {||}
-      ; {|-----------------------------735323031399963166993862150|}
-      ; {|Content-Disposition: form-data; name="file3"; filename="binary"|}
-      ; {|Content-Type: application/octet-stream|}
-      ; {||}
-      ; {|aωb|}
-      ; {|-----------------------------735323031399963166993862150--|}
+      [
+        {||};
+        {| this is a preamble text.  |};
+        {|-----------------------------735323031399963166993862150|};
+        {|Content-Disposition: form-data; name="text1"|};
+        {||};
+        {|text default|};
+        {|-----------------------------735323031399963166993862150|};
+        {|Content-Disposition: form-data; name="text2"|};
+        {||};
+        {|aωb|};
+        {|-----------------------------735323031399963166993862150|};
+        {|Content-Disposition: form-data; name="file1"; filename="a.txt"|};
+        {|Content-Type: text/plain|};
+        {||};
+        {|Content of a.txt.|};
+        {||};
+        {|-----------------------------735323031399963166993862150|};
+        {|Content-Disposition: form-data; name="file2"; filename="a.html"|};
+        {|Content-Type: text/html|};
+        {||};
+        {|<!DOCTYPE html><title>Content of a.html.</title>|};
+        {||};
+        {|-----------------------------735323031399963166993862150|};
+        {|Content-Disposition: form-data; name="file3"; filename="binary"|};
+        {|Content-Type: application/octet-stream|};
+        {||};
+        {|aωb|};
+        {|-----------------------------735323031399963166993862150--|};
       ]
   in
   let parts = Queue.create () in
@@ -55,25 +56,22 @@ let%expect_test "parse_parts" =
     let part_done, resolve_part_done = Lwt.wait () in
     Queue.push part_done parts;
     let rec loop () =
-      Lwt_stream.get stream
-      >>= function
+      Lwt_stream.get stream >>= function
       | None -> Lwt.return_unit
       | Some c ->
-        Buffer.add_char buf c;
-        (loop [@tailcall]) ()
+          Buffer.add_char buf c;
+          (loop [@tailcall]) ()
     in
-    loop ()
-    >|= fun () ->
+    loop () >|= fun () ->
     Lwt.wakeup_later resolve_part_done (header, Buffer.contents buf)
   in
   let content_type =
     {|multipart/form-data; boundary=---------------------------735323031399963166993862150|}
   in
   Lwt_result.(
-    parse_boundary ~content_type
-    >>= fun boundary ->
-    parse_parts ~boundary ~on_part (Lwt_stream.of_string body)
-    >>= fun () -> ok (Queue.to_seq parts |> List.of_seq |> Lwt.all))
+    parse_boundary ~content_type >>= fun boundary ->
+    parse_parts ~boundary ~on_part (Lwt_stream.of_string body) >>= fun () ->
+    ok (Queue.to_seq parts |> List.of_seq |> Lwt.all))
   |> Lwt_main.run
   |> fun l ->
   pp_parse_result Format.std_formatter l;

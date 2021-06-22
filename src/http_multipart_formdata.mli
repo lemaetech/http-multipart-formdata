@@ -49,53 +49,56 @@ val parse_boundary : content_type:string -> (boundary, string) result Lwt.t
          boundary=---------------------------735323031399963166993862150"
       in
       let body =
-        [ {||}
-        ; {|-----------------------------735323031399963166993862150|}
-        ; {|Content-Disposition: form-data; name="text1"|}
-        ; {||}
-        ; {|text default|}
-        ; {|-----------------------------735323031399963166993862150|}
-        ; {|Content-Disposition: form-data; name="text2"|}
-        ; {||}
-        ; {|aωb|}
-        ; {|-----------------------------735323031399963166993862150|}
-        ; {|Content-Disposition: form-data; name="file1"; filename="a.txt"|}
-        ; {|Content-Type: text/plain|}
-        ; {||}
-        ; {|Content of a.txt.|}
-        ; {||}
-        ; {|-----------------------------735323031399963166993862150|}
-        ; {|Content-Disposition: form-data; name="file2"; filename="a.html"|}
-        ; {|Content-Type: text/html|}
-        ; {||}
-        ; {|<!DOCTYPE html><title>Content of a.html.</title>|}
-        ; {||}
-        ; {|-----------------------------735323031399963166993862150|}
-        ; {|Content-Disposition: form-data; name="file3"; filename="binary"|}
-        ; {|Content-Type: application/octet-stream|}
-        ; {||}
-        ; {|aωb|}
-        ; {|-----------------------------735323031399963166993862150--|}
+        [
+          {||};
+          {|-----------------------------735323031399963166993862150|};
+          {|Content-Disposition: form-data; name="text1"|};
+          {||};
+          {|text default|};
+          {|-----------------------------735323031399963166993862150|};
+          {|Content-Disposition: form-data; name="text2"|};
+          {||};
+          {|aωb|};
+          {|-----------------------------735323031399963166993862150|};
+          {|Content-Disposition: form-data; name="file1"; filename="a.txt"|};
+          {|Content-Type: text/plain|};
+          {||};
+          {|Content of a.txt.|};
+          {||};
+          {|-----------------------------735323031399963166993862150|};
+          {|Content-Disposition: form-data; name="file2"; filename="a.html"|};
+          {|Content-Type: text/html|};
+          {||};
+          {|<!DOCTYPE html><title>Content of a.html.</title>|};
+          {||};
+          {|-----------------------------735323031399963166993862150|};
+          {|Content-Disposition: form-data; name="file3"; filename="binary"|};
+          {|Content-Type: application/octet-stream|};
+          {||};
+          {|aωb|};
+          {|-----------------------------735323031399963166993862150--|};
         ]
         |> String.concat "\r\n"
       in
       let mp = M.parse ~content_type_header ~body in
       let file1_1 = M.Map.find "file1" mp in
       let file1_2 =
-        [ { M.Part.body = Bytes.of_string "\r\nContent of a.txt.\r\n\r\n"
-          ; name = "file1"
-          ; content_type = "text/plain"
-          ; filename = Some "a.txt"
-          ; parameters = M.Map.empty
-          }
+        [
+          {
+            M.Part.body = Bytes.of_string "\r\nContent of a.txt.\r\n\r\n";
+            name = "file1";
+            content_type = "text/plain";
+            filename = Some "a.txt";
+            parameters = M.Map.empty;
+          };
         ]
       in
       M.equal_parts file1_1 file1_2
     ]} *)
 
 val parse_parts :
-     ?part_stream_chunk_size:int
-  -> boundary:boundary
-  -> on_part:(Part_header.t -> char Lwt_stream.t -> unit Lwt.t)
-  -> char Lwt_stream.t
-  -> (unit, string) result Lwt.t
+  ?part_stream_chunk_size:int ->
+  boundary:boundary ->
+  on_part:(Part_header.t -> char Lwt_stream.t -> unit Lwt.t) ->
+  char Lwt_stream.t ->
+  (unit, string) result Lwt.t
