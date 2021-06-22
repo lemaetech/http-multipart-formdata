@@ -52,6 +52,8 @@ let%expect_test "parse_parts" =
   let on_part header stream =
     let open Lwt.Infix in
     let buf = Buffer.create 0 in
+    let part_done, resolve_part_done = Lwt.wait () in
+    Queue.push part_done parts;
     let rec loop () =
       Lwt_stream.get stream
       >>= function
@@ -60,8 +62,9 @@ let%expect_test "parse_parts" =
         Buffer.add_char buf c;
         loop ()
     in
-    Lwt.bind (loop ()) (fun () ->
-        Lwt.return @@ Queue.push (header, Buffer.contents buf) parts)
+    loop ()
+    >|= fun () ->
+    Lwt.wakeup_later resolve_part_done (header, Buffer.contents buf)
   in
   let content_type =
     {|multipart/form-data; boundary=---------------------------735323031399963166993862150|}
@@ -70,9 +73,10 @@ let%expect_test "parse_parts" =
     parse_boundary ~content_type
     >>= fun boundary ->
     parse_parts ~boundary ~on_part (Lwt_stream.of_string body)
-    >|= fun () -> Queue.to_seq parts |> List.of_seq)
+    >>= fun () -> ok (Queue.to_seq parts |> List.of_seq |> Lwt.all))
   |> Lwt_main.run
-  |> pp_parse_result Format.std_formatter;
+  |> fun l ->
+  pp_parse_result Format.std_formatter l;
   [%expect
     {|
     (Ok [(name: text1;

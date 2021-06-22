@@ -290,6 +290,7 @@ let parse_parts ?(part_stream_chunk_size = 1024) ~boundary ~on_part http_body =
     | `Part_start ->
       let* header = part_body_header in
       let stream, push = Lwt_stream.create_bounded part_stream_chunk_size in
+      Lwt.async (fun () -> on_part header stream);
       trim_input_buffer
       *> take_while_cbt unsafe_any_char ~while_:(is_not crlf_dash_boundary)
            ~on_take_cb:(fun x -> of_promise @@ push#push x)
@@ -297,7 +298,6 @@ let parse_parts ?(part_stream_chunk_size = 1024) ~boundary ~on_part http_body =
       >>= fun () ->
       (push#close;
        unit)
-      *> (of_promise @@ on_part header stream)
       *> loop_parts ()
   in
   (*** Ignore preamble - any text before first boundary value. ***)
