@@ -60,7 +60,7 @@ let%expect_test "parse_parts" =
       | None -> Lwt.return_unit
       | Some c ->
         Buffer.add_char buf c;
-        loop ()
+        (loop [@tailcall]) ()
     in
     loop ()
     >|= fun () ->
