@@ -12,13 +12,4 @@ The parser implements HTTP `multipart/form-data` standard as defined in [RFC 757
 $ opam install http-multipart-formdata
 ```
 
-## Examples
-
-```ocaml
-module M = Http_multipart_formdata
-
-let mp = M.parse ~content_type_header ~body in
-let file1_parts : M.Part.t list  = M.Map.find "file1" mp
-```
-
 [Full API Usage](https://github.com/lemaetech/http-multipart-formdata/blob/master/test/test.ml)
