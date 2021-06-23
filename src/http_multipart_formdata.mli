@@ -36,9 +36,18 @@ module Part_header : sig
   type t
 
   val name : t -> string
+  (** [name t] returns the form field name *)
+
   val content_type : t -> string
+  (** [content_type t] returns the part content-type. *)
+
   val filename : t -> string option
+  (** [filename t] returns the uploaded filename is the multipart is a file *)
+
   val param_value : string -> t -> string option
+  (** [param_value name t] returns the multipart parameter value with name
+      [name]. *)
+
   val compare : t -> t -> int
   val equal : t -> t -> bool
   val pp : Format.formatter -> t -> unit
@@ -50,6 +59,8 @@ val parse_parts_stream :
   -> on_part:(Part_header.t -> char Lwt_stream.t -> unit Lwt.t)
   -> char Lwt_stream.t
   -> (unit, string) result Lwt.t
+(** [parse_parts_stream] parse multipart where body content is
+    [char Lwt_stream.t]. *)
 
 val parse_parts_fd :
      ?part_stream_chunk_size:int
@@ -57,6 +68,8 @@ val parse_parts_fd :
   -> on_part:(Part_header.t -> char Lwt_stream.t -> unit Lwt.t)
   -> Lwt_unix.file_descr
   -> (unit, string) result Lwt.t
+(** [parse_parts_stream] parse multipart where body content is
+    [Lwt_unix.file_descr]. *)
 
 val parse_parts_channel :
      ?part_stream_chunk_size:int
@@ -64,3 +77,5 @@ val parse_parts_channel :
   -> on_part:(Part_header.t -> char Lwt_stream.t -> unit Lwt.t)
   -> Lwt_io.input_channel
   -> (unit, string) result Lwt.t
+(** [parse_parts_stream] parse multipart where body content is
+    [Lwt_io.input_channel]. *)
