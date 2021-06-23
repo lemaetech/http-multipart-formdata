@@ -6,21 +6,33 @@ type parse_result = ((Part_header.t * string) list, string) result
 let () =
   let body =
     String.concat "\r\n"
-      [ {||}; {|this is a preamble text.|}
+      [ {||}
+      ; {|this is a preamble text.|}
       ; {|-----------------------------735323031399963166993862150|}
-      ; {|Content-Disposition: form-data; name="text1"|}; {||}; {|text default|}
+      ; {|Content-Disposition: form-data; name="text1"|}
+      ; {||}
+      ; {|text default|}
       ; {|-----------------------------735323031399963166993862150|}
-      ; {|Content-Disposition: form-data; name="text2"|}; {||}; {|aωb|}
+      ; {|Content-Disposition: form-data; name="text2"|}
+      ; {||}
+      ; {|aωb|}
       ; {|-----------------------------735323031399963166993862150|}
       ; {|Content-Disposition: form-data; name="file1"; filename="a.txt"|}
-      ; {|Content-Type: text/plain|}; {||}; {|Content of a.txt.|}; {||}
+      ; {|Content-Type: text/plain|}
+      ; {||}
+      ; {|Content of a.txt.|}
+      ; {||}
       ; {|-----------------------------735323031399963166993862150|}
       ; {|Content-Disposition: form-data; name="file2"; filename="a.html"|}
-      ; {|Content-Type: text/html|}; {||}
-      ; {|<!DOCTYPE html><title>Content of a.html.</title>|}; {||}
+      ; {|Content-Type: text/html|}
+      ; {||}
+      ; {|<!DOCTYPE html><title>Content of a.html.</title>|}
+      ; {||}
       ; {|-----------------------------735323031399963166993862150|}
       ; {|Content-Disposition: form-data; name="file3"; filename="binary"|}
-      ; {|Content-Type: application/octet-stream|}; {||}; {|aωb|}
+      ; {|Content-Type: application/octet-stream|}
+      ; {||}
+      ; {|aωb|}
       ; {|-----------------------------735323031399963166993862150--|} ] in
   let parts = Queue.create () in
   let on_part header stream =
