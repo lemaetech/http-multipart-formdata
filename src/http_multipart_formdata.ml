@@ -206,8 +206,8 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) = struct
           | None -> parameters in
         return {Part_header.name; content_type; filename; parameters}
 
-  let parse_parts ?(part_stream_chunk_size = 1024) ~boundary ~on_part http_body
-      =
+  let parse_parts ?(part_stream_chunk_size = 1024 * 1024) ~boundary ~on_part
+      http_body =
     let boundary_type =
       let body_end = string_cs "--" *> optional crlf $> `Body_end in
       let part_start = string_cs "\r\n" $> `Part_start in
