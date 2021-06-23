@@ -1,5 +1,5 @@
 (*-------------------------------------------------------------------------
- * Copyright (c) 2019, 2020 Bikal Gurung. All rights reserved.
+ * Copyright (c) 2020, 2021 Bikal Gurung. All rights reserved.
  *
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License,  v. 2.0. If a copy of the MPL was not distributed with this
@@ -7,125 +7,60 @@
  *
  *-------------------------------------------------------------------------*)
 
-(** {2 Types} *)
+(** {2 Parsing boundary value} *)
 
-(** An ocaml [Stdlib] Map with [string] as key. *)
-module Map : Map.S with type key = string
+(** Represents the multipart boundary value. *)
+type boundary = string
 
-(** Represents a parsed multipart part. A part corresponds to a submitted form
-    field data in a HTTP request. *)
-module Part : sig
-  type t =
-    { body : bytes  (** Body content *)
-    ; name : string  (** Name of the part - form field name *)
-    ; content_type : string
-          (** HTTP content type of the part [body]. "text/plain" is default *)
-    ; filename : string option  (** [filename] form field attribute. *)
-    ; parameters : string Map.t
-          (** Additional [key = value] params of the form field. *)
-    }
+val parse_boundary : content_type:string -> (boundary, string) result
+(** [parse_boundary ~content_type] parses [content_type] to extract [boundary]
+    value.[content_type] is the HTTP request [Content-Type] header value. *)
 
-  (** [pp fmt part] is the pretty printer for [t]. *)
-  val pp : Format.formatter -> t -> unit
-    [@@ocaml.toplevel_printer]
+(** {2 Parsing multi-parts}
 
-  (** [equal part1 part2] returns [true] if [part1] and [part2] are equal. *)
+    [parse_parts_* ?part_stream_chunk_size ~boundary ~on_part http_post_body]
+    functions with various input types.
+
+    - [part_stream_chunk_size] is the maximum number of bytes each chunk holds
+      at any time. The default value is [1048576] or [1MB].
+
+    - [boundary] is part boundary value. Use [parse_boundary] to parse boundary
+      value from [Content-type] header value.
+
+    - [on_part] is the part handling function
+
+    - [body] is the raw HTTP POST request body content stream. *)
+
+(** Represents a parsed multipart part header data. *)
+module Part_header : sig
+  type t
+
+  val name : t -> string
+  val content_type : t -> string
+  val filename : t -> string option
+  val param_value : string -> t -> string option
+  val compare : t -> t -> int
   val equal : t -> t -> bool
+  val pp : Format.formatter -> t -> unit
 end
 
-(** Represents a parsed HTTP [multipart/form-data] request as a [key/value] map.
-    Submitted form field name is the key value.
+val parse_parts_stream :
+     ?part_stream_chunk_size:int
+  -> boundary:boundary
+  -> on_part:(Part_header.t -> char Lwt_stream.t -> unit Lwt.t)
+  -> char Lwt_stream.t
+  -> (unit, string) result Lwt.t
 
-    A key may be associated in zero or more values.*)
-type t = Part.t list Map.t
+val parse_parts_fd :
+     ?part_stream_chunk_size:int
+  -> boundary:boundary
+  -> on_part:(Part_header.t -> char Lwt_stream.t -> unit Lwt.t)
+  -> Lwt_unix.file_descr
+  -> (unit, string) result Lwt.t
 
-(** Represents error while parsing http multipart formdata. *)
-exception Multipart of string
-
-(** {2 Parse} *)
-
-(** [parse ~content_type_header ~body] returns a parsed HTTP multiparts such
-    that it can be queried using ocaml [Stdlib.Map] functions.
-
-    [content_type_header] is the HTTP request [Content-Type] header. Note the
-    value contains both the header name and value. It is used to parse a
-    [boundary] value.
-
-    [body] is the raw HTTP POST request body content.
-
-    {4 Examples}
-
-    {[
-      module M = Http_multipart_formdata
-
-      ;;
-      let content_type_header =
-        "Content-Type: multipart/form-data; \
-         boundary=---------------------------735323031399963166993862150"
-      in
-      let body =
-        [ {||}
-        ; {|-----------------------------735323031399963166993862150|}
-        ; {|Content-Disposition: form-data; name="text1"|}
-        ; {||}
-        ; {|text default|}
-        ; {|-----------------------------735323031399963166993862150|}
-        ; {|Content-Disposition: form-data; name="text2"|}
-        ; {||}
-        ; {|aωb|}
-        ; {|-----------------------------735323031399963166993862150|}
-        ; {|Content-Disposition: form-data; name="file1"; filename="a.txt"|}
-        ; {|Content-Type: text/plain|}
-        ; {||}
-        ; {|Content of a.txt.|}
-        ; {||}
-        ; {|-----------------------------735323031399963166993862150|}
-        ; {|Content-Disposition: form-data; name="file2"; filename="a.html"|}
-        ; {|Content-Type: text/html|}
-        ; {||}
-        ; {|<!DOCTYPE html><title>Content of a.html.</title>|}
-        ; {||}
-        ; {|-----------------------------735323031399963166993862150|}
-        ; {|Content-Disposition: form-data; name="file3"; filename="binary"|}
-        ; {|Content-Type: application/octet-stream|}
-        ; {||}
-        ; {|aωb|}
-        ; {|-----------------------------735323031399963166993862150--|}
-        ]
-        |> String.concat "\r\n"
-      in
-      let mp = M.parse ~content_type_header ~body in
-      let file1_1 = M.Map.find "file1" mp in
-      let file1_2 =
-        [ { M.Part.body = Bytes.of_string "\r\nContent of a.txt.\r\n\r\n"
-          ; name = "file1"
-          ; content_type = "text/plain"
-          ; filename = Some "a.txt"
-          ; parameters = M.Map.empty
-          }
-        ]
-      in
-      M.equal_parts file1_1 file1_2
-    ]}
-    @raise Multipart *)
-val parse : content_type_header:string -> body:string -> t
-
-(** {2 Pretty Printers} *)
-
-(** [pp_parts fmt parts] pretty prints a list of [Part.t] *)
-val pp_parts : Format.formatter -> Part.t list -> unit
-  [@@ocaml.toplevel_printer]
-
-(** [pp fmt part] pretty prints a [part]. *)
-val pp : Format.formatter -> t -> unit
-  [@@ocaml.toplevel_printer]
-
-(** {2 Equals} *)
-
-(** [equal_parts parts1 parts2] returns [true] if [parts1] and [parts2] are
-    equal, [false] otherwise. *)
-val equal_parts : Part.t list -> Part.t list -> bool
-
-(** [equal t1 t2] returns [true] if [Part.] [t1] and [t2] are equal, [false]
-    otherwise. *)
-val equal : t -> t -> bool
+val parse_parts_channel :
+     ?part_stream_chunk_size:int
+  -> boundary:boundary
+  -> on_part:(Part_header.t -> char Lwt_stream.t -> unit Lwt.t)
+  -> Lwt_io.input_channel
+  -> (unit, string) result Lwt.t
