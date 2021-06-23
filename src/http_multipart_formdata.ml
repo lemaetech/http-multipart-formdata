@@ -13,6 +13,7 @@ module Map = struct
 
   let pp pp_value fmt t =
     let pp_kv = Fmt.pair ~sep:Fmt.comma Fmt.string pp_value in
+    let pp_kv fmt pv = Fmt.pf fmt "@[(%a)@]" pp_kv pv in
     Fmt.seq ~sep:Fmt.semi pp_kv fmt (to_seq t)
 end
 
