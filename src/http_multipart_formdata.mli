@@ -23,19 +23,42 @@ end
 (** Represents the multipart boundary value. *)
 type boundary = string
 
-val parse_boundary : content_type:string -> (boundary, string) result Lwt.t
+val parse_boundary : content_type:string -> (boundary, string) result
 (** [parse_boundary ~content_type] parses [content_type] to extract [boundary]
     value.[content_type] is the HTTP request [Content-Type] header value. *)
 
-val parse_parts :
+(** {2 Parse parts}
+
+    [parse_parts_* ?part_stream_chunk_size ~boundary ~on_part http_post_body]
+    functions with various input types.
+
+    - [part_stream_chunk_size] is the maximum number of bytes each chunk holds
+      at any time. The default value is [1048576] or [1MB].
+
+    - [boundary] is part boundary value. Use [parse_boundary] to parse boundary
+      value from [Content-type] header value.
+
+    - [on_part] is the part handling function
+
+    - [body] is the raw HTTP POST request body content stream. *)
+
+val parse_parts_stream :
      ?part_stream_chunk_size:int
   -> boundary:boundary
   -> on_part:(Part_header.t -> char Lwt_stream.t -> unit Lwt.t)
   -> char Lwt_stream.t
   -> (unit, string) result Lwt.t
-(** [parse ~part_stream_chunk_size ~boundary ~on_part body] parses [body] and
-    streams [part_header] and [part_body_data] to [on_part].
 
-    [boundary] is part boundary value
+val parse_parts_fd :
+     ?part_stream_chunk_size:int
+  -> boundary:boundary
+  -> on_part:(Part_header.t -> char Lwt_stream.t -> unit Lwt.t)
+  -> Lwt_unix.file_descr
+  -> (unit, string) result Lwt.t
 
-    [body] is the raw HTTP POST request body content stream. *)
+val parse_parts_channel :
+     ?part_stream_chunk_size:int
+  -> boundary:boundary
+  -> on_part:(Part_header.t -> char Lwt_stream.t -> unit Lwt.t)
+  -> Lwt_io.input_channel
+  -> (unit, string) result Lwt.t
