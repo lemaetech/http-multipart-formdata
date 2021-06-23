@@ -1,6 +1,5 @@
-open! Http_multipart_formdata
-
-type parse_result = ((Part_header.t * string) list, string) result
+type parse_result =
+  ((Http_multipart_formdata.Part_header.t * string) list, string) result
 [@@deriving show, ord]
 
 let () =
