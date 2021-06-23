@@ -87,6 +87,48 @@ module Make_common (P : Reparse.PARSER) = struct
   let param_value = token <|> quoted_string
 end
 
+type boundary = string
+
+let parse_boundary ~content_type =
+  let module Common = Make_common (Reparse.String) in
+  let open Reparse.String in
+  let open Common in
+  let boundary =
+    let is_bcharnospace = function
+      | '\'' | '(' | ')' | '+' | '_' | ',' | '-' | '.' | '/' | ':' | '=' | '?'
+        ->
+          true
+      | c when is_alpha_digit c -> true
+      | _ -> false in
+    let bchars =
+      char_if (function
+        | '\x20' -> true
+        | c when is_bcharnospace c -> true
+        | _ -> false ) in
+    let boundary =
+      let* bchars = take ~up_to:70 bchars in
+      let len = List.length bchars in
+      if len > 0 then
+        let last_char = List.nth bchars (len - 1) in
+        if is_bcharnospace last_char then return (implode bchars)
+        else fail "Invalid boundary value: invalid last char"
+      else fail "Invalid boundary value: 0 length" in
+    optional dquote *> boundary <* optional dquote <|> token in
+  let param =
+    let* attribute = skip whitespace *> char ';' *> skip whitespace *> token in
+    let+ value =
+      char '=' *> if attribute = "boundary" then boundary else param_value
+    in
+    (attribute, value) in
+  skip whitespace
+  *> (string_cs "multipart/form-data" <?> "Not multipart formdata header")
+  *> skip whitespace *> take param
+  >>= (fun params ->
+        match List.assoc_opt "boundary" params with
+        | Some b -> return b
+        | None -> fail "'boundary' parameter not found" )
+  |> parse (create_input_from_string content_type)
+
 module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) = struct
   open P
   open Make_common (P)
@@ -196,48 +238,6 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) = struct
     *> trim_input_buffer *> loop_parts ()
     |> parse http_body
 end
-
-type boundary = string
-
-let parse_boundary ~content_type =
-  let module Common = Make_common (Reparse.String) in
-  let open Reparse.String in
-  let open Common in
-  let boundary =
-    let is_bcharnospace = function
-      | '\'' | '(' | ')' | '+' | '_' | ',' | '-' | '.' | '/' | ':' | '=' | '?'
-        ->
-          true
-      | c when is_alpha_digit c -> true
-      | _ -> false in
-    let bchars =
-      char_if (function
-        | '\x20' -> true
-        | c when is_bcharnospace c -> true
-        | _ -> false ) in
-    let boundary =
-      let* bchars = take ~up_to:70 bchars in
-      let len = List.length bchars in
-      if len > 0 then
-        let last_char = List.nth bchars (len - 1) in
-        if is_bcharnospace last_char then return (implode bchars)
-        else fail "Invalid boundary value: invalid last char"
-      else fail "Invalid boundary value: 0 length" in
-    optional dquote *> boundary <* optional dquote <|> token in
-  let param =
-    let* attribute = skip whitespace *> char ';' *> skip whitespace *> token in
-    let+ value =
-      char '=' *> if attribute = "boundary" then boundary else param_value
-    in
-    (attribute, value) in
-  skip whitespace
-  *> (string_cs "multipart/form-data" <?> "Not multipart formdata header")
-  *> skip whitespace *> take param
-  >>= (fun params ->
-        match List.assoc_opt "boundary" params with
-        | Some b -> return b
-        | None -> fail "'boundary' parameter not found" )
-  |> parse (create_input_from_string content_type)
 
 let parse_parts_stream ?part_stream_chunk_size ~boundary ~on_part http_body =
   let module P = Make (Reparse_lwt.Stream) in
