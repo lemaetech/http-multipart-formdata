@@ -90,9 +90,8 @@ end
 type boundary = string
 
 let parse_boundary ~content_type =
-  let module Common = Make_common (Reparse.String) in
   let open Reparse.String in
-  let open Common in
+  let open Make_common (Reparse.String) in
   let boundary =
     let is_bcharnospace = function
       | '\'' | '(' | ')' | '+' | '_' | ',' | '-' | '.' | '/' | ':' | '=' | '?'
