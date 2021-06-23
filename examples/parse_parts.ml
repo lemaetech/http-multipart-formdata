@@ -49,9 +49,9 @@ let () =
     {|multipart/form-data; boundary=---------------------------735323031399963166993862150|}
   in
   Lwt_result.(
-    Http_multipart_formdata.parse_boundary ~content_type
+    lift (Http_multipart_formdata.parse_boundary ~content_type)
     >>= fun boundary ->
-    Http_multipart_formdata.parse_parts ~boundary ~on_part
+    Http_multipart_formdata.parse_parts_stream ~boundary ~on_part
       (Lwt_stream.of_string body)
     >|= fun () -> Queue.to_seq parts |> List.of_seq)
   |> Lwt_main.run
