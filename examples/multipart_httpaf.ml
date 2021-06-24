@@ -2,47 +2,90 @@ open Httpaf
 open Httpaf_lwt_unix
 open Lwt.Infix
 
+let upload_page =
+  {|<!DOCTYPE html>
+    <html>
+    <head>
+      <title>Upload multiple files</title>
+    </head>
+    <body>
+      <div>
+        <form action="http://localhost:8080/upload" method="post" enctype="multipart/form-data">
+          <input type="file" name="name" multiple><br>
+          <br>
+          After uploading multiple files, click Submit.<br>
+          <input type="submit" value="Submit">
+        </form>
+      <div>
+    </body>
+    </html>|}
+
+type parse_result =
+  ((Http_multipart_formdata.Part_header.t * string) list, string) result
+[@@deriving show, ord]
+
+let handle_upload content_type req_body_stream =
+  let parts = Queue.create () in
+  let on_part header stream =
+    let open Lwt.Infix in
+    let buf = Buffer.create 0 in
+    let rec loop () =
+      Lwt_stream.get stream
+      >>= function
+      | None -> Lwt.return_unit | Some c -> Buffer.add_char buf c ; loop ()
+    in
+    Lwt.bind (loop ()) (fun () ->
+        Lwt.return @@ Queue.push (header, Buffer.contents buf) parts ) in
+  Printf.printf "content_type:%s\n%!" content_type ;
+  Lwt_result.(
+    lift (Http_multipart_formdata.parse_boundary ~content_type)
+    >>= fun boundary ->
+    Http_multipart_formdata.parse_parts_stream ~boundary ~on_part
+      req_body_stream
+    >|= fun () -> Queue.to_seq parts |> List.of_seq)
+  >|= fun parts ->
+  let s = show_parse_result parts in
+  s
+
 let request_handler (_ : Unix.sockaddr) reqd =
   let request = Reqd.request reqd in
   let request_body = Reqd.request_body reqd in
-  Body.close_reader request_body ;
+  let req_body_stream, push = Lwt_stream.create () in
+  Body.schedule_read request_body
+    ~on_eof:(fun () ->
+      push None ;
+      Body.close_reader request_body )
+    ~on_read:(fun bs ~off ~len ->
+      for i = 0 to len - off - 1 do
+        let c = Bigstringaf.get bs i in
+        push (Some c)
+      done ) ;
   Lwt.async (fun () ->
-      Lwt.pause ()
-      >>= fun () ->
-      ( match (request.meth, request.target) with
+      match (request.meth, request.target) with
       | `GET, "/" ->
-          let page =
-            {|<!DOCTYPE html>
-              <html>
-              <head>
-                <title>Upload multiple files</title>
-              </head>
-              <body>
-                <div>
-                  <form action="http://localhost:1234" method="post" enctype="multipart/form-data">
-                    <input type="file" name="name" multiple><br>
-                    <br>
-                    After uploading multiple files, click Submit.<br>
-                    <input type="submit" value="Submit">
-                  </form>
-                <div>
-              </body>
-              </html>|}
-          in
-          let page =
-            Bigstringaf.of_string ~off:0 ~len:(String.length page) page in
           let headers =
             Headers.of_list
-              [ ("content-length", Int.to_string (Bigstringaf.length page))
+              [ ("content-length", Int.to_string (String.length upload_page))
               ; ("content-type", "text/html") ] in
-          Reqd.respond_with_bigstring reqd (Response.create ~headers `OK) page
-      | `POST, "/upload" -> ()
-      | `GET, "/exit" -> exit 0
+          Reqd.respond_with_string reqd
+            (Response.create ~headers `OK)
+            upload_page ;
+          Lwt.return_unit
+      | `POST, "/upload" ->
+          let content_type = Headers.get_exn request.headers "content-type" in
+          handle_upload content_type req_body_stream
+          >|= fun s ->
+          let headers =
+            Headers.of_list
+              [ ("content-length", Int.to_string (String.length s))
+              ; ("content-type", "text/plain") ] in
+          Reqd.respond_with_string reqd (Response.create ~headers `OK) s
+      | `GET, "/exit" -> Lwt.return_unit
       | _ ->
           Reqd.respond_with_string reqd
             (Response.create `Not_found)
-            "Route not found" ) ;
-      Lwt.return_unit )
+            "Route not found" ;
+          Lwt.return_unit )
 
 let error_handler (_ : Unix.sockaddr) ?request:_ error start_response =
   let response_body = start_response Headers.empty in
@@ -55,7 +98,6 @@ let error_handler (_ : Unix.sockaddr) ?request:_ error start_response =
   Body.close_writer response_body
 
 let main port =
-  let open Lwt.Infix in
   let listen_address = Unix.(ADDR_INET (inet_addr_loopback, port)) in
   Lwt_engine.set (new Lwt_engine.libev ()) ;
   Lwt.async (fun () ->
