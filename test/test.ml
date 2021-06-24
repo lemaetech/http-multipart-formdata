@@ -1,15 +1,15 @@
-open! Http_multipart_formdata
-
 type string_result = (string, string) result [@@deriving show, ord]
 
 let%expect_test "parse_boundary" =
   let content_type =
     "multipart/form-data; \
      boundary=---------------------------735323031399963166993862150" in
-  parse_boundary ~content_type |> pp_string_result Format.std_formatter ;
+  Http_multipart_formdata.parse_boundary ~content_type
+  |> pp_string_result Format.std_formatter ;
   [%expect {| (Ok "---------------------------735323031399963166993862150") |}]
 
-type parse_result = ((Part_header.t * string) list, string) result
+type parse_result =
+  ((Http_multipart_formdata.Part_header.t * string) list, string) result
 [@@deriving show, ord]
 
 let%expect_test "parse_parts" =
@@ -67,9 +67,10 @@ let%expect_test "parse_parts" =
     {|multipart/form-data; boundary=---------------------------735323031399963166993862150|}
   in
   Lwt_result.(
-    lift (parse_boundary ~content_type)
+    lift (Http_multipart_formdata.parse_boundary ~content_type)
     >>= fun boundary ->
-    parse_parts_stream ~boundary ~on_part (Lwt_stream.of_string body)
+    Http_multipart_formdata.parse_parts_stream ~boundary ~on_part
+      (Lwt_stream.of_string body)
     >>= fun () -> ok (Queue.to_seq parts |> List.of_seq |> Lwt.all))
   |> Lwt_main.run
   |> fun l ->
