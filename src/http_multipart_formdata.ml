@@ -221,12 +221,11 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) = struct
       match boundary_type' with
       | `Body_end -> unit
       | `Part_start ->
-          let* header = part_body_header in
+          let* header = part_body_header <* trim_input_buffer in
           let stream, push = Lwt_stream.create_bounded part_stream_chunk_size in
           Lwt.async (fun () -> on_part header stream) ;
-          trim_input_buffer
-          *> take_while_cb unsafe_any_char ~while_:(is_not crlf_dash_boundary)
-               ~on_take_cb:(fun x -> of_promise @@ push#push x)
+          take_while_cb unsafe_any_char ~while_:(is_not crlf_dash_boundary)
+            ~on_take_cb:(fun x -> of_promise @@ push#push x)
           *> trim_input_buffer
           >>= fun () -> (push#close ; unit) *> loop_parts () in
     (*** Ignore preamble - any text before first boundary value. ***)
