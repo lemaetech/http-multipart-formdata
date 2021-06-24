@@ -25,6 +25,9 @@ type parse_result =
 [@@deriving show, ord]
 
 let handle_upload content_type req_body_stream =
+  Lwt_stream.to_string req_body_stream
+  >>= fun s ->
+  Printf.printf "Req body:%s\n%!" s ;
   let parts = Queue.create () in
   let on_part header stream =
     let open Lwt.Infix in
@@ -41,7 +44,7 @@ let handle_upload content_type req_body_stream =
     lift (Http_multipart_formdata.parse_boundary ~content_type)
     >>= fun boundary ->
     Http_multipart_formdata.parse_parts_stream ~boundary ~on_part
-      req_body_stream
+      (Lwt_stream.of_string s)
     >|= fun () -> Queue.to_seq parts |> List.of_seq)
   >|= fun parts ->
   let s = show_parse_result parts in
