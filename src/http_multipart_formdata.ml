@@ -214,26 +214,30 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) = struct
       body_end <|> part_start <?> "Invalid 'multipart/formdata' boundary value"
     in
     let crlf_dash_boundary = string_cs @@ Format.sprintf "\r\n--%s" boundary in
-    let rec loop_parts () =
+    (* ---- 
+       l_parts - list of part promises
+     * ----*)
+    let rec loop_parts l_parts =
       let* boundary_type' =
         crlf_dash_boundary *> boundary_type <* trim_input_buffer
       in
       match boundary_type' with
-      | `Body_end -> unit
+      | `Body_end -> of_promise (Lwt.join l_parts)
       | `Part_start ->
           let* header = part_body_header <* trim_input_buffer in
           let stream, push = Lwt_stream.create_bounded part_stream_chunk_size in
-          Lwt.async (fun () -> on_part header stream) ;
+          let part_p = on_part header stream in
           take_while_cb unsafe_any_char ~while_:(is_not crlf_dash_boundary)
             ~on_take_cb:(fun x -> of_promise @@ push#push x)
           *> trim_input_buffer
-          >>= fun () -> (push#close ; unit) *> loop_parts () in
+          >>= fun () -> (push#close ; unit) *> loop_parts (part_p :: l_parts)
+    in
     (*** Ignore preamble - any text before first boundary value. ***)
     take_while_cb
       ~while_:(is_not crlf_dash_boundary)
       ~on_take_cb:(fun (_ : char) -> unit)
       unsafe_any_char
-    *> trim_input_buffer *> loop_parts ()
+    *> trim_input_buffer *> loop_parts []
     |> parse http_body
 end
 

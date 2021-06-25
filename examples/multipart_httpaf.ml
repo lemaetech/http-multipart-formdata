@@ -25,44 +25,43 @@ type parse_result =
 [@@deriving show, ord]
 
 let handle_upload content_type req_body_stream =
-  Lwt_stream.to_string req_body_stream
-  >>= fun s ->
-  Printf.printf "Req body:%s\n%!" s ;
   let parts = Queue.create () in
   let on_part header stream =
-    let open Lwt.Infix in
     let buf = Buffer.create 0 in
     let rec loop () =
       Lwt_stream.get stream
       >>= function
       | None -> Lwt.return_unit | Some c -> Buffer.add_char buf c ; loop ()
     in
-    Lwt.bind (loop ()) (fun () ->
-        Lwt.return @@ Queue.push (header, Buffer.contents buf) parts ) in
-  Printf.printf "content_type:%s\n%!" content_type ;
+    loop ()
+    >>= fun () -> Lwt.return @@ Queue.push (header, Buffer.contents buf) parts
+  in
   Lwt_result.(
     lift (Http_multipart_formdata.parse_boundary ~content_type)
     >>= fun boundary ->
     Http_multipart_formdata.parse_parts_stream ~boundary ~on_part
-      (Lwt_stream.of_string s)
+      req_body_stream
     >|= fun () -> Queue.to_seq parts |> List.of_seq)
-  >|= fun parts ->
-  let s = show_parse_result parts in
-  s
+  >|= fun parts -> show_parse_result parts
 
 let request_handler (_ : Unix.sockaddr) reqd =
   let request = Reqd.request reqd in
   let request_body = Reqd.request_body reqd in
   let req_body_stream, push = Lwt_stream.create () in
+  (* Httpaf seems to remove CRLF from first boundary value line.RFC 7578
+     specifies CRLF as part of boundary value line in a multipart
+     (https://datatracker.ietf.org/doc/html/rfc7578#section-4.1); so we add it back here.
+  *)
+  push (Some '\r') ;
+  push (Some '\n') ;
   Body.schedule_read request_body
-    ~on_eof:(fun () ->
-      push None ;
-      Body.close_reader request_body )
+    ~on_eof:(fun () -> Printf.printf "on_eof\n%!" ; push None)
     ~on_read:(fun bs ~off ~len ->
       for i = 0 to len - off - 1 do
         let c = Bigstringaf.get bs i in
         push (Some c)
       done ) ;
+  Body.close_reader request_body ;
   Lwt.async (fun () ->
       match (request.meth, request.target) with
       | `GET, "/" ->
@@ -75,6 +74,7 @@ let request_handler (_ : Unix.sockaddr) reqd =
             upload_page ;
           Lwt.return_unit
       | `POST, "/upload" ->
+          Printf.printf "/upload\n%!" ;
           let content_type = Headers.get_exn request.headers "content-type" in
           handle_upload content_type req_body_stream
           >|= fun s ->
