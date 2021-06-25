@@ -50,9 +50,8 @@ let () =
   Lwt_result.(
     lift (Http_multipart_formdata.parse_boundary ~content_type)
     >>= fun boundary ->
-    Http_multipart_formdata.parse_parts_stream ~boundary ~on_part
-      ~http_body:(Lwt_stream.of_string body)
-      ()
+    Http_multipart_formdata.parse_parts ~boundary ~on_part
+      (`Stream (Lwt_stream.of_string body))
     >|= fun () -> Queue.to_seq parts |> List.of_seq)
   |> Lwt_main.run
   |> pp_parse_result Format.std_formatter

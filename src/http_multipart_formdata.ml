@@ -243,19 +243,31 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) = struct
     |> parse http_body
 end
 
-let parse_parts_stream ?part_stream_chunk_size ~boundary ~on_part ~http_body ()
-    =
+type http_body =
+  [ `Stream of char Lwt_stream.t
+  | `Fd of Lwt_unix.file_descr
+  | `Channel of Lwt_io.input_channel ]
+
+let rec parse_parts ?part_stream_chunk_size ~boundary ~on_part
+    (http_body : http_body) =
+  match http_body with
+  | `Stream stream ->
+      parse_parts_stream ?part_stream_chunk_size ~boundary ~on_part stream
+  | `Fd fd -> parse_parts_fd ?part_stream_chunk_size ~boundary ~on_part fd
+  | `Channel channel ->
+      parse_parts_channel ?part_stream_chunk_size ~boundary ~on_part channel
+
+and parse_parts_stream ?part_stream_chunk_size ~boundary ~on_part http_body =
   let module P = Make (Reparse_lwt.Stream) in
   let http_body = Reparse_lwt.Stream.create_input http_body in
   P.parse_parts ?part_stream_chunk_size ~boundary ~on_part http_body
 
-let parse_parts_fd ?part_stream_chunk_size ~boundary ~on_part ~http_body () =
+and parse_parts_fd ?part_stream_chunk_size ~boundary ~on_part http_body =
   let module P = Make (Reparse_lwt_unix.Fd) in
   let http_body = Reparse_lwt_unix.Fd.create_input http_body in
   P.parse_parts ?part_stream_chunk_size ~boundary ~on_part http_body
 
-let parse_parts_channel ?part_stream_chunk_size ~boundary ~on_part ~http_body ()
-    =
+and parse_parts_channel ?part_stream_chunk_size ~boundary ~on_part http_body =
   let module P = Make (Reparse_lwt_unix.Channel) in
   let http_body = Reparse_lwt_unix.Channel.create_input http_body in
   P.parse_parts ?part_stream_chunk_size ~boundary ~on_part http_body

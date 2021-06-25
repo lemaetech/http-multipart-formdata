@@ -44,46 +44,27 @@ end
     functions to process multipart parts. *)
 type on_part_cb = Part_header.t -> body:char Lwt_stream.t -> unit Lwt.t
 
-(** {2 Parsing functions
-    [parse_parts_* ?part_stream_chunk_size ~boundary ~on_part http_post_body]
-    functions with various input types.
+(** [http_body] represents various HTTP POST body stream. *)
+type http_body =
+  [ `Stream of char Lwt_stream.t
+  | `Fd of Lwt_unix.file_descr
+  | `Channel of Lwt_io.input_channel ]
+
+val parse_parts :
+     ?part_stream_chunk_size:int
+  -> boundary:boundary
+  -> on_part:on_part_cb
+  -> http_body
+  -> (unit, string) result Lwt.t
+(** [parse_parts ?part_stream_chunk_size ~boundary ~on_part http_body] functions
+    with various input types.
 
     - [part_stream_chunk_size] is the maximum number of bytes each chunk holds
       at any time. The default value is [1048576] or [1MB].
 
-    - [boundary] is part boundary value. Use [parse_boundary] to parse boundary
+    - [boundary] is part boundary value. Use {!parse_boundary} to parse boundary
       value from [Content-type] header value.
 
     - [on_part] is the part handling function
 
-    - [body] is the raw HTTP POST request body content stream. *)
-
-val parse_parts_stream :
-     ?part_stream_chunk_size:int
-  -> boundary:boundary
-  -> on_part:on_part_cb
-  -> http_body:char Lwt_stream.t
-  -> unit
-  -> (unit, string) result Lwt.t
-(** [parse_parts_stream] parse multipart where body content is
-    [char Lwt_stream.t]. *)
-
-val parse_parts_fd :
-     ?part_stream_chunk_size:int
-  -> boundary:boundary
-  -> on_part:on_part_cb
-  -> http_body:Lwt_unix.file_descr
-  -> unit
-  -> (unit, string) result Lwt.t
-(** [parse_parts_stream] parse multipart where body content is
-    [Lwt_unix.file_descr]. *)
-
-val parse_parts_channel :
-     ?part_stream_chunk_size:int
-  -> boundary:boundary
-  -> on_part:on_part_cb
-  -> http_body:Lwt_io.input_channel
-  -> unit
-  -> (unit, string) result Lwt.t
-(** [parse_parts_stream] parse multipart where body content is
-    [Lwt_io.input_channel]. *)
+    - [http_body] is the raw HTTP POST request body content stream. *)
