@@ -7,16 +7,24 @@ let upload_page =
     <html>
     <head>
       <title>Upload multiple files</title>
+      <style>
+        .main {
+          margin: auto;
+          padding: 20px;
+          font-family: Arial, sans-serif;
+          width: 600px;
+          border: 1px solid gray;
+        }
+      </style>
     </head>
     <body>
-      <div>
+      <div class="main">
         <form action="http://localhost:8080/upload" method="post" enctype="multipart/form-data">
+          <label>Select files to upload:</label>
           <input type="file" name="name" multiple><br>
-          <br>
-          After uploading multiple files, click Submit.<br>
-          <input type="submit" value="Submit">
+          <input type="submit" value="Upload">
         </form>
-      <div>
+      </div>
     </body>
     </html>|}
 
