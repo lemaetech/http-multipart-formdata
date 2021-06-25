@@ -16,21 +16,6 @@ val parse_boundary : content_type:string -> (boundary, string) result
 (** [parse_boundary ~content_type] parses [content_type] to extract [boundary]
     value.[content_type] is the HTTP request [Content-Type] header value. *)
 
-(** {2 Parsing multi-parts}
-
-    [parse_parts_* ?part_stream_chunk_size ~boundary ~on_part http_post_body]
-    functions with various input types.
-
-    - [part_stream_chunk_size] is the maximum number of bytes each chunk holds
-      at any time. The default value is [1048576] or [1MB].
-
-    - [boundary] is part boundary value. Use [parse_boundary] to parse boundary
-      value from [Content-type] header value.
-
-    - [on_part] is the part handling function
-
-    - [body] is the raw HTTP POST request body content stream. *)
-
 (** Represents a parsed multipart part header data. *)
 module Part_header : sig
   type t
@@ -52,6 +37,21 @@ module Part_header : sig
   val equal : t -> t -> bool
   val pp : Format.formatter -> t -> unit
 end
+
+(** {2 Parsing multi-parts}
+
+    [parse_parts_* ?part_stream_chunk_size ~boundary ~on_part http_post_body]
+    functions with various input types.
+
+    - [part_stream_chunk_size] is the maximum number of bytes each chunk holds
+      at any time. The default value is [1048576] or [1MB].
+
+    - [boundary] is part boundary value. Use [parse_boundary] to parse boundary
+      value from [Content-type] header value.
+
+    - [on_part] is the part handling function
+
+    - [body] is the raw HTTP POST request body content stream. *)
 
 val parse_parts_stream :
      ?part_stream_chunk_size:int
