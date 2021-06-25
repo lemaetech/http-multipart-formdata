@@ -82,7 +82,6 @@ let request_handler (_ : Unix.sockaddr) reqd =
             upload_page ;
           Lwt.return_unit
       | `POST, "/upload" ->
-          Printf.printf "/upload\n%!" ;
           let content_type = Headers.get_exn request.headers "content-type" in
           handle_upload content_type req_body_stream
           >|= fun s ->

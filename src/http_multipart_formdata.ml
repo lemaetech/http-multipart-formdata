@@ -209,7 +209,7 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) = struct
   let parse_parts ?(part_stream_chunk_size = 1024 * 1024) ~boundary ~on_part
       http_body =
     let boundary_type =
-      let body_end = string_cs "--" *> optional crlf $> `Body_end in
+      let body_end = string_cs "--" *> optional crlf $> `End in
       let part_start = string_cs "\r\n" $> `Part_start in
       body_end <|> part_start <?> "Invalid 'multipart/formdata' boundary value"
     in
@@ -222,7 +222,7 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) = struct
         crlf_dash_boundary *> boundary_type <* trim_input_buffer
       in
       match boundary_type' with
-      | `Body_end -> of_promise (Lwt.join l_parts)
+      | `End -> of_promise (Lwt.join l_parts)
       | `Part_start ->
           let* header = part_body_header <* trim_input_buffer in
           let stream, push = Lwt_stream.create_bounded part_stream_chunk_size in
