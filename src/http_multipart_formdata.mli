@@ -38,8 +38,13 @@ module Part_header : sig
   val pp : Format.formatter -> t -> unit
 end
 
-(** {2 Parsing multi-parts}
+(** {2 Parsing multi-parts} *)
 
+(** [on_part_cb] represents the callback function which is called by the parse
+    functions to process multipart parts. *)
+type on_part_cb = Part_header.t -> body:char Lwt_stream.t -> unit Lwt.t
+
+(** {2 Parsing functions
     [parse_parts_* ?part_stream_chunk_size ~boundary ~on_part http_post_body]
     functions with various input types.
 
@@ -56,7 +61,7 @@ end
 val parse_parts_stream :
      ?part_stream_chunk_size:int
   -> boundary:boundary
-  -> on_part:(Part_header.t -> char Lwt_stream.t -> unit Lwt.t)
+  -> on_part:on_part_cb
   -> char Lwt_stream.t
   -> (unit, string) result Lwt.t
 (** [parse_parts_stream] parse multipart where body content is
@@ -65,7 +70,7 @@ val parse_parts_stream :
 val parse_parts_fd :
      ?part_stream_chunk_size:int
   -> boundary:boundary
-  -> on_part:(Part_header.t -> char Lwt_stream.t -> unit Lwt.t)
+  -> on_part:on_part_cb
   -> Lwt_unix.file_descr
   -> (unit, string) result Lwt.t
 (** [parse_parts_stream] parse multipart where body content is
@@ -74,7 +79,7 @@ val parse_parts_fd :
 val parse_parts_channel :
      ?part_stream_chunk_size:int
   -> boundary:boundary
-  -> on_part:(Part_header.t -> char Lwt_stream.t -> unit Lwt.t)
+  -> on_part:on_part_cb
   -> Lwt_io.input_channel
   -> (unit, string) result Lwt.t
 (** [parse_parts_stream] parse multipart where body content is

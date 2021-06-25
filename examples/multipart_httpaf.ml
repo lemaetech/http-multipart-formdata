@@ -34,10 +34,10 @@ type parse_result =
 
 let handle_upload content_type req_body_stream =
   let parts = Queue.create () in
-  let on_part header stream =
+  let on_part header ~body =
     let buf = Buffer.create 0 in
     let rec loop () =
-      Lwt_stream.get stream
+      Lwt_stream.get body
       >>= function
       | None -> Lwt.return_unit | Some c -> Buffer.add_char buf c ; loop ()
     in
