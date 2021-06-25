@@ -56,8 +56,8 @@ let request_handler (_ : Unix.sockaddr) reqd =
   let request = Reqd.request reqd in
   let request_body = Reqd.request_body reqd in
   let req_body_stream, push = Lwt_stream.create () in
-  (* Httpaf seems to remove CRLF from first boundary value line.RFC 7578
-     specifies CRLF as part of boundary value line in a multipart
+  (* Httpaf removes CRLF in request body. This affects the first boundary value line.
+     RFC 7578 specifies CRLF as part of a boundary value line in a multipart body
      (https://datatracker.ietf.org/doc/html/rfc7578#section-4.1); so we add it back here.
   *)
   push (Some '\r') ;
