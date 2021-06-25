@@ -34,11 +34,11 @@ let () =
       ; {|aωb|}
       ; {|-----------------------------735323031399963166993862150--|} ] in
   let parts = Queue.create () in
-  let on_part header ~body =
+  let on_part header ~part_body_stream =
     let open Lwt.Infix in
     let buf = Buffer.create 0 in
     let rec loop () =
-      Lwt_stream.get body
+      Lwt_stream.get part_body_stream
       >>= function
       | None -> Lwt.return_unit | Some c -> Buffer.add_char buf c ; loop ()
     in

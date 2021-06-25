@@ -128,8 +128,6 @@ let parse_boundary ~content_type =
         | None -> fail "'boundary' parameter not found" )
   |> parse (create_input_from_string content_type)
 
-type on_part_cb = Part_header.t -> body:char Lwt_stream.t -> unit Lwt.t
-
 module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) = struct
   open P
   open Make_common (P)
@@ -228,7 +226,7 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) = struct
       | `Part_start ->
           let* header = part_body_header <* trim_input_buffer in
           let stream, push = Lwt_stream.create_bounded part_stream_chunk_size in
-          let part_p = on_part header ~body:stream in
+          let part_p = on_part header ~part_body_stream:stream in
           take_while_cb unsafe_any_char ~while_:(is_not crlf_dash_boundary)
             ~on_take_cb:(fun x -> of_promise @@ push#push x)
           *> trim_input_buffer
@@ -242,6 +240,9 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) = struct
     *> trim_input_buffer *> loop_parts []
     |> parse http_body
 end
+
+type on_part_cb =
+  Part_header.t -> part_body_stream:char Lwt_stream.t -> unit Lwt.t
 
 type http_body =
   [ `Stream of char Lwt_stream.t

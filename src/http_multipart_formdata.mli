@@ -42,7 +42,8 @@ end
 
 (** [on_part_cb] represents the callback function which is called by the parse
     functions to process multipart parts. *)
-type on_part_cb = Part_header.t -> body:char Lwt_stream.t -> unit Lwt.t
+type on_part_cb =
+  Part_header.t -> part_body_stream:char Lwt_stream.t -> unit Lwt.t
 
 (** [http_body] represents various HTTP POST body stream. *)
 type http_body =
