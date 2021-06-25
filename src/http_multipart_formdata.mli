@@ -62,7 +62,8 @@ val parse_parts_stream :
      ?part_stream_chunk_size:int
   -> boundary:boundary
   -> on_part:on_part_cb
-  -> char Lwt_stream.t
+  -> http_body:char Lwt_stream.t
+  -> unit
   -> (unit, string) result Lwt.t
 (** [parse_parts_stream] parse multipart where body content is
     [char Lwt_stream.t]. *)
@@ -71,7 +72,8 @@ val parse_parts_fd :
      ?part_stream_chunk_size:int
   -> boundary:boundary
   -> on_part:on_part_cb
-  -> Lwt_unix.file_descr
+  -> http_body:Lwt_unix.file_descr
+  -> unit
   -> (unit, string) result Lwt.t
 (** [parse_parts_stream] parse multipart where body content is
     [Lwt_unix.file_descr]. *)
@@ -80,7 +82,8 @@ val parse_parts_channel :
      ?part_stream_chunk_size:int
   -> boundary:boundary
   -> on_part:on_part_cb
-  -> Lwt_io.input_channel
+  -> http_body:Lwt_io.input_channel
+  -> unit
   -> (unit, string) result Lwt.t
 (** [parse_parts_stream] parse multipart where body content is
     [Lwt_io.input_channel]. *)

@@ -70,7 +70,8 @@ let%expect_test "parse_parts" =
     lift (Http_multipart_formdata.parse_boundary ~content_type)
     >>= fun boundary ->
     Http_multipart_formdata.parse_parts_stream ~boundary ~on_part
-      (Lwt_stream.of_string body)
+      ~http_body:(Lwt_stream.of_string body)
+      ()
     >>= fun () -> ok (Queue.to_seq parts |> List.of_seq |> Lwt.all))
   |> Lwt_main.run
   |> fun l ->

@@ -48,7 +48,7 @@ let handle_upload content_type req_body_stream =
     lift (Http_multipart_formdata.parse_boundary ~content_type)
     >>= fun boundary ->
     Http_multipart_formdata.parse_parts_stream ~boundary ~on_part
-      req_body_stream
+      ~http_body:req_body_stream ()
     >|= fun () -> Queue.to_seq parts |> List.of_seq)
   >|= fun parts -> show_parse_result parts
 
