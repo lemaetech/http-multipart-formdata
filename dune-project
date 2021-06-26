@@ -25,7 +25,8 @@
  (depends
   (ocaml
    (>= 4.10.0))
-  fmt
+  (fmt
+   (>= 0.8.9))
   lwt
   (reparse
    (>= 3.0.0))
