@@ -31,5 +31,7 @@
    (>= 3.0.0))
   (reparse-lwt
    (>= 3.0.0))
+  (reparse-lwt-unix
+   (>= 3.0.0))
   (ppx_expect :with-test)
   (ppx_deriving :with-test)))
