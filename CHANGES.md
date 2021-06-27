@@ -1,4 +1,8 @@
-## v2.0.0 2021-06-23
+## v2.0.1 2021-06-27
+
+- Relax CRFL token on the first boundary value line
+
+## v2.0.0 2021-06-26
 
 - Upgrade to `reparse v3.0.0`
 - Change API to streaming api 
