@@ -57,7 +57,7 @@ let request_handler (_ : Unix.sockaddr) reqd =
   let request = Reqd.request reqd in
   let request_body = Reqd.request_body reqd in
   Body.schedule_read request_body
-    ~on_eof:(fun () -> Printf.printf "on_eof\n%!" ; push None)
+    ~on_eof:(fun () -> push None)
     ~on_read:(fun bs ~off ~len ->
       for i = 0 to len - off - 1 do
         let c = Bigstringaf.get bs i in
