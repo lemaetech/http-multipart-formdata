@@ -127,6 +127,7 @@ let parse_boundary ~content_type =
         | Some b -> return b
         | None -> fail "'boundary' parameter not found" )
   |> parse (create_input_from_string content_type)
+  |> Result.map (fun (x, _) -> x)
 
 module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) = struct
   open P
@@ -251,12 +252,15 @@ type http_body =
 
 let rec parse_parts ?part_stream_chunk_size ~boundary ~on_part
     (http_body : http_body) =
-  match http_body with
-  | `Stream stream ->
-      parse_parts_stream ?part_stream_chunk_size ~boundary ~on_part stream
-  | `Fd fd -> parse_parts_fd ?part_stream_chunk_size ~boundary ~on_part fd
-  | `Channel channel ->
-      parse_parts_channel ?part_stream_chunk_size ~boundary ~on_part channel
+  Lwt_result.(
+    ( match http_body with
+    | `Stream stream ->
+        parse_parts_stream ?part_stream_chunk_size ~boundary ~on_part stream
+    | `Fd fd -> parse_parts_fd ?part_stream_chunk_size ~boundary ~on_part fd
+    | `Channel channel ->
+        parse_parts_channel ?part_stream_chunk_size ~boundary ~on_part channel
+    )
+    >|= fun (x, _) -> x)
 
 and parse_parts_stream ?part_stream_chunk_size ~boundary ~on_part http_body =
   let module P = Make (Reparse_lwt.Stream) in
