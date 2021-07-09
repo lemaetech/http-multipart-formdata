@@ -9,7 +9,7 @@ let%expect_test "parse_boundary" =
   [%expect {| (Ok "---------------------------735323031399963166993862150") |}]
 
 type parse_result =
-  ((Http_multipart_formdata.Part_header.t * string) list, string) result
+  ((Http_multipart_formdata.part * string) list, string) result
 [@@deriving show, ord]
 
 let%expect_test "parse_parts" =

@@ -12,53 +12,43 @@
 (** Represents the multipart boundary value. *)
 type boundary = string
 
-val parse_boundary : content_type:string -> (boundary, string) result
-(** [parse_boundary ~content_type] parses [content_type] to extract [boundary]
-    value.[content_type] is the HTTP request [Content-Type] header value. *)
-
-(** Represents a parsed multipart part header data. *)
-module Part_header : sig
-  type t
-
-  val name : t -> string
-  (** [name t] returns the form field name *)
-
-  val content_type : t -> string
-  (** [content_type t] returns the part content-type. *)
-
-  val filename : t -> string option
-  (** [filename t] returns the uploaded filename is the multipart is a file *)
-
-  val param_value : string -> t -> string option
-  (** [param_value name t] returns the multipart parameter value with name
-      [name]. *)
-
-  val compare : t -> t -> int
-  val equal : t -> t -> bool
-  val pp : Format.formatter -> t -> unit
-end
-
-(** {2 Parsing multi-parts} *)
-
-(** [on_part_cb] represents the callback function which is called by the parse
-    functions to process multipart parts. *)
-type on_part_cb =
-  Part_header.t -> part_body_stream:char Lwt_stream.t -> unit Lwt.t
-
 (** [http_body] represents various HTTP POST body stream. *)
 type http_body =
   [ `Stream of char Lwt_stream.t
   | `Fd of Lwt_unix.file_descr
   | `Channel of Lwt_io.input_channel ]
 
+(** Represents a parsed multipart part header data. *)
+type part
+
+val parse_boundary : content_type:string -> (boundary, string) result
+(** [parse_boundary ~content_type] parses [content_type] to extract [boundary]
+    value.[content_type] is the HTTP request [Content-Type] header value. *)
+
+val name : part -> string
+(** [name t] returns the form field name *)
+
+val content_type : part -> string
+(** [content_type t] returns the part content-type. *)
+
+val filename : part -> string option
+(** [filename t] returns the uploaded filename is the multipart is a file *)
+
+val param_value : string -> part -> string option
+(** [param_value name t] returns the multipart parameter value with name [name]. *)
+
+val compare_part : part -> part -> int
+val equal_part : part -> part -> bool
+val pp_part : Format.formatter -> part -> unit
+
 val parse_parts :
      ?part_stream_chunk_size:int
   -> boundary:boundary
-  -> on_part:on_part_cb
+  -> on_part:(part -> part_body_stream:char Lwt_stream.t -> unit Lwt.t)
   -> http_body
   -> (unit, string) result Lwt.t
-(** [parse_parts ?part_stream_chunk_size ~boundary ~on_part http_body] functions
-    with various input types.
+(** [parse_parts ?part_stream_chunk_size ~boundary ~on_part http_body] is a push
+    based http multipart/formdata parser.
 
     - [part_stream_chunk_size] is the maximum number of bytes each chunk holds
       at any time. The default value is [1048576] or [1MB].

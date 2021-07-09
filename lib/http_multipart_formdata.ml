@@ -16,29 +16,26 @@ module Map = struct
     Fmt.seq ~sep:Fmt.semi pp_kv fmt (to_seq t)
 end
 
-module Part_header = struct
-  type t =
-    { name: string
-    ; content_type: string
-    ; filename: string option
-    ; parameters: string Map.t }
+type part =
+  { name: string
+  ; content_type: string
+  ; filename: string option
+  ; parameters: string Map.t }
 
-  let name t = t.name
-  let content_type t = t.content_type
-  let filename t = t.filename
-  let param_value name t = Map.find_opt name t.parameters
-  let compare (a : t) (b : t) = compare a b
-  let equal (a : t) (b : t) = compare a b = 0
+let name t = t.name
+let content_type t = t.content_type
+let filename t = t.filename
+let param_value name t = Map.find_opt name t.parameters
+let compare_part (a : part) (b : part) = compare a b
+let equal_part (a : part) (b : part) = compare a b = 0
 
-  let pp fmt t =
-    let fields =
-      [ Fmt.field "name" (fun p -> p.name) Fmt.string
-      ; Fmt.field "content_type" (fun p -> p.content_type) Fmt.string
-      ; Fmt.field "filename" (fun p -> p.filename) Fmt.(option string)
-      ; Fmt.field "parameters" (fun p -> p.parameters) (Map.pp Fmt.string) ]
-    in
-    Fmt.record ~sep:Fmt.semi fields fmt t
-end
+let pp_part fmt part =
+  let fields =
+    [ Fmt.field "name" (fun p -> p.name) Fmt.string
+    ; Fmt.field "content_type" (fun p -> p.content_type) Fmt.string
+    ; Fmt.field "filename" (fun p -> p.filename) Fmt.(option string)
+    ; Fmt.field "parameters" (fun p -> p.parameters) (Map.pp Fmt.string) ] in
+  Fmt.record ~sep:Fmt.semi fields fmt part
 
 module Make_common (P : Reparse.PARSER) = struct
   open P
@@ -205,7 +202,7 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) = struct
           match filename with
           | Some _ -> Map.remove "filename" parameters
           | None -> parameters in
-        return {Part_header.name; content_type; filename; parameters}
+        return {name; content_type; filename; parameters}
 
   let parse_parts ?(part_stream_chunk_size = 1024 * 1024) ~boundary ~on_part
       http_body =
@@ -241,9 +238,6 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) = struct
     *> dash_boundary *> trim_input_buffer *> loop_parts []
     |> parse http_body
 end
-
-type on_part_cb =
-  Part_header.t -> part_body_stream:char Lwt_stream.t -> unit Lwt.t
 
 type http_body =
   [ `Stream of char Lwt_stream.t

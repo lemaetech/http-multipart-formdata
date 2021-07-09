@@ -1,5 +1,5 @@
 type parse_result =
-  ((Http_multipart_formdata.Part_header.t * string) list, string) result
+  ((Http_multipart_formdata.part * string) list, string) result
 [@@deriving show, ord]
 
 let () =
