@@ -1,3 +1,7 @@
+## v2.0.2 2021-07-10
+
+- Upgrade to latest reparse version (3.1.0)
+
 ## v2.0.1 2021-06-27
 
 - Relax CRFL token on the first boundary value line
