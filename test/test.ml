@@ -3,9 +3,10 @@ type string_result = (string, string) result [@@deriving show, ord]
 let%expect_test "parse_boundary" =
   let content_type =
     "multipart/form-data; \
-     boundary=---------------------------735323031399963166993862150" in
+     boundary=---------------------------735323031399963166993862150"
+  in
   Http_multipart_formdata.parse_boundary ~content_type
-  |> pp_string_result Format.std_formatter ;
+  |> pp_string_result Format.std_formatter;
   [%expect {| (Ok "---------------------------735323031399963166993862150") |}]
 
 type parse_result =
@@ -48,21 +49,27 @@ let%expect_test "parse_parts" =
       ; {|Content-Type: application/octet-stream|}
       ; {||}
       ; {|aωb|}
-      ; {|-----------------------------735323031399963166993862150--|} ] in
+      ; {|-----------------------------735323031399963166993862150--|}
+      ]
+  in
   let parts = Queue.create () in
   let on_part header ~part_body_stream =
     let open Lwt.Infix in
     let buf = Buffer.create 0 in
     let part_done, resolve_part_done = Lwt.wait () in
-    Queue.push part_done parts ;
+    Queue.push part_done parts;
     let rec loop () =
       Lwt_stream.get part_body_stream
       >>= function
       | None -> Lwt.return_unit
-      | Some c -> Buffer.add_char buf c ; (loop [@tailcall]) () in
+      | Some c ->
+        Buffer.add_char buf c;
+        (loop [@tailcall]) ()
+    in
     loop ()
     >|= fun () ->
-    Lwt.wakeup_later resolve_part_done (header, Buffer.contents buf) in
+    Lwt.wakeup_later resolve_part_done (header, Buffer.contents buf)
+  in
   let content_type =
     {|multipart/form-data; boundary=---------------------------735323031399963166993862150|}
   in
@@ -74,7 +81,7 @@ let%expect_test "parse_parts" =
     >>= fun () -> ok (Queue.to_seq parts |> List.of_seq |> Lwt.all))
   |> Lwt_main.run
   |> fun l ->
-  pp_parse_result Format.std_formatter l ;
+  pp_parse_result Format.std_formatter l;
   [%expect
     {|
     (Ok [(name: text1;

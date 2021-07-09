@@ -32,7 +32,9 @@ let () =
       ; {|Content-Type: application/octet-stream|}
       ; {||}
       ; {|aωb|}
-      ; {|-----------------------------735323031399963166993862150--|} ] in
+      ; {|-----------------------------735323031399963166993862150--|}
+      ]
+  in
   let parts = Queue.create () in
   let on_part header ~part_body_stream =
     let open Lwt.Infix in
@@ -40,10 +42,14 @@ let () =
     let rec loop () =
       Lwt_stream.get part_body_stream
       >>= function
-      | None -> Lwt.return_unit | Some c -> Buffer.add_char buf c ; loop ()
+      | None -> Lwt.return_unit
+      | Some c ->
+        Buffer.add_char buf c;
+        loop ()
     in
     Lwt.bind (loop ()) (fun () ->
-        Lwt.return @@ Queue.push (header, Buffer.contents buf) parts ) in
+        Lwt.return @@ Queue.push (header, Buffer.contents buf) parts)
+  in
   let content_type =
     {|multipart/form-data; boundary=---------------------------735323031399963166993862150|}
   in

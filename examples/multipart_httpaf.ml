@@ -39,7 +39,10 @@ let handle_upload content_type req_body_stream =
     let rec loop () =
       Lwt_stream.get part_body_stream
       >>= function
-      | None -> Lwt.return_unit | Some c -> Buffer.add_char buf c ; loop ()
+      | None -> Lwt.return_unit
+      | Some c ->
+        Buffer.add_char buf c;
+        loop ()
     in
     loop ()
     >>= fun () -> Lwt.return @@ Queue.push (header, Buffer.contents buf) parts
@@ -62,58 +65,60 @@ let request_handler (_ : Unix.sockaddr) reqd =
       for i = 0 to len - off - 1 do
         let c = Bigstringaf.get bs i in
         push (Some c)
-      done ) ;
-  Body.close_reader request_body ;
+      done);
+  Body.close_reader request_body;
   Lwt.async (fun () ->
       match (request.meth, request.target) with
       | `GET, "/" ->
-          let headers =
-            Headers.of_list
-              [ ("content-length", Int.to_string (String.length upload_page))
-              ; ("content-type", "text/html") ] in
-          Reqd.respond_with_string reqd
-            (Response.create ~headers `OK)
-            upload_page ;
-          Lwt.return_unit
+        let headers =
+          Headers.of_list
+            [ ("content-length", Int.to_string (String.length upload_page))
+            ; ("content-type", "text/html")
+            ]
+        in
+        Reqd.respond_with_string reqd (Response.create ~headers `OK) upload_page;
+        Lwt.return_unit
       | `POST, "/upload" ->
-          let content_type = Headers.get_exn request.headers "content-type" in
-          handle_upload content_type req_body_stream
-          >|= fun s ->
-          let headers =
-            Headers.of_list
-              [ ("content-length", Int.to_string (String.length s))
-              ; ("content-type", "text/plain") ] in
-          Reqd.respond_with_string reqd (Response.create ~headers `OK) s
+        let content_type = Headers.get_exn request.headers "content-type" in
+        handle_upload content_type req_body_stream
+        >|= fun s ->
+        let headers =
+          Headers.of_list
+            [ ("content-length", Int.to_string (String.length s))
+            ; ("content-type", "text/plain")
+            ]
+        in
+        Reqd.respond_with_string reqd (Response.create ~headers `OK) s
       | `GET, "/exit" -> Lwt.return_unit
       | _ ->
-          Reqd.respond_with_string reqd
-            (Response.create `Not_found)
-            "Route not found" ;
-          Lwt.return_unit )
+        Reqd.respond_with_string reqd
+          (Response.create `Not_found)
+          "Route not found";
+        Lwt.return_unit)
 
 let error_handler (_ : Unix.sockaddr) ?request:_ error start_response =
   let response_body = start_response Headers.empty in
-  ( match error with
+  (match error with
   | `Exn exn ->
-      Body.write_string response_body (Printexc.to_string exn) ;
-      Body.write_string response_body "\n"
+    Body.write_string response_body (Printexc.to_string exn);
+    Body.write_string response_body "\n"
   | #Status.standard as error ->
-      Body.write_string response_body (Status.default_reason_phrase error) ) ;
+    Body.write_string response_body (Status.default_reason_phrase error));
   Body.close_writer response_body
 
 let main port =
   let listen_address = Unix.(ADDR_INET (inet_addr_loopback, port)) in
-  Lwt_engine.set (new Lwt_engine.libev ()) ;
+  Lwt_engine.set (new Lwt_engine.libev ());
   Lwt.async (fun () ->
       Lwt_io.establish_server_with_client_socket ~backlog:11_000 listen_address
         (Server.create_connection_handler ~request_handler ~error_handler)
-      >>= fun _server -> Lwt.return_unit ) ;
+      >>= fun _server -> Lwt.return_unit);
   let forever, _ = Lwt.wait () in
   Lwt_main.run forever
 
 let () =
   let port = ref 8080 in
   Arg.parse
-    [("-p", Arg.Set_int port, " Listening port number (8080 by default)")]
-    ignore "Responds to requests with a fixed string for benchmarking purposes" ;
+    [ ("-p", Arg.Set_int port, " Listening port number (8080 by default)") ]
+    ignore "Responds to requests with a fixed string for benchmarking purposes";
   main !port
