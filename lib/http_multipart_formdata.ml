@@ -210,12 +210,32 @@ let parse_boundary ~content_type =
   |> parse (create_input_from_string content_type)
   |> Result.map (fun (x, _) -> x)
 
-module type MULTIPART_PARSER = sig end
+module type MULTIPART_PARSER = sig
+  type input
 
-module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) = struct
+  type 'a t
+
+  val preamble_parser : boundary -> unit t
+
+  val part_parser : int -> boundary -> read_result t
+
+  val parse_parts :
+       ?part_stream_chunk_size:int
+    -> boundary:boundary
+    -> on_part:(part -> part_body_stream:char Lwt_stream.t -> unit Lwt.t)
+    -> input
+    -> (unit * int, string) result Lwt.t
+end
+
+module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
+  MULTIPART_PARSER with type input = P.input with type 'a t = 'a P.t = struct
   open P
 
   open Make_common (P)
+
+  type input = P.input
+
+  type 'a t = 'a P.t
 
   let param =
     let name = skip whitespace *> char ';' *> skip whitespace *> token in
@@ -313,6 +333,32 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) = struct
         | None -> parameters
       in
       return { name; content_type; filename; parameters }
+
+  let preamble_parser boundary =
+    let dash_boundary = string_cs @@ Format.sprintf "--%s" boundary in
+    (*** Ignore preamble - any text before first boundary value. ***)
+    take_while_cb ~while_:(is_not dash_boundary)
+      ~on_take_cb:(fun (_c : char) -> unit)
+      unsafe_any_char
+    *> dash_boundary
+    *> trim_input_buffer
+
+  let part_parser read_body_len boundary =
+    let boundary_type =
+      let body_end = string_cs "--" *> optional crlf $> `End in
+      let part_start = string_cs "\r\n" $> `Part_start in
+      body_end <|> part_start <?> "Invalid 'multipart/formdata' boundary value"
+    in
+    let dash_boundary = string_cs @@ Format.sprintf "--%s" boundary in
+    let crlf_dash_boundary = crlf *> dash_boundary in
+    let* boundary_type' = boundary_type <* trim_input_buffer in
+    match boundary_type' with
+    | `End -> return `End
+    | `Part_start ->
+      let* header = part_body_header <* trim_input_buffer in
+      let* buf = unsafe_take_cstruct read_body_len in
+      let* () = trim_input_buffer <* crlf_dash_boundary in
+      return (`Body (Cstruct.to_bigarray buf, Cstruct.length buf))
 
   let parse_parts ?(part_stream_chunk_size = 1024 * 1024) ~boundary ~on_part
       http_body =
