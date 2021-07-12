@@ -9,15 +9,28 @@
 
 (** {2 Parsing boundary value} *)
 
-(** Represents the multipart boundary value. *)
-type boundary = string
+type reader
 
-(** [http_body] represents various HTTP POST body stream. *)
-type http_body =
+and read_result =
+  [ `End
+  | `Header of header list
+  | `Body of bigstring * int
+  | `Error of string
+  ]
+
+and bigstring =
+  (char, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t
+
+and header = string * string
+
+and input =
   [ `Stream of char Lwt_stream.t
   | `Fd of Lwt_unix.file_descr
   | `Channel of Lwt_io.input_channel
   ]
+
+(** Represents the multipart boundary value. *)
+and boundary = string
 
 (** Represents a parsed multipart part header data. *)
 type part
@@ -60,5 +73,14 @@ val parse_parts :
      ?part_stream_chunk_size:int
   -> boundary:boundary
   -> on_part:(part -> part_body_stream:char Lwt_stream.t -> unit Lwt.t)
-  -> http_body
+  -> input
   -> (unit, string) result Lwt.t
+
+val reader : ?read_body_len:int -> boundary -> input -> reader
+
+(** [parse_part ?read_body_len ~boundary reader] parse http multipart body and
+    returns a [read_result].
+
+    [read_body_len] determines the size of the multipart body to read in bytes.
+    By default 1KB. *)
+val parse_part : reader -> read_result Lwt.t

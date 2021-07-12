@@ -16,6 +16,33 @@ module Map = struct
     Fmt.seq ~sep:Fmt.semi pp_kv fmt (to_seq t)
 end
 
+type reader =
+  { input : input
+  ; read_body_len : int
+  ; mutable pos : int
+  }
+
+and read_result =
+  [ `End
+  | `Header of header list
+  | `Body of bigstring * int
+  | `Error of string
+  ]
+
+and bigstring =
+  (char, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t
+
+and header = string * string
+
+and input =
+  [ `Stream of char Lwt_stream.t
+  | `Fd of Lwt_unix.file_descr
+  | `Channel of Lwt_io.input_channel
+  ]
+
+(** Represents the multipart boundary value. *)
+and boundary = string
+
 type part =
   { name : string
   ; content_type : string
@@ -119,8 +146,6 @@ module Make_common (P : Reparse.PARSER) = struct
   let param_value = token <|> quoted_string
 end
 
-type boundary = string
-
 let parse_boundary ~content_type =
   let open Reparse.String in
   let open Make_common (Reparse.String) in
@@ -184,6 +209,8 @@ let parse_boundary ~content_type =
         | None -> fail "'boundary' parameter not found")
   |> parse (create_input_from_string content_type)
   |> Result.map (fun (x, _) -> x)
+
+module type MULTIPART_PARSER = sig end
 
 module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) = struct
   open P
@@ -326,14 +353,8 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) = struct
     |> parse http_body
 end
 
-type http_body =
-  [ `Stream of char Lwt_stream.t
-  | `Fd of Lwt_unix.file_descr
-  | `Channel of Lwt_io.input_channel
-  ]
-
 let rec parse_parts ?part_stream_chunk_size ~boundary ~on_part
-    (http_body : http_body) =
+    (http_body : input) =
   Lwt_result.(
     (match http_body with
     | `Stream stream ->
@@ -357,3 +378,8 @@ and parse_parts_channel ?part_stream_chunk_size ~boundary ~on_part http_body =
   let module P = Make (Reparse_lwt_unix.Channel) in
   let http_body = Reparse_lwt_unix.Channel.create_input http_body in
   P.parse_parts ?part_stream_chunk_size ~boundary ~on_part http_body
+
+let reader ?(read_body_len = 0) _boundary input =
+  { input; pos = 0; read_body_len }
+
+let parse_part _reader = Lwt.return `End
