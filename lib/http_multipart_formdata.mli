@@ -84,3 +84,23 @@ val reader : ?read_body_len:int -> boundary -> input -> reader
     [read_body_len] determines the size of the multipart body to read in bytes.
     By default 1KB. *)
 val parse_part : reader -> read_result Lwt.t
+
+module type MULTIPART_PARSER = sig
+  type input
+
+  type 'a t
+
+  val preamble_parser : boundary -> unit t
+
+  val part_parser : int -> boundary -> read_result t
+
+  val parse_parts :
+       ?part_stream_chunk_size:int
+    -> boundary:boundary
+    -> on_part:(part -> part_body_stream:char Lwt_stream.t -> unit Lwt.t)
+    -> input
+    -> (unit * int, string) result Lwt.t
+end
+
+module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
+  MULTIPART_PARSER

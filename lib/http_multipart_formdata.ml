@@ -355,7 +355,7 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
     match boundary_type' with
     | `End -> return `End
     | `Part_start ->
-      let* header = part_body_header <* trim_input_buffer in
+      let* _header = part_body_header <* trim_input_buffer in
       let* buf = unsafe_take_cstruct read_body_len in
       let* () = trim_input_buffer <* crlf_dash_boundary in
       return (`Body (Cstruct.to_bigarray buf, Cstruct.length buf))
