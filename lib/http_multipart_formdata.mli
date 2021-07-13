@@ -91,6 +91,8 @@ module type MULTIPART_PARSER = sig
 
       [read_body_len] determines the size of the multipart body to read in
       bytes. By default 1KB. *)
+
+  val pp_read_result : Format.formatter -> read_result -> unit
 end
 
 module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :

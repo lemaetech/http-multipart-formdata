@@ -174,6 +174,8 @@ module type MULTIPART_PARSER = sig
     (unit * int, string) result Lwt.t
 
   val parse_part : reader -> read_result Lwt.t
+
+  val pp_read_result : Format.formatter -> read_result -> unit
 end
 
 module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
@@ -323,6 +325,16 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
   and bigstring =
     (char, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t
 
+  let pp_read_result : Format.formatter -> read_result -> unit =
+   fun fmt -> function
+    | `End -> Fmt.string fmt "End"
+    | `Header header ->
+        Fmt.fmt "Header: %a" fmt (Fmt.vbox pp_part_header) header
+    | `Body (buf, len) ->
+        let s = Cstruct.of_bigarray buf |> Cstruct.to_string in
+        Fmt.fmt "Body: %d%a" fmt len (Fmt.vbox Fmt.string) s
+    | `Error e -> Fmt.fmt "Error %s" fmt e
+
   (* ignore all text before first boundary value. *)
   let preamble reader =
     let dash_boundary = string_cs reader.dash_boundary in
@@ -420,7 +432,7 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
 
   let parse_part (reader : reader) : read_result Lwt.t =
     Lwt.(
-      parse reader.input (part reader) >|= function
+      parse ~pos:reader.pos reader.input (part reader) >|= function
       | Ok (a, pos) ->
           reader.pos <- pos;
           a
