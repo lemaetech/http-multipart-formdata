@@ -306,7 +306,8 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
 
   type reader = {
     input : input;
-    boundary : boundary;
+    dash_boundary : string;
+    crlf_dash_boundary : string;
     read_body_len : int;
     mutable pos : int;
     mutable parsing_body : bool;
@@ -322,31 +323,13 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
   and bigstring =
     (char, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t
 
-  let preamble boundary =
-    let dash_boundary = string_cs @@ Format.sprintf "--%s" boundary in
+  let preamble reader =
+    let dash_boundary = string_cs @@ reader.dash_boundary in
     (*** Ignore preamble - any text before first boundary value. ***)
     take_while_cb ~while_:(is_not dash_boundary)
       ~on_take_cb:(fun (_c : char) -> unit)
       unsafe_any_char
     *> dash_boundary *> trim_input_buffer
-
-  let _index_of ~affix buf =
-    let not_matched = -1 in
-    let max_alen = String.length affix - 1 in
-    let max_blen = Cstruct.length buf - 1 in
-    let rec loop idx_a idx_b matched_from_idx =
-      if idx_a > max_alen || idx_b > max_blen then matched_from_idx
-      else
-        let ch_a = String.unsafe_get affix idx_a in
-        let ch_b = Cstruct.get_char buf idx_b in
-        if Char.equal ch_a ch_b then
-          let matched_from_idx =
-            if matched_from_idx = not_matched then idx_b else matched_from_idx
-          in
-          loop (idx_a + 1) (idx_b + 1) matched_from_idx
-        else loop 0 (idx_b + 1) not_matched
-    in
-    loop 0 0 not_matched
 
   let part_header =
     take ~at_least:1 (crlf *> any [ content_disposition; content_type true ])
@@ -385,45 +368,52 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
         return (`Header header)
 
   let rec part reader =
-    (if not reader.preamble_parsed then preamble reader.boundary else unit)
+    (if not reader.preamble_parsed then
+     preamble reader >>| fun () -> reader.preamble_parsed <- true
+    else unit)
     >>= fun () ->
     if reader.parsing_body then part_body reader
     else
       let end_ = string_cs "--" *> optional crlf $> `End in
-      let part_body = crlf *> crlf *> part_body reader in
+      let part_body =
+        crlf *> crlf
+        *>
+        (reader.parsing_body <- true;
+         part_body reader)
+      in
       end_ <|> part_header <|> part_body
 
   and part_body reader =
-    let* buf = unsafe_take_cstruct_ne reader.read_body_len in
-    let crlf_dash_boundary = Format.sprintf "\r\n--%s" reader.boundary in
-    let idx = _index_of ~affix:crlf_dash_boundary buf in
-    let len = if idx = 0 then Cstruct.len buf else idx in
-    let body = Cstruct.sub buf 0 len |> Cstruct.to_bigarray in
-    return @@ `Body (body, len)
-
-  (* let boundary_type = *)
-  (*   let body_end = string_cs "--" *> optional crlf $> `End in *)
-  (*   let part_start = string_cs "\r\n" $> `Part_start in *)
-  (*   body_end <|> part_start <?> "Invalid 'multipart/formdata' boundary value" *)
-  (* in *)
-  (* let dash_boundary = string_cs @@ Format.sprintf "--%s" reader.boundary in *)
-  (* let crlf_dash_boundary = crlf *> dash_boundary in *)
-  (* let* boundary_type' = boundary_type <* trim_input_buffer in *)
-  (* match boundary_type' with *)
-  (* | `End -> return `End *)
-  (* | `Part_start -> *)
-  (*     let* _header = part_body_header <* trim_input_buffer in *)
-  (*     let* buf = unsafe_take_cstruct_ne reader.read_body_len in *)
-  (*     let* () = trim_input_buffer <* crlf_dash_boundary in *)
-  (*     return (`Body (Cstruct.to_bigarray buf, Cstruct.length buf)) *)
+    let crlf_dash_boundary = string_cs reader.crlf_dash_boundary in
+    let buf = Cstruct.create reader.read_body_len in
+    let rec loop i =
+      if i < reader.read_body_len then (
+        let* is_boundary = is crlf_dash_boundary in
+        if is_boundary then (
+          let* () = crlf_dash_boundary *> unit in
+          reader.parsing_body <- false;
+          if i = 0 then part reader
+          else
+            let buf' = Cstruct.sub buf 0 i in
+            return @@ `Body (Cstruct.to_bigarray buf', Cstruct.len buf'))
+        else
+          let* ch = unsafe_any_char in
+          Cstruct.set_char buf i ch;
+          (loop [@tailcall]) (i + 1))
+      else return @@ `Body (Cstruct.to_bigarray buf, reader.read_body_len)
+    in
+    loop 0
 
   let reader ?(read_body_len = 1024) boundary input =
-    let read_body_len = max read_body_len (String.length boundary + 2) in
+    let dash_boundary = Format.sprintf "--%s" boundary in
+    let crlf_dash_boundary = Format.sprintf "\r\n--%s" boundary in
+    let read_body_len = max read_body_len (String.length crlf_dash_boundary) in
     {
       input;
       pos = 0;
       read_body_len;
-      boundary;
+      dash_boundary;
+      crlf_dash_boundary;
       parsing_body = false;
       preamble_parsed = false;
     }
