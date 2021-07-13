@@ -93,6 +93,8 @@ module type MULTIPART_PARSER = sig
     on_part:(part -> part_body_stream:char Lwt_stream.t -> unit Lwt.t) ->
     input ->
     (unit * int, string) result Lwt.t
+
+  val parse_part : reader -> read_result Lwt.t
 end
 
 module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :

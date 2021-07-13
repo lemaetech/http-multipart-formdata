@@ -178,6 +178,8 @@ module type MULTIPART_PARSER = sig
     on_part:(part -> part_body_stream:char Lwt_stream.t -> unit Lwt.t) ->
     input ->
     (unit * int, string) result Lwt.t
+
+  val parse_part : reader -> read_result Lwt.t
 end
 
 module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
@@ -190,7 +192,12 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
 
   type 'a t = 'a P.t
 
-  type reader = { input : input; read_body_len : int; mutable pos : int }
+  type reader = {
+    input : input;
+    boundary : boundary;
+    read_body_len : int;
+    mutable pos : int;
+  }
 
   and read_result =
     [ `End
@@ -202,9 +209,6 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
     (char, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t
 
   and header = string * string
-
-  let reader ?(read_body_len = 0) _boundary input =
-    { input; pos = 0; read_body_len }
 
   let param =
     let name = skip whitespace *> char ';' *> skip whitespace *> token in
@@ -366,6 +370,19 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
       unsafe_any_char
     *> dash_boundary *> trim_input_buffer *> loop_parts []
     |> parse http_body
+
+  let reader ?(read_body_len = 0) boundary input =
+    let rdr = { input; pos = 0; read_body_len; boundary } in
+    rdr
+
+  let parse_part (reader : reader) : read_result Lwt.t =
+    Lwt.(
+      parse reader.input (part_parser reader.read_body_len reader.boundary)
+      >|= function
+      | Ok (a, pos) ->
+          reader.pos <- pos;
+          a
+      | Error e -> `Error e)
 end
 
 let rec parse_parts ?part_stream_chunk_size ~boundary ~on_part
