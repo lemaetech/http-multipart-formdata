@@ -102,5 +102,7 @@ module type MULTIPART_PARSER = sig
     -> (unit * int, string) result Lwt.t
 end
 
+val index_of : affix:string -> Cstruct.t -> int
+
 module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
   MULTIPART_PARSER with type input = P.input with type 'a t = 'a P.t
