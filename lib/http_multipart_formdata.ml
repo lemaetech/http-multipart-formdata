@@ -381,7 +381,8 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
         (reader.parsing_body <- true;
          part_body reader)
       in
-      end_ <|> part_header <|> part_body
+      end_ <|> part_header <|> part_body >>= fun x ->
+      trim_input_buffer >>| fun () -> x
 
   and part_body reader =
     let crlf_dash_boundary = string_cs reader.crlf_dash_boundary in
