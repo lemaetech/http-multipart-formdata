@@ -394,9 +394,12 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
       end_ <|> part_header <|> part_body
 
   and part_body reader =
-    let* _buf = unsafe_take_cstruct_ne reader.read_body_len in
-    (* read until crlf_dash_boundary *)
-    return `End
+    let* buf = unsafe_take_cstruct_ne reader.read_body_len in
+    let crlf_dash_boundary = Format.sprintf "\r\n--%s" reader.boundary in
+    let idx = _index_of ~affix:crlf_dash_boundary buf in
+    let len = if idx = 0 then Cstruct.len buf else idx in
+    let body = Cstruct.sub buf 0 len |> Cstruct.to_bigarray in
+    return @@ `Body (body, len)
 
   (* let boundary_type = *)
   (*   let body_end = string_cs "--" *> optional crlf $> `End in *)
@@ -414,7 +417,8 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
   (*     let* () = trim_input_buffer <* crlf_dash_boundary in *)
   (*     return (`Body (Cstruct.to_bigarray buf, Cstruct.length buf)) *)
 
-  let reader ?(read_body_len = 0) boundary input =
+  let reader ?(read_body_len = 1024) boundary input =
+    let read_body_len = max read_body_len (String.length boundary + 2) in
     {
       input;
       pos = 0;
