@@ -326,14 +326,16 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
     (char, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t
 
   let pp_read_result : Format.formatter -> read_result -> unit =
-   fun fmt -> function
-    | `End -> Fmt.string fmt "End"
-    | `Header header ->
-        Fmt.fmt "Header: %a" fmt (Fmt.vbox pp_part_header) header
-    | `Body (buf, len) ->
-        Cstruct.of_bigarray buf |> Cstruct.to_string |> String.escaped
-        |> Fmt.fmt "Body: %d %a" fmt len (Fmt.vbox Fmt.string)
-    | `Error e -> Fmt.fmt "Error %s" fmt e
+   fun fmt ->
+    let pp fmt = function
+      | `End -> Fmt.string fmt "End"
+      | `Header header -> Fmt.fmt "Header: %a" fmt pp_part_header header
+      | `Body (buf, len) ->
+          Cstruct.of_bigarray buf |> Cstruct.to_string |> String.escaped
+          |> Fmt.fmt "Body: %d, %s" fmt len
+      | `Error e -> Fmt.fmt "Error %s" fmt e
+    in
+    Fmt.(cut ++ pp) fmt
 
   (* ignore all text before first boundary value. *)
   let preamble reader =
