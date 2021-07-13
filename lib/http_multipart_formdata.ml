@@ -331,8 +331,8 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
     | `Header header ->
         Fmt.fmt "Header: %a" fmt (Fmt.vbox pp_part_header) header
     | `Body (buf, len) ->
-        let s = Cstruct.of_bigarray buf |> Cstruct.to_string in
-        Fmt.fmt "Body: %d%a" fmt len (Fmt.vbox Fmt.string) s
+        Cstruct.of_bigarray buf |> Cstruct.to_string |> String.escaped
+        |> Fmt.fmt "Body: %d %a" fmt len (Fmt.vbox Fmt.string)
     | `Error e -> Fmt.fmt "Error %s" fmt e
 
   (* ignore all text before first boundary value. *)
@@ -388,10 +388,9 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
     else
       let end_ = string_cs "--" *> optional crlf $> `End in
       let part_body =
-        crlf *> crlf
-        *>
-        (reader.parsing_body <- true;
-         part_body reader)
+        let* () = crlf *> crlf *> unit in
+        reader.parsing_body <- true;
+        part_body reader
       in
       end_ <|> part_header <|> part_body <* trim_input_buffer
 
