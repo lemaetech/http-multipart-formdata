@@ -24,7 +24,7 @@ type input =
 type boundary = string
 (** Represents the multipart boundary value. *)
 
-type part = {
+type part_header = {
   name : string;
   content_type : string;
   filename : string option;
@@ -39,11 +39,11 @@ let filename t = t.filename
 
 let param_value name t = Map.find_opt name t.parameters
 
-let compare_part (a : part) (b : part) = compare a b
+let compare_part_header (a : part_header) (b : part_header) = compare a b
 
-let equal_part (a : part) (b : part) = compare a b = 0
+let equal_part_header (a : part_header) (b : part_header) = compare a b = 0
 
-let pp_part fmt part =
+let pp_part_header fmt part =
   let fields =
     [
       Fmt.field "name" (fun p -> p.name) Fmt.string;
@@ -157,25 +157,19 @@ module type MULTIPART_PARSER = sig
 
   and read_result =
     [ `End
-    | `Header of header list
+    | `Header of part_header
     | `Body of bigstring * int
     | `Error of string ]
 
   and bigstring =
     (char, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t
 
-  and header = string * string
-
   val reader : ?read_body_len:int -> boundary -> input -> reader
-
-  val preamble_parser : boundary -> unit t
-
-  val part_parser : int -> boundary -> read_result t
 
   val parse_parts :
     ?part_stream_chunk_size:int ->
     boundary:boundary ->
-    on_part:(part -> part_body_stream:char Lwt_stream.t -> unit Lwt.t) ->
+    on_part:(part_header -> part_body_stream:char Lwt_stream.t -> unit Lwt.t) ->
     input ->
     (unit * int, string) result Lwt.t
 
@@ -191,24 +185,6 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
   type input = P.input
 
   type 'a t = 'a P.t
-
-  type reader = {
-    input : input;
-    boundary : boundary;
-    read_body_len : int;
-    mutable pos : int;
-  }
-
-  and read_result =
-    [ `End
-    | `Header of header list
-    | `Body of bigstring * int
-    | `Error of string ]
-
-  and bigstring =
-    (char, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t
-
-  and header = string * string
 
   let param =
     let name = skip whitespace *> char ';' *> skip whitespace *> token in
@@ -292,49 +268,6 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
         in
         return { name; content_type; filename; parameters }
 
-  let preamble_parser boundary =
-    let dash_boundary = string_cs @@ Format.sprintf "--%s" boundary in
-    (*** Ignore preamble - any text before first boundary value. ***)
-    take_while_cb ~while_:(is_not dash_boundary)
-      ~on_take_cb:(fun (_c : char) -> unit)
-      unsafe_any_char
-    *> dash_boundary *> trim_input_buffer
-
-  let _index_of ~affix buf =
-    let not_matched = -1 in
-    let max_alen = String.length affix - 1 in
-    let max_blen = Cstruct.length buf - 1 in
-    let rec loop idx_a idx_b matched_from_idx =
-      if idx_a > max_alen || idx_b > max_blen then matched_from_idx
-      else
-        let ch_a = String.unsafe_get affix idx_a in
-        let ch_b = Cstruct.get_char buf idx_b in
-        if Char.equal ch_a ch_b then
-          let matched_from_idx =
-            if matched_from_idx = not_matched then idx_b else matched_from_idx
-          in
-          loop (idx_a + 1) (idx_b + 1) matched_from_idx
-        else loop 0 (idx_b + 1) not_matched
-    in
-    loop 0 0 not_matched
-
-  let part_parser read_body_len boundary =
-    let boundary_type =
-      let body_end = string_cs "--" *> optional crlf $> `End in
-      let part_start = string_cs "\r\n" $> `Part_start in
-      body_end <|> part_start <?> "Invalid 'multipart/formdata' boundary value"
-    in
-    let dash_boundary = string_cs @@ Format.sprintf "--%s" boundary in
-    let crlf_dash_boundary = crlf *> dash_boundary in
-    let* boundary_type' = boundary_type <* trim_input_buffer in
-    match boundary_type' with
-    | `End -> return `End
-    | `Part_start ->
-        let* _header = part_body_header <* trim_input_buffer in
-        let* buf = unsafe_take_cstruct read_body_len in
-        let* () = trim_input_buffer <* crlf_dash_boundary in
-        return (`Body (Cstruct.to_bigarray buf, Cstruct.length buf))
-
   let parse_parts ?(part_stream_chunk_size = 1024 * 1024) ~boundary ~on_part
       http_body =
     let boundary_type =
@@ -371,14 +304,126 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
     *> dash_boundary *> trim_input_buffer *> loop_parts []
     |> parse http_body
 
+  type reader = {
+    input : input;
+    boundary : boundary;
+    read_body_len : int;
+    mutable pos : int;
+    mutable parsing_body : bool;
+    mutable preamble_parsed : bool;
+  }
+
+  and read_result =
+    [ `End
+    | `Header of part_header
+    | `Body of bigstring * int
+    | `Error of string ]
+
+  and bigstring =
+    (char, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t
+
+  let preamble boundary =
+    let dash_boundary = string_cs @@ Format.sprintf "--%s" boundary in
+    (*** Ignore preamble - any text before first boundary value. ***)
+    take_while_cb ~while_:(is_not dash_boundary)
+      ~on_take_cb:(fun (_c : char) -> unit)
+      unsafe_any_char
+    *> dash_boundary *> trim_input_buffer
+
+  let _index_of ~affix buf =
+    let not_matched = -1 in
+    let max_alen = String.length affix - 1 in
+    let max_blen = Cstruct.length buf - 1 in
+    let rec loop idx_a idx_b matched_from_idx =
+      if idx_a > max_alen || idx_b > max_blen then matched_from_idx
+      else
+        let ch_a = String.unsafe_get affix idx_a in
+        let ch_b = Cstruct.get_char buf idx_b in
+        if Char.equal ch_a ch_b then
+          let matched_from_idx =
+            if matched_from_idx = not_matched then idx_b else matched_from_idx
+          in
+          loop (idx_a + 1) (idx_b + 1) matched_from_idx
+        else loop 0 (idx_b + 1) not_matched
+    in
+    loop 0 0 not_matched
+
+  let part_header =
+    take ~at_least:1 ~sep_by:crlf
+      (crlf *> any [ content_disposition; content_type true ])
+    >>= fun headers ->
+    let name, content_type, filename, parameters =
+      List.fold_left
+        (fun (name, ct, filename, params) header ->
+          match header with
+          | Content_type ct ->
+              let content_type = Some (ct.ty ^ "/" ^ ct.subtype) in
+              ( name,
+                content_type,
+                filename,
+                Map.union (fun _key a _b -> Some a) params ct.parameters )
+          | Content_disposition params2 ->
+              let name = Map.find_opt "name" params2 in
+              let filename = Map.find_opt "filename" params2 in
+              ( name,
+                ct,
+                filename,
+                Map.union (fun _key a _b -> Some a) params params2 ))
+        (None, None, None, Map.empty)
+        headers
+    in
+    match name with
+    | None -> fail "Invalid part header. Parameter 'name' not found"
+    | Some name ->
+        let content_type = Option.value content_type ~default:"text/plain" in
+        let parameters = Map.remove "name" parameters in
+        let parameters =
+          match filename with
+          | Some _ -> Map.remove "filename" parameters
+          | None -> parameters
+        in
+        let header = { name; content_type; filename; parameters } in
+        return (`Header header)
+
+  let rec part reader =
+    (if not reader.preamble_parsed then preamble reader.boundary else unit)
+    >>= fun () ->
+    if reader.parsing_body then part_body reader
+    else
+      let body_end = string_cs "--" *> optional crlf $> `End in
+      body_end <|> part_header
+
+  and part_body _reader = return `End
+
+  (* let boundary_type = *)
+  (*   let body_end = string_cs "--" *> optional crlf $> `End in *)
+  (*   let part_start = string_cs "\r\n" $> `Part_start in *)
+  (*   body_end <|> part_start <?> "Invalid 'multipart/formdata' boundary value" *)
+  (* in *)
+  (* let dash_boundary = string_cs @@ Format.sprintf "--%s" reader.boundary in *)
+  (* let crlf_dash_boundary = crlf *> dash_boundary in *)
+  (* let* boundary_type' = boundary_type <* trim_input_buffer in *)
+  (* match boundary_type' with *)
+  (* | `End -> return `End *)
+  (* | `Part_start -> *)
+  (*     let* _header = part_body_header <* trim_input_buffer in *)
+  (*     let* buf = unsafe_take_cstruct_ne reader.read_body_len in *)
+  (*     let* () = trim_input_buffer <* crlf_dash_boundary in *)
+  (*     return (`Body (Cstruct.to_bigarray buf, Cstruct.length buf)) *)
+
   let reader ?(read_body_len = 0) boundary input =
-    let rdr = { input; pos = 0; read_body_len; boundary } in
-    rdr
+    {
+      input;
+      pos = 0;
+      read_body_len;
+      boundary;
+      parsing_body = false;
+      preamble_parsed = false;
+    }
 
   let parse_part (reader : reader) : read_result Lwt.t =
     Lwt.(
-      parse reader.input (part_parser reader.read_body_len reader.boundary)
-      >|= function
+      parse reader.input (part reader) >|= function
       | Ok (a, pos) ->
           reader.pos <- pos;
           a

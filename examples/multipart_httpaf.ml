@@ -29,7 +29,7 @@ let upload_page =
     </html>|}
 
 type parse_result =
-  ((Http_multipart_formdata.part * string) list, string) result
+  ((Http_multipart_formdata.part_header * string) list, string) result
 [@@deriving show, ord]
 
 let handle_upload content_type req_body_stream =
@@ -37,15 +37,14 @@ let handle_upload content_type req_body_stream =
   let on_part header ~part_body_stream =
     let buf = Buffer.create 0 in
     let rec loop () =
-      Lwt_stream.get part_body_stream
-      >>= function
+      Lwt_stream.get part_body_stream >>= function
       | None -> Lwt.return_unit
       | Some c ->
-        Buffer.add_char buf c;
-        loop ()
+          Buffer.add_char buf c;
+          loop ()
     in
-    loop ()
-    >>= fun () -> Lwt.return @@ Queue.push (header, Buffer.contents buf) parts
+    loop () >>= fun () ->
+    Lwt.return @@ Queue.push (header, Buffer.contents buf) parts
   in
   Lwt_result.(
     lift (Http_multipart_formdata.parse_boundary ~content_type)
@@ -70,40 +69,43 @@ let request_handler (_ : Unix.sockaddr) reqd =
   Lwt.async (fun () ->
       match (request.meth, request.target) with
       | `GET, "/" ->
-        let headers =
-          Headers.of_list
-            [ ("content-length", Int.to_string (String.length upload_page))
-            ; ("content-type", "text/html")
-            ]
-        in
-        Reqd.respond_with_string reqd (Response.create ~headers `OK) upload_page;
-        Lwt.return_unit
+          let headers =
+            Headers.of_list
+              [
+                ("content-length", Int.to_string (String.length upload_page));
+                ("content-type", "text/html");
+              ]
+          in
+          Reqd.respond_with_string reqd
+            (Response.create ~headers `OK)
+            upload_page;
+          Lwt.return_unit
       | `POST, "/upload" ->
-        let content_type = Headers.get_exn request.headers "content-type" in
-        handle_upload content_type req_body_stream
-        >|= fun s ->
-        let headers =
-          Headers.of_list
-            [ ("content-length", Int.to_string (String.length s))
-            ; ("content-type", "text/plain")
-            ]
-        in
-        Reqd.respond_with_string reqd (Response.create ~headers `OK) s
+          let content_type = Headers.get_exn request.headers "content-type" in
+          handle_upload content_type req_body_stream >|= fun s ->
+          let headers =
+            Headers.of_list
+              [
+                ("content-length", Int.to_string (String.length s));
+                ("content-type", "text/plain");
+              ]
+          in
+          Reqd.respond_with_string reqd (Response.create ~headers `OK) s
       | `GET, "/exit" -> Lwt.return_unit
       | _ ->
-        Reqd.respond_with_string reqd
-          (Response.create `Not_found)
-          "Route not found";
-        Lwt.return_unit)
+          Reqd.respond_with_string reqd
+            (Response.create `Not_found)
+            "Route not found";
+          Lwt.return_unit)
 
 let error_handler (_ : Unix.sockaddr) ?request:_ error start_response =
   let response_body = start_response Headers.empty in
   (match error with
   | `Exn exn ->
-    Body.write_string response_body (Printexc.to_string exn);
-    Body.write_string response_body "\n"
+      Body.write_string response_body (Printexc.to_string exn);
+      Body.write_string response_body "\n"
   | #Status.standard as error ->
-    Body.write_string response_body (Status.default_reason_phrase error));
+      Body.write_string response_body (Status.default_reason_phrase error));
   Body.close_writer response_body
 
 let main port =

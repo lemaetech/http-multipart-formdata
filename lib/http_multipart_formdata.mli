@@ -14,35 +14,35 @@ type input =
 type boundary = string
 (** Represents the multipart boundary value. *)
 
-type part
+type part_header
 (** Represents a parsed multipart part header data. *)
 
 val parse_boundary : content_type:string -> (boundary, string) result
 (** [parse_boundary ~content_type] parses [content_type] to extract [boundary]
     value.[content_type] is the HTTP request [Content-Type] header value. *)
 
-val name : part -> string
+val name : part_header -> string
 (** [name t] returns the form field name *)
 
-val content_type : part -> string
+val content_type : part_header -> string
 (** [content_type t] returns the part content-type. *)
 
-val filename : part -> string option
+val filename : part_header -> string option
 (** [filename t] returns the uploaded filename is the multipart is a file *)
 
-val param_value : string -> part -> string option
+val param_value : string -> part_header -> string option
 (** [param_value name t] returns the multipart parameter value with name [name]. *)
 
-val compare_part : part -> part -> int
+val compare_part_header : part_header -> part_header -> int
 
-val equal_part : part -> part -> bool
+val equal_part_header : part_header -> part_header -> bool
 
-val pp_part : Format.formatter -> part -> unit
+val pp_part_header : Format.formatter -> part_header -> unit
 
 val parse_parts :
   ?part_stream_chunk_size:int ->
   boundary:boundary ->
-  on_part:(part -> part_body_stream:char Lwt_stream.t -> unit Lwt.t) ->
+  on_part:(part_header -> part_body_stream:char Lwt_stream.t -> unit Lwt.t) ->
   input ->
   (unit, string) result Lwt.t
 (** [parse_parts ?part_stream_chunk_size ~boundary ~on_part http_body] is a push
@@ -67,34 +67,30 @@ module type MULTIPART_PARSER = sig
 
   and read_result =
     [ `End
-    | `Header of header list
+    | `Header of part_header
     | `Body of bigstring * int
     | `Error of string ]
 
   and bigstring =
     (char, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t
 
-  and header = string * string
-
   val reader : ?read_body_len:int -> boundary -> input -> reader
+  (** [reader ?read_body_len boundary input] creates reader. The default value
+      for [read_body_len] is 1KB. *)
 
-  val preamble_parser : boundary -> unit t
+  val parse_parts :
+    ?part_stream_chunk_size:int ->
+    boundary:boundary ->
+    on_part:(part_header -> part_body_stream:char Lwt_stream.t -> unit Lwt.t) ->
+    input ->
+    (unit * int, string) result Lwt.t
 
-  val part_parser : int -> boundary -> read_result t
+  val parse_part : reader -> read_result Lwt.t
   (** [parse_part ?read_body_len ~boundary reader] parse http multipart body and
       returns a [read_result].
 
       [read_body_len] determines the size of the multipart body to read in
       bytes. By default 1KB. *)
-
-  val parse_parts :
-    ?part_stream_chunk_size:int ->
-    boundary:boundary ->
-    on_part:(part -> part_body_stream:char Lwt_stream.t -> unit Lwt.t) ->
-    input ->
-    (unit * int, string) result Lwt.t
-
-  val parse_part : reader -> read_result Lwt.t
 end
 
 module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
