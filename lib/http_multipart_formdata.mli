@@ -103,4 +103,4 @@ module type MULTIPART_PARSER = sig
 end
 
 module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
-  MULTIPART_PARSER
+  MULTIPART_PARSER with type input = P.input with type 'a t = 'a P.t
