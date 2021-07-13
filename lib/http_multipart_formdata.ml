@@ -323,9 +323,9 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
   and bigstring =
     (char, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t
 
+  (* ignore all text before first boundary value. *)
   let preamble reader =
-    let dash_boundary = string_cs @@ reader.dash_boundary in
-    (*** Ignore preamble - any text before first boundary value. ***)
+    let dash_boundary = string_cs reader.dash_boundary in
     take_while_cb ~while_:(is_not dash_boundary)
       ~on_take_cb:(fun (_c : char) -> unit)
       unsafe_any_char
