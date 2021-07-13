@@ -175,6 +175,24 @@ module type MULTIPART_PARSER = sig
     (unit * int, string) result Lwt.t
 end
 
+let index_of ~affix buf =
+  let not_matched = -1 in
+  let max_alen = String.length affix - 1 in
+  let max_blen = Cstruct.length buf - 1 in
+  let rec loop idx_a idx_b matched_from_idx =
+    if idx_a > max_alen || idx_b > max_blen then matched_from_idx
+    else
+      let ch_a = String.unsafe_get affix idx_a in
+      let ch_b = Cstruct.get_char buf idx_b in
+      if Char.equal ch_a ch_b then
+        let matched_from_idx =
+          if matched_from_idx = not_matched then idx_b else matched_from_idx
+        in
+        loop (idx_a + 1) (idx_b + 1) matched_from_idx
+      else loop 0 (idx_b + 1) not_matched
+  in
+  loop 0 0 not_matched
+
 module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
   MULTIPART_PARSER with type input = P.input with type 'a t = 'a P.t = struct
   open P
@@ -328,24 +346,6 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
     *> dash_boundary *> trim_input_buffer *> loop_parts []
     |> parse http_body
 end
-
-let index_of ~affix buf =
-  let not_matched = -1 in
-  let max_alen = String.length affix - 1 in
-  let max_blen = Cstruct.length buf - 1 in
-  let rec loop idx_a idx_b matched_from_idx =
-    if idx_a > max_alen || idx_b > max_blen then matched_from_idx
-    else
-      let ch_a = String.unsafe_get affix idx_a in
-      let ch_b = Cstruct.get_char buf idx_b in
-      if Char.equal ch_a ch_b then
-        let matched_from_idx =
-          if matched_from_idx = not_matched then idx_b else matched_from_idx
-        in
-        loop (idx_a + 1) (idx_b + 1) matched_from_idx
-      else loop 0 (idx_b + 1) not_matched
-  in
-  loop 0 0 not_matched
 
 let rec parse_parts ?part_stream_chunk_size ~boundary ~on_part
     (http_body : input) =
