@@ -16,22 +16,12 @@ module Map = struct
     Fmt.seq ~sep:Fmt.semi pp_kv fmt (to_seq t)
 end
 
-type reader = { input : input; read_body_len : int; mutable pos : int }
-
-and read_result =
-  [ `End | `Header of header list | `Body of bigstring * int | `Error of string ]
-
-and bigstring =
-  (char, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t
-
-and header = string * string
-
-and input =
+type input =
   [ `Stream of char Lwt_stream.t
   | `Fd of Lwt_unix.file_descr
   | `Channel of Lwt_io.input_channel ]
 
-and boundary = string
+type boundary = string
 (** Represents the multipart boundary value. *)
 
 type part = {
@@ -163,6 +153,21 @@ module type MULTIPART_PARSER = sig
 
   type 'a t
 
+  type reader
+
+  and read_result =
+    [ `End
+    | `Header of header list
+    | `Body of bigstring * int
+    | `Error of string ]
+
+  and bigstring =
+    (char, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t
+
+  and header = string * string
+
+  val reader : ?read_body_len:int -> boundary -> input -> reader
+
   val preamble_parser : boundary -> unit t
 
   val part_parser : int -> boundary -> read_result t
@@ -175,24 +180,6 @@ module type MULTIPART_PARSER = sig
     (unit * int, string) result Lwt.t
 end
 
-let index_of ~affix buf =
-  let not_matched = -1 in
-  let max_alen = String.length affix - 1 in
-  let max_blen = Cstruct.length buf - 1 in
-  let rec loop idx_a idx_b matched_from_idx =
-    if idx_a > max_alen || idx_b > max_blen then matched_from_idx
-    else
-      let ch_a = String.unsafe_get affix idx_a in
-      let ch_b = Cstruct.get_char buf idx_b in
-      if Char.equal ch_a ch_b then
-        let matched_from_idx =
-          if matched_from_idx = not_matched then idx_b else matched_from_idx
-        in
-        loop (idx_a + 1) (idx_b + 1) matched_from_idx
-      else loop 0 (idx_b + 1) not_matched
-  in
-  loop 0 0 not_matched
-
 module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
   MULTIPART_PARSER with type input = P.input with type 'a t = 'a P.t = struct
   open P
@@ -202,6 +189,22 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
   type input = P.input
 
   type 'a t = 'a P.t
+
+  type reader = { input : input; read_body_len : int; mutable pos : int }
+
+  and read_result =
+    [ `End
+    | `Header of header list
+    | `Body of bigstring * int
+    | `Error of string ]
+
+  and bigstring =
+    (char, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t
+
+  and header = string * string
+
+  let reader ?(read_body_len = 0) _boundary input =
+    { input; pos = 0; read_body_len }
 
   let param =
     let name = skip whitespace *> char ';' *> skip whitespace *> token in
@@ -293,6 +296,24 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
       unsafe_any_char
     *> dash_boundary *> trim_input_buffer
 
+  let _index_of ~affix buf =
+    let not_matched = -1 in
+    let max_alen = String.length affix - 1 in
+    let max_blen = Cstruct.length buf - 1 in
+    let rec loop idx_a idx_b matched_from_idx =
+      if idx_a > max_alen || idx_b > max_blen then matched_from_idx
+      else
+        let ch_a = String.unsafe_get affix idx_a in
+        let ch_b = Cstruct.get_char buf idx_b in
+        if Char.equal ch_a ch_b then
+          let matched_from_idx =
+            if matched_from_idx = not_matched then idx_b else matched_from_idx
+          in
+          loop (idx_a + 1) (idx_b + 1) matched_from_idx
+        else loop 0 (idx_b + 1) not_matched
+    in
+    loop 0 0 not_matched
+
   let part_parser read_body_len boundary =
     let boundary_type =
       let body_end = string_cs "--" *> optional crlf $> `End in
@@ -372,8 +393,3 @@ and parse_parts_channel ?part_stream_chunk_size ~boundary ~on_part http_body =
   let module P = Make (Reparse_lwt_unix.Channel) in
   let http_body = Reparse_lwt_unix.Channel.create_input http_body in
   P.parse_parts ?part_stream_chunk_size ~boundary ~on_part http_body
-
-let reader ?(read_body_len = 0) _boundary input =
-  { input; pos = 0; read_body_len }
-
-let parse_part _reader = Lwt.return `End
