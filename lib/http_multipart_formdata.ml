@@ -349,8 +349,7 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
     loop 0 0 not_matched
 
   let part_header =
-    take ~at_least:1 ~sep_by:crlf
-      (crlf *> any [ content_disposition; content_type true ])
+    take ~at_least:1 (crlf *> any [ content_disposition; content_type true ])
     >>= fun headers ->
     let name, content_type, filename, parameters =
       List.fold_left
@@ -390,10 +389,14 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
     >>= fun () ->
     if reader.parsing_body then part_body reader
     else
-      let body_end = string_cs "--" *> optional crlf $> `End in
-      body_end <|> part_header
+      let end_ = string_cs "--" *> optional crlf $> `End in
+      let part_body = crlf *> crlf *> part_body reader in
+      end_ <|> part_header <|> part_body
 
-  and part_body _reader = return `End
+  and part_body reader =
+    let* _buf = unsafe_take_cstruct_ne reader.read_body_len in
+    (* read until crlf_dash_boundary *)
+    return `End
 
   (* let boundary_type = *)
   (*   let body_end = string_cs "--" *> optional crlf $> `End in *)
