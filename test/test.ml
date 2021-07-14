@@ -52,22 +52,21 @@ asdfasdfasdfasdfasdfasdf|}
       ; {|aωb|}
       ; {|-----------------------------735323031399963166993862150--|} ]
   in
-  let open Lwt.Infix in
-  let module P = Http_multipart_formdata.Make (Reparse_lwt.Stream) in
-  let input = Reparse_lwt.Stream.create_input (Lwt_stream.of_string body) in
+  let module P = Http_multipart_formdata.Make (Reparse.String) in
+  let input = Reparse.String.create_input_from_string body in
   let reader =
     P.reader ~read_body_len:10
       "---------------------------735323031399963166993862150" input
   in
   let rec loop () =
     P.parse_part reader
-    >>= function
-    | `End -> Lwt.return ()
+    |> function
+    | `End -> ()
     | rr ->
         P.pp_read_result Format.std_formatter rr ;
         loop ()
   in
-  Lwt_main.run (loop ()) ;
+  loop () ;
   [%expect
     {|
     Header: name: text1;

@@ -3,7 +3,7 @@
  (modules print_parts)
  (libraries http-multipart-formdata reparse reparse-lwt lwt lwt.unix)
  (preprocess
-  (pps ppx_deriving.show ppx_deriving.ord ppx_expect)))
+  (pps ppx_deriving.show ppx_expect)))
 
 (executable
  (name multipart_httpaf)
