@@ -7,15 +7,19 @@
  *
  *-------------------------------------------------------------------------*)
 
+(** {2 Mulipart Boundary parser} *)
+
 (** Represents the multipart boundary value. *)
 type boundary = string
-
-(** Represents a parsed multipart part header data. *)
-type part_header
 
 val parse_boundary : content_type:string -> (boundary, string) result
 (** [parse_boundary ~content_type] parses [content_type] to extract [boundary]
     value.[content_type] is the HTTP request [Content-Type] header value. *)
+
+(** {2 Part header} *)
+
+(** Represents a parsed multipart part header data. *)
+type part_header
 
 val name : part_header -> string
 (** [name t] returns the form field name *)
@@ -30,6 +34,8 @@ val param_value : string -> part_header -> string option
 (** [param_value name t] returns the multipart parameter value with name [name]. *)
 
 val pp_part_header : Format.formatter -> part_header -> unit
+
+(** {2 Multipart Parser} *)
 
 module type MULTIPART_PARSER = sig
   type input

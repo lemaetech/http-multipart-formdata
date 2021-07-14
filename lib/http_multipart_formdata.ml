@@ -42,7 +42,30 @@ let pp_part_header fmt part =
   in
   Fmt.record ~sep:Fmt.semi fields fmt part
 
-module Make_common (P : Reparse.PARSER) = struct
+module type MULTIPART_PARSER = sig
+  type input
+
+  type 'a t
+
+  type 'a promise
+
+  type reader
+
+  and read_result =
+    [ `End
+    | `Header of part_header
+    | `Body of Cstruct.t
+    | `Body_end
+    | `Error of string ]
+
+  val reader : ?read_body_len:int -> boundary -> input -> reader
+
+  val parse_part : reader -> read_result promise
+
+  val pp_read_result : Format.formatter -> read_result -> unit
+end
+
+module Make (P : Reparse.PARSER) = struct
   open P
 
   let is_space c = c == '\x20'
@@ -89,84 +112,6 @@ module Make_common (P : Reparse.PARSER) = struct
     dquote *> qcontent <* dquote
 
   let param_value = token <|> quoted_string
-end
-
-let parse_boundary ~content_type =
-  let open Reparse.String in
-  let open Make_common (Reparse.String) in
-  let boundary =
-    let is_bcharnospace = function
-      | '\'' | '(' | ')' | '+' | '_' | ',' | '-' | '.' | '/' | ':' | '=' | '?'
-        ->
-          true
-      | c when is_alpha_digit c -> true
-      | _ -> false
-    in
-    let bchars =
-      char_if (function
-        | '\x20' -> true
-        | c when is_bcharnospace c -> true
-        | _ -> false )
-    in
-    let boundary =
-      let* bchars = take ~up_to:70 bchars in
-      let len = List.length bchars in
-      if len > 0 then
-        let last_char = List.nth bchars (len - 1) in
-        if is_bcharnospace last_char then return (implode bchars)
-        else fail "Invalid boundary value: invalid last char"
-      else fail "Invalid boundary value: 0 length"
-    in
-    optional dquote *> boundary <* optional dquote <|> token
-  in
-  let param =
-    let* attribute = skip whitespace *> char ';' *> skip whitespace *> token in
-    let+ value =
-      char '=' *> if attribute = "boundary" then boundary else param_value
-    in
-    (attribute, value)
-  in
-  skip whitespace
-  *> (string_cs "multipart/form-data" <?> "Not multipart formdata header")
-  *> skip whitespace *> take param
-  >>= (fun params ->
-        match List.assoc_opt "boundary" params with
-        | Some b -> return b
-        | None -> fail "'boundary' parameter not found" )
-  |> parse (create_input_from_string content_type)
-  |> Result.map (fun (x, _) -> x)
-
-module type MULTIPART_PARSER = sig
-  type input
-
-  type 'a t
-
-  type 'a promise
-
-  type reader
-
-  and read_result =
-    [ `End
-    | `Header of part_header
-    | `Body of Cstruct.t
-    | `Body_end
-    | `Error of string ]
-
-  val reader : ?read_body_len:int -> boundary -> input -> reader
-
-  val parse_part : reader -> read_result promise
-
-  val pp_read_result : Format.formatter -> read_result -> unit
-end
-
-module Make (P : Reparse.PARSER) :
-  MULTIPART_PARSER
-    with type input = P.input
-    with type 'a t = 'a P.t
-    with type 'a promise = 'a P.promise = struct
-  open P
-
-  open Make_common (P)
 
   type input = P.input
 
@@ -346,3 +291,51 @@ module Make (P : Reparse.PARSER) :
           a
       | Error e -> `Error e)
 end
+
+let parse_boundary ~content_type =
+  let open Reparse.String in
+  let module P = Make (Reparse.String) in
+  P.(
+    let boundary =
+      let is_bcharnospace = function
+        | '\'' | '(' | ')' | '+' | '_' | ',' | '-' | '.' | '/' | ':' | '=' | '?'
+          ->
+            true
+        | c when is_alpha_digit c -> true
+        | _ -> false
+      in
+      let bchars =
+        char_if (function
+          | '\x20' -> true
+          | c when is_bcharnospace c -> true
+          | _ -> false )
+      in
+      let boundary =
+        let* bchars = take ~up_to:70 bchars in
+        let len = List.length bchars in
+        if len > 0 then
+          let last_char = List.nth bchars (len - 1) in
+          if is_bcharnospace last_char then return (implode bchars)
+          else fail "Invalid boundary value: invalid last char"
+        else fail "Invalid boundary value: 0 length"
+      in
+      optional dquote *> boundary <* optional dquote <|> token
+    in
+    let param =
+      let* attribute =
+        skip whitespace *> char ';' *> skip whitespace *> token
+      in
+      let+ value =
+        char '=' *> if attribute = "boundary" then boundary else param_value
+      in
+      (attribute, value)
+    in
+    skip whitespace
+    *> (string_cs "multipart/form-data" <?> "Not multipart formdata header")
+    *> skip whitespace *> take param
+    >>= fun params ->
+    match List.assoc_opt "boundary" params with
+    | Some b -> return b
+    | None -> fail "'boundary' parameter not found")
+  |> parse (create_input_from_string content_type)
+  |> Result.map (fun (x, _) -> x)
