@@ -27,6 +27,8 @@
    (>= 4.10.0))
   (fmt
    (>= 0.8.9))
+  (cstruct
+   (>= 6.0.0))
   (reparse
    (>= 3.1.0))
   (ppx_expect :with-test)
