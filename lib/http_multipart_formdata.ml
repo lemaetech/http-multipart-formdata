@@ -206,8 +206,8 @@ module Make (P : Reparse.PARSER) = struct
 
   type reader =
     { input: input
-    ; dash_boundary: string
-    ; crlf_dash_boundary: string
+    ; dash_boundary: string t
+    ; crlf_dash_boundary: string t
     ; read_body_len: int
     ; mutable pos: int
     ; mutable parsing_body: bool
@@ -235,11 +235,11 @@ module Make (P : Reparse.PARSER) = struct
 
   (* ignore all text before first boundary value. *)
   let preamble reader =
-    let dash_boundary = string_cs reader.dash_boundary in
-    take_while_cb ~while_:(is_not dash_boundary)
+    take_while_cb
+      ~while_:(is_not reader.dash_boundary)
       ~on_take_cb:(fun (_c : char) -> unit)
       unsafe_any_char
-    *> dash_boundary *> trim_input_buffer
+    *> reader.dash_boundary *> trim_input_buffer
 
   let part_header =
     take ~at_least:1 (crlf *> any [content_disposition; content_type true])
@@ -293,14 +293,13 @@ module Make (P : Reparse.PARSER) = struct
       end_ <|> part_header <|> part_body <* trim_input_buffer
 
   and part_body reader : read_result t =
-    let crlf_dash_boundary = string_cs reader.crlf_dash_boundary in
     let buf = Cstruct.create reader.read_body_len in
     let rec read_part_body i =
       if i < reader.read_body_len then (
-        let* is_boundary = is crlf_dash_boundary in
+        let* is_boundary = is reader.crlf_dash_boundary in
         if is_boundary then
           if i = 0 then (
-            let* () = crlf_dash_boundary *> unit in
+            let* () = reader.crlf_dash_boundary *> unit in
             reader.parsing_body <- false ;
             return `Body_end )
           else
@@ -315,9 +314,10 @@ module Make (P : Reparse.PARSER) = struct
     read_part_body 0
 
   let reader ?(read_body_len = 1024) boundary input =
-    let dash_boundary = Format.sprintf "--%s" boundary in
     let crlf_dash_boundary = Format.sprintf "\r\n--%s" boundary in
     let read_body_len = max read_body_len (String.length crlf_dash_boundary) in
+    let crlf_dash_boundary = string_cs crlf_dash_boundary in
+    let dash_boundary = string_cs @@ Format.sprintf "--%s" boundary in
     { input
     ; pos= 0
     ; read_body_len
