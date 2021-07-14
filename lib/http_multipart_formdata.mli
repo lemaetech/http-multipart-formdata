@@ -7,7 +7,6 @@
  *
  *-------------------------------------------------------------------------*)
 
-
 (** {2 Part header} *)
 
 (** Represents a parsed multipart part header data. *)
@@ -35,6 +34,7 @@ type boundary = string
 val parse_boundary : content_type:string -> (boundary, string) result
 (** [parse_boundary ~content_type] parses [content_type] to extract [boundary]
     value.[content_type] is the HTTP request [Content-Type] header value. *)
+
 (** {2 Multipart Parser} *)
 
 module type MULTIPART_PARSER = sig
@@ -69,6 +69,6 @@ end
 
 module Make (P : Reparse.PARSER) :
   MULTIPART_PARSER
-  with type input = P.input
-  with type 'a t = 'a P.t
-  with type 'a promise = 'a P.promise
+    with type input = P.input
+    with type 'a t = 'a P.t
+    with type 'a promise = 'a P.promise
