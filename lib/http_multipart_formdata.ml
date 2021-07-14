@@ -43,7 +43,7 @@ let compare_part_header (a : part_header) (b : part_header) = compare a b
 
 let equal_part_header (a : part_header) (b : part_header) = compare a b = 0
 
-let pp_part_header fmt_ part =
+let pp_part_header fmt part =
   let fields =
     [
       Fmt.field "name" (fun p -> p.name) Fmt.string;
@@ -52,7 +52,7 @@ let pp_part_header fmt_ part =
       Fmt.field "parameters" (fun p -> p.parameters) (Map.pp Fmt.string);
     ]
   in
-  Fmt.(vbox (record ~sep:Fmt.semi fields ++ cut) fmt_ part)
+  Fmt.record ~sep:Fmt.semi fields fmt part
 
 module Make_common (P : Reparse.PARSER) = struct
   open P
@@ -335,7 +335,7 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
           |> Fmt.fmt "Body: %d, %s" fmt len
       | `Error e -> Fmt.fmt "Error %s" fmt e
     in
-    Fmt.(cut ++ pp) fmt
+    Fmt.(vbox (pp ++ cut)) fmt
 
   (* ignore all text before first boundary value. *)
   let preamble reader =
