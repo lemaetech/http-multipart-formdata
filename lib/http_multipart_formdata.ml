@@ -138,6 +138,50 @@ module Make (P : Reparse.PARSER) = struct
     Buffer.add_string buf (implode restricted_name) ;
     Buffer.contents buf
 
+  let boundary =
+    let boundary_param_value =
+      let is_bcharnospace = function
+        | '\'' | '(' | ')' | '+' | '_' | ',' | '-' | '.' | '/' | ':' | '=' | '?'
+          ->
+            true
+        | c when is_alpha_digit c -> true
+        | _ -> false
+      in
+      let bchars =
+        char_if (function
+          | '\x20' -> true
+          | c when is_bcharnospace c -> true
+          | _ -> false )
+      in
+      let boundary_val =
+        let* bchars = take ~up_to:70 bchars in
+        let len = List.length bchars in
+        if len > 0 then
+          let last_char = List.nth bchars (len - 1) in
+          if is_bcharnospace last_char then return (implode bchars)
+          else fail "Invalid boundary value: invalid last char"
+        else fail "Invalid boundary value: 0 length"
+      in
+      optional dquote *> boundary_val <* optional dquote <|> token
+    in
+    let param =
+      let* attribute =
+        skip whitespace *> char ';' *> skip whitespace *> token
+      in
+      let+ value =
+        char '='
+        *> if attribute = "boundary" then boundary_param_value else param_value
+      in
+      (attribute, value)
+    in
+    skip whitespace
+    *> (string_cs "multipart/form-data" <?> "Not multipart formdata header")
+    *> skip whitespace *> take param
+    >>= fun params ->
+    match List.assoc_opt "boundary" params with
+    | Some b -> return b
+    | None -> fail "'boundary' parameter not found"
+
   type part_body_header =
     | Content_type of {ty: string; subtype: string; parameters: string Map.t}
     | Content_disposition of string Map.t
@@ -293,49 +337,6 @@ module Make (P : Reparse.PARSER) = struct
 end
 
 let parse_boundary ~content_type =
-  let open Reparse.String in
   let module P = Make (Reparse.String) in
-  P.(
-    let boundary =
-      let is_bcharnospace = function
-        | '\'' | '(' | ')' | '+' | '_' | ',' | '-' | '.' | '/' | ':' | '=' | '?'
-          ->
-            true
-        | c when is_alpha_digit c -> true
-        | _ -> false
-      in
-      let bchars =
-        char_if (function
-          | '\x20' -> true
-          | c when is_bcharnospace c -> true
-          | _ -> false )
-      in
-      let boundary =
-        let* bchars = take ~up_to:70 bchars in
-        let len = List.length bchars in
-        if len > 0 then
-          let last_char = List.nth bchars (len - 1) in
-          if is_bcharnospace last_char then return (implode bchars)
-          else fail "Invalid boundary value: invalid last char"
-        else fail "Invalid boundary value: 0 length"
-      in
-      optional dquote *> boundary <* optional dquote <|> token
-    in
-    let param =
-      let* attribute =
-        skip whitespace *> char ';' *> skip whitespace *> token
-      in
-      let+ value =
-        char '=' *> if attribute = "boundary" then boundary else param_value
-      in
-      (attribute, value)
-    in
-    skip whitespace
-    *> (string_cs "multipart/form-data" <?> "Not multipart formdata header")
-    *> skip whitespace *> take param
-    >>= fun params ->
-    match List.assoc_opt "boundary" params with
-    | Some b -> return b
-    | None -> fail "'boundary' parameter not found")
-  |> parse (create_input_from_string content_type)
+  Reparse.String.(parse (create_input_from_string content_type)) P.boundary
   |> Result.map (fun (x, _) -> x)
