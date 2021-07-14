@@ -11,11 +11,11 @@ type input =
   | `Fd of Lwt_unix.file_descr
   | `Channel of Lwt_io.input_channel ]
 
-type boundary = string
 (** Represents the multipart boundary value. *)
+type boundary = string
 
-type part_header
 (** Represents a parsed multipart part header data. *)
+type part_header
 
 val parse_boundary : content_type:string -> (boundary, string) result
 (** [parse_boundary ~content_type] parses [content_type] to extract [boundary]
@@ -40,11 +40,11 @@ val equal_part_header : part_header -> part_header -> bool
 val pp_part_header : Format.formatter -> part_header -> unit
 
 val parse_parts :
-  ?part_stream_chunk_size:int ->
-  boundary:boundary ->
-  on_part:(part_header -> part_body_stream:char Lwt_stream.t -> unit Lwt.t) ->
-  input ->
-  (unit, string) result Lwt.t
+     ?part_stream_chunk_size:int
+  -> boundary:boundary
+  -> on_part:(part_header -> part_body_stream:char Lwt_stream.t -> unit Lwt.t)
+  -> input
+  -> (unit, string) result Lwt.t
 (** [parse_parts ?part_stream_chunk_size ~boundary ~on_part http_body] is a push
     based http multipart/formdata parser.
 
@@ -69,6 +69,7 @@ module type MULTIPART_PARSER = sig
     [ `End
     | `Header of part_header
     | `Body of bigstring * int
+    | `Body_end
     | `Error of string ]
 
   and bigstring =
@@ -79,11 +80,11 @@ module type MULTIPART_PARSER = sig
       for [read_body_len] is 1KB. *)
 
   val parse_parts :
-    ?part_stream_chunk_size:int ->
-    boundary:boundary ->
-    on_part:(part_header -> part_body_stream:char Lwt_stream.t -> unit Lwt.t) ->
-    input ->
-    (unit * int, string) result Lwt.t
+       ?part_stream_chunk_size:int
+    -> boundary:boundary
+    -> on_part:(part_header -> part_body_stream:char Lwt_stream.t -> unit Lwt.t)
+    -> input
+    -> (unit * int, string) result Lwt.t
 
   val parse_part : reader -> read_result Lwt.t
   (** [parse_part ?read_body_len ~boundary reader] parse http multipart body and

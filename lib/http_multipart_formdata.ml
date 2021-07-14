@@ -21,15 +21,14 @@ type input =
   | `Fd of Lwt_unix.file_descr
   | `Channel of Lwt_io.input_channel ]
 
-type boundary = string
 (** Represents the multipart boundary value. *)
+type boundary = string
 
-type part_header = {
-  name : string;
-  content_type : string;
-  filename : string option;
-  parameters : string Map.t;
-}
+type part_header =
+  { name: string
+  ; content_type: string
+  ; filename: string option
+  ; parameters: string Map.t }
 
 let name t = t.name
 
@@ -45,12 +44,10 @@ let equal_part_header (a : part_header) (b : part_header) = compare a b = 0
 
 let pp_part_header fmt part =
   let fields =
-    [
-      Fmt.field "name" (fun p -> p.name) Fmt.string;
-      Fmt.field "content_type" (fun p -> p.content_type) Fmt.string;
-      Fmt.field "filename" (fun p -> p.filename) Fmt.(option string);
-      Fmt.field "parameters" (fun p -> p.parameters) (Map.pp Fmt.string);
-    ]
+    [ Fmt.field "name" (fun p -> p.name) Fmt.string
+    ; Fmt.field "content_type" (fun p -> p.content_type) Fmt.string
+    ; Fmt.field "filename" (fun p -> p.filename) Fmt.(option string)
+    ; Fmt.field "parameters" (fun p -> p.parameters) (Map.pp Fmt.string) ]
   in
   Fmt.record ~sep:Fmt.semi fields fmt part
 
@@ -69,7 +66,7 @@ module Make_common (P : Reparse.PARSER) = struct
 
   let is_tspecial = function
     | '(' | ')' | '<' | '>' | '@' | ',' | ';' | ':' | '\\' | '"' | '/' | '['
-    | ']' | '?' | '=' ->
+     |']' | '?' | '=' ->
         true
     | _ -> false
 
@@ -118,7 +115,7 @@ let parse_boundary ~content_type =
       char_if (function
         | '\x20' -> true
         | c when is_bcharnospace c -> true
-        | _ -> false)
+        | _ -> false )
     in
     let boundary =
       let* bchars = take ~up_to:70 bchars in
@@ -144,7 +141,7 @@ let parse_boundary ~content_type =
   >>= (fun params ->
         match List.assoc_opt "boundary" params with
         | Some b -> return b
-        | None -> fail "'boundary' parameter not found")
+        | None -> fail "'boundary' parameter not found" )
   |> parse (create_input_from_string content_type)
   |> Result.map (fun (x, _) -> x)
 
@@ -159,6 +156,7 @@ module type MULTIPART_PARSER = sig
     [ `End
     | `Header of part_header
     | `Body of bigstring * int
+    | `Body_end
     | `Error of string ]
 
   and bigstring =
@@ -167,11 +165,11 @@ module type MULTIPART_PARSER = sig
   val reader : ?read_body_len:int -> boundary -> input -> reader
 
   val parse_parts :
-    ?part_stream_chunk_size:int ->
-    boundary:boundary ->
-    on_part:(part_header -> part_body_stream:char Lwt_stream.t -> unit Lwt.t) ->
-    input ->
-    (unit * int, string) result Lwt.t
+       ?part_stream_chunk_size:int
+    -> boundary:boundary
+    -> on_part:(part_header -> part_body_stream:char Lwt_stream.t -> unit Lwt.t)
+    -> input
+    -> (unit * int, string) result Lwt.t
 
   val parse_part : reader -> read_result Lwt.t
 
@@ -198,21 +196,17 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
       char_if (function
         | '!' | '#' | '$' | '&' | '-' | '^' | '_' | '.' | '+' -> true
         | c when is_alpha_digit c -> true
-        | _ -> false)
+        | _ -> false )
     in
     let* first_ch = char_if is_alpha_digit in
     let buf = Buffer.create 10 in
-    Buffer.add_char buf first_ch;
+    Buffer.add_char buf first_ch ;
     let+ restricted_name = take ~up_to:126 p_restricted_name_chars in
-    Buffer.add_string buf (implode restricted_name);
+    Buffer.add_string buf (implode restricted_name) ;
     Buffer.contents buf
 
   type part_body_header =
-    | Content_type of {
-        ty : string;
-        subtype : string;
-        parameters : string Map.t;
-      }
+    | Content_type of {ty: string; subtype: string; parameters: string Map.t}
     | Content_disposition of string Map.t
 
   let content_disposition =
@@ -231,11 +225,10 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
     let* subtype = char '/' *> p_restricted_name in
     let+ params = take param in
     let parameters = params |> List.to_seq |> Map.of_seq in
-    Content_type { ty; subtype; parameters }
+    Content_type {ty; subtype; parameters}
 
   let part_body_header =
-    take ~at_least:1 ~sep_by:crlf
-      (any [ content_disposition; content_type true ])
+    take ~at_least:1 ~sep_by:crlf (any [content_disposition; content_type true])
     <* crlf
     >>= fun headers ->
     let name, content_type, filename, parameters =
@@ -244,17 +237,17 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
           match header with
           | Content_type ct ->
               let content_type = Some (ct.ty ^ "/" ^ ct.subtype) in
-              ( name,
-                content_type,
-                filename,
-                Map.union (fun _key a _b -> Some a) params ct.parameters )
+              ( name
+              , content_type
+              , filename
+              , Map.union (fun _key a _b -> Some a) params ct.parameters )
           | Content_disposition params2 ->
               let name = Map.find_opt "name" params2 in
               let filename = Map.find_opt "filename" params2 in
-              ( name,
-                ct,
-                filename,
-                Map.union (fun _key a _b -> Some a) params params2 ))
+              ( name
+              , ct
+              , filename
+              , Map.union (fun _key a _b -> Some a) params params2 ) )
         (None, None, None, Map.empty)
         headers
     in
@@ -268,7 +261,7 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
           | Some _ -> Map.remove "filename" parameters
           | None -> parameters
         in
-        return { name; content_type; filename; parameters }
+        return {name; content_type; filename; parameters}
 
   let parse_parts ?(part_stream_chunk_size = 1024 * 1024) ~boundary ~on_part
       http_body =
@@ -294,8 +287,7 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
             ~on_take_cb:(fun x -> of_promise @@ push#push x)
           *> trim_input_buffer
           >>= fun () ->
-          (push#close;
-           unit)
+          (push#close ; unit)
           *> crlf_dash_boundary
           *> loop_parts (part_p :: l_parts)
     in
@@ -306,20 +298,20 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
     *> dash_boundary *> trim_input_buffer *> loop_parts []
     |> parse http_body
 
-  type reader = {
-    input : input;
-    dash_boundary : string;
-    crlf_dash_boundary : string;
-    read_body_len : int;
-    mutable pos : int;
-    mutable parsing_body : bool;
-    mutable preamble_parsed : bool;
-  }
+  type reader =
+    { input: input
+    ; dash_boundary: string
+    ; crlf_dash_boundary: string
+    ; read_body_len: int
+    ; mutable pos: int
+    ; mutable parsing_body: bool
+    ; mutable preamble_parsed: bool }
 
   and read_result =
     [ `End
     | `Header of part_header
     | `Body of bigstring * int
+    | `Body_end
     | `Error of string ]
 
   and bigstring =
@@ -333,6 +325,7 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
       | `Body (buf, len) ->
           Cstruct.of_bigarray buf |> Cstruct.to_string |> String.escaped
           |> Fmt.fmt "Body: %d, %s" fmt len
+      | `Body_end -> Fmt.string fmt "Body_end"
       | `Error e -> Fmt.fmt "Error %s" fmt e
     in
     Fmt.(vbox (pp ++ cut)) fmt
@@ -346,7 +339,7 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
     *> dash_boundary *> trim_input_buffer
 
   let part_header =
-    take ~at_least:1 (crlf *> any [ content_disposition; content_type true ])
+    take ~at_least:1 (crlf *> any [content_disposition; content_type true])
     >>= fun headers ->
     let name, content_type, filename, parameters =
       List.fold_left
@@ -354,17 +347,17 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
           match header with
           | Content_type ct ->
               let content_type = Some (ct.ty ^ "/" ^ ct.subtype) in
-              ( name,
-                content_type,
-                filename,
-                Map.union (fun _key a _b -> Some a) params ct.parameters )
+              ( name
+              , content_type
+              , filename
+              , Map.union (fun _key a _b -> Some a) params ct.parameters )
           | Content_disposition params2 ->
               let name = Map.find_opt "name" params2 in
               let filename = Map.find_opt "filename" params2 in
-              ( name,
-                ct,
-                filename,
-                Map.union (fun _key a _b -> Some a) params params2 ))
+              ( name
+              , ct
+              , filename
+              , Map.union (fun _key a _b -> Some a) params params2 ) )
         (None, None, None, Map.empty)
         headers
     in
@@ -378,20 +371,20 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
           | Some _ -> Map.remove "filename" parameters
           | None -> parameters
         in
-        let header = { name; content_type; filename; parameters } in
+        let header = {name; content_type; filename; parameters} in
         return (`Header header)
 
   let rec part reader =
-    (if not reader.preamble_parsed then
-     preamble reader >>| fun () -> reader.preamble_parsed <- true
-    else unit)
+    ( if not reader.preamble_parsed then
+      preamble reader >>| fun () -> reader.preamble_parsed <- true
+    else unit )
     >>= fun () ->
     if reader.parsing_body then part_body reader
     else
       let end_ = string_cs "--" *> optional crlf $> `End in
       let part_body =
         let* () = crlf *> crlf *> unit in
-        reader.parsing_body <- true;
+        reader.parsing_body <- true ;
         part_body reader
       in
       end_ <|> part_header <|> part_body <* trim_input_buffer
@@ -399,43 +392,43 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
   and part_body reader =
     let crlf_dash_boundary = string_cs reader.crlf_dash_boundary in
     let buf = Cstruct.create reader.read_body_len in
-    let rec loop i =
+    let rec read_part_body i =
       if i < reader.read_body_len then (
         let* is_boundary = is crlf_dash_boundary in
-        if is_boundary then (
-          let* () = crlf_dash_boundary *> unit in
-          reader.parsing_body <- false;
-          if i = 0 then part reader
+        if is_boundary then
+          if i = 0 then (
+            let* () = crlf_dash_boundary *> unit in
+            reader.parsing_body <- false ;
+            return `Body_end )
           else
             let buf' = Cstruct.sub buf 0 i in
-            return @@ `Body (Cstruct.to_bigarray buf', Cstruct.len buf'))
+            return @@ `Body (Cstruct.to_bigarray buf', Cstruct.len buf')
         else
           let* ch = unsafe_any_char in
-          Cstruct.set_char buf i ch;
-          (loop [@tailcall]) (i + 1))
+          Cstruct.set_char buf i ch ;
+          (read_part_body [@tailcall]) (i + 1) )
       else return @@ `Body (Cstruct.to_bigarray buf, reader.read_body_len)
     in
-    loop 0
+    read_part_body 0
 
   let reader ?(read_body_len = 1024) boundary input =
     let dash_boundary = Format.sprintf "--%s" boundary in
     let crlf_dash_boundary = Format.sprintf "\r\n--%s" boundary in
     let read_body_len = max read_body_len (String.length crlf_dash_boundary) in
-    {
-      input;
-      pos = 0;
-      read_body_len;
-      dash_boundary;
-      crlf_dash_boundary;
-      parsing_body = false;
-      preamble_parsed = false;
-    }
+    { input
+    ; pos= 0
+    ; read_body_len
+    ; dash_boundary
+    ; crlf_dash_boundary
+    ; parsing_body= false
+    ; preamble_parsed= false }
 
   let parse_part (reader : reader) : read_result Lwt.t =
     Lwt.(
-      parse ~pos:reader.pos reader.input (part reader) >|= function
+      parse ~pos:reader.pos reader.input (part reader)
+      >|= function
       | Ok (a, pos) ->
-          reader.pos <- pos;
+          reader.pos <- pos ;
           a
       | Error e -> `Error e)
 end
@@ -443,12 +436,13 @@ end
 let rec parse_parts ?part_stream_chunk_size ~boundary ~on_part
     (http_body : input) =
   Lwt_result.(
-    (match http_body with
+    ( match http_body with
     | `Stream stream ->
         parse_parts_stream ?part_stream_chunk_size ~boundary ~on_part stream
     | `Fd fd -> parse_parts_fd ?part_stream_chunk_size ~boundary ~on_part fd
     | `Channel channel ->
-        parse_parts_channel ?part_stream_chunk_size ~boundary ~on_part channel)
+        parse_parts_channel ?part_stream_chunk_size ~boundary ~on_part channel
+    )
     >|= fun (x, _) -> x)
 
 and parse_parts_stream ?part_stream_chunk_size ~boundary ~on_part http_body =
