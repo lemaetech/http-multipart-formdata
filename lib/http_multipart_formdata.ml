@@ -16,11 +16,6 @@ module Map = struct
     Fmt.seq ~sep:Fmt.semi pp_kv fmt (to_seq t)
 end
 
-type input =
-  [ `Stream of char Lwt_stream.t
-  | `Fd of Lwt_unix.file_descr
-  | `Channel of Lwt_io.input_channel ]
-
 (** Represents the multipart boundary value. *)
 type boundary = string
 
@@ -161,13 +156,6 @@ module type MULTIPART_PARSER = sig
 
   val reader : ?read_body_len:int -> boundary -> input -> reader
 
-  val parse_parts :
-       ?part_stream_chunk_size:int
-    -> boundary:boundary
-    -> on_part:(part_header -> part_body_stream:char Lwt_stream.t -> unit Lwt.t)
-    -> input
-    -> (unit * int, string) result Lwt.t
-
   val parse_part : reader -> read_result Lwt.t
 
   val pp_read_result : Format.formatter -> read_result -> unit
@@ -223,77 +211,6 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
     let+ params = take param in
     let parameters = params |> List.to_seq |> Map.of_seq in
     Content_type {ty; subtype; parameters}
-
-  let part_body_header =
-    take ~at_least:1 ~sep_by:crlf (any [content_disposition; content_type true])
-    <* crlf
-    >>= fun headers ->
-    let name, content_type, filename, parameters =
-      List.fold_left
-        (fun (name, ct, filename, params) header ->
-          match header with
-          | Content_type ct ->
-              let content_type = Some (ct.ty ^ "/" ^ ct.subtype) in
-              ( name
-              , content_type
-              , filename
-              , Map.union (fun _key a _b -> Some a) params ct.parameters )
-          | Content_disposition params2 ->
-              let name = Map.find_opt "name" params2 in
-              let filename = Map.find_opt "filename" params2 in
-              ( name
-              , ct
-              , filename
-              , Map.union (fun _key a _b -> Some a) params params2 ) )
-        (None, None, None, Map.empty)
-        headers
-    in
-    match name with
-    | None -> fail "Invalid part. parameter 'name' not found"
-    | Some name ->
-        let content_type = Option.value content_type ~default:"text/plain" in
-        let parameters = Map.remove "name" parameters in
-        let parameters =
-          match filename with
-          | Some _ -> Map.remove "filename" parameters
-          | None -> parameters
-        in
-        return {name; content_type; filename; parameters}
-
-  let parse_parts ?(part_stream_chunk_size = 1024 * 1024) ~boundary ~on_part
-      http_body =
-    let boundary_type =
-      let body_end = string_cs "--" *> optional crlf $> `End in
-      let part_start = string_cs "\r\n" $> `Part_start in
-      body_end <|> part_start <?> "Invalid 'multipart/formdata' boundary value"
-    in
-    let dash_boundary = string_cs @@ Format.sprintf "--%s" boundary in
-    let crlf_dash_boundary = crlf *> dash_boundary in
-    (* ---- 
-       l_parts - list of part promises
-     * ----*)
-    let rec loop_parts l_parts =
-      let* boundary_type' = boundary_type <* trim_input_buffer in
-      match boundary_type' with
-      | `End -> of_promise (Lwt.join l_parts)
-      | `Part_start ->
-          let* header = part_body_header <* trim_input_buffer in
-          let stream, push = Lwt_stream.create_bounded part_stream_chunk_size in
-          let part_p = on_part header ~part_body_stream:stream in
-          take_while_cb unsafe_any_char ~while_:(is_not crlf_dash_boundary)
-            ~on_take_cb:(fun x -> of_promise @@ push#push x)
-          *> trim_input_buffer
-          >>= fun () ->
-          (push#close ; unit)
-          *> crlf_dash_boundary
-          *> loop_parts (part_p :: l_parts)
-    in
-    (*** Ignore preamble - any text before first boundary value. ***)
-    take_while_cb ~while_:(is_not dash_boundary)
-      ~on_take_cb:(fun (_c : char) -> unit)
-      unsafe_any_char
-    *> dash_boundary *> trim_input_buffer *> loop_parts []
-    |> parse http_body
 
   type reader =
     { input: input
@@ -426,30 +343,3 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
           a
       | Error e -> `Error e)
 end
-
-let rec parse_parts ?part_stream_chunk_size ~boundary ~on_part
-    (http_body : input) =
-  Lwt_result.(
-    ( match http_body with
-    | `Stream stream ->
-        parse_parts_stream ?part_stream_chunk_size ~boundary ~on_part stream
-    | `Fd fd -> parse_parts_fd ?part_stream_chunk_size ~boundary ~on_part fd
-    | `Channel channel ->
-        parse_parts_channel ?part_stream_chunk_size ~boundary ~on_part channel
-    )
-    >|= fun (x, _) -> x)
-
-and parse_parts_stream ?part_stream_chunk_size ~boundary ~on_part http_body =
-  let module P = Make (Reparse_lwt.Stream) in
-  let http_body = Reparse_lwt.Stream.create_input http_body in
-  P.parse_parts ?part_stream_chunk_size ~boundary ~on_part http_body
-
-and parse_parts_fd ?part_stream_chunk_size ~boundary ~on_part http_body =
-  let module P = Make (Reparse_lwt_unix.Fd) in
-  let http_body = Reparse_lwt_unix.Fd.create_input http_body in
-  P.parse_parts ?part_stream_chunk_size ~boundary ~on_part http_body
-
-and parse_parts_channel ?part_stream_chunk_size ~boundary ~on_part http_body =
-  let module P = Make (Reparse_lwt_unix.Channel) in
-  let http_body = Reparse_lwt_unix.Channel.create_input http_body in
-  P.parse_parts ?part_stream_chunk_size ~boundary ~on_part http_body

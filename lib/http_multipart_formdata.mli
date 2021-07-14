@@ -6,10 +6,6 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  *
  *-------------------------------------------------------------------------*)
-type input =
-  [ `Stream of char Lwt_stream.t
-  | `Fd of Lwt_unix.file_descr
-  | `Channel of Lwt_io.input_channel ]
 
 (** Represents the multipart boundary value. *)
 type boundary = string
@@ -39,25 +35,6 @@ val equal_part_header : part_header -> part_header -> bool
 
 val pp_part_header : Format.formatter -> part_header -> unit
 
-val parse_parts :
-     ?part_stream_chunk_size:int
-  -> boundary:boundary
-  -> on_part:(part_header -> part_body_stream:char Lwt_stream.t -> unit Lwt.t)
-  -> input
-  -> (unit, string) result Lwt.t
-(** [parse_parts ?part_stream_chunk_size ~boundary ~on_part http_body] is a push
-    based http multipart/formdata parser.
-
-    - [part_stream_chunk_size] is the maximum number of bytes each chunk holds
-      at any time. The default value is [1048576] or [1MB].
-
-    - [boundary] is part boundary value. Use {!parse_boundary} to parse boundary
-      value from [Content-type] header value.
-
-    - [on_part] is the part handling function
-
-    - [http_body] is the raw HTTP POST request body content stream. *)
-
 module type MULTIPART_PARSER = sig
   type input
 
@@ -75,13 +52,6 @@ module type MULTIPART_PARSER = sig
   val reader : ?read_body_len:int -> boundary -> input -> reader
   (** [reader ?read_body_len boundary input] creates reader. The default value
       for [read_body_len] is 1KB. *)
-
-  val parse_parts :
-       ?part_stream_chunk_size:int
-    -> boundary:boundary
-    -> on_part:(part_header -> part_body_stream:char Lwt_stream.t -> unit Lwt.t)
-    -> input
-    -> (unit * int, string) result Lwt.t
 
   val parse_part : reader -> read_result Lwt.t
   (** [parse_part ?read_body_len ~boundary reader] parse http multipart body and
