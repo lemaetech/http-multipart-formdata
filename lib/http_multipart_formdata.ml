@@ -141,6 +141,8 @@ module type MULTIPART_PARSER = sig
 
   type 'a t
 
+  type 'a promise
+
   type reader
 
   and read_result =
@@ -152,13 +154,16 @@ module type MULTIPART_PARSER = sig
 
   val reader : ?read_body_len:int -> boundary -> input -> reader
 
-  val parse_part : reader -> read_result Lwt.t
+  val parse_part : reader -> read_result promise
 
   val pp_read_result : Format.formatter -> read_result -> unit
 end
 
-module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
-  MULTIPART_PARSER with type input = P.input with type 'a t = 'a P.t = struct
+module Make (P : Reparse.PARSER) :
+  MULTIPART_PARSER
+    with type input = P.input
+    with type 'a t = 'a P.t
+    with type 'a promise = 'a P.promise = struct
   open P
 
   open Make_common (P)
@@ -166,6 +171,8 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
   type input = P.input
 
   type 'a t = 'a P.t
+
+  type 'a promise = 'a P.promise
 
   let param =
     let name = skip whitespace *> char ';' *> skip whitespace *> token in
@@ -330,10 +337,10 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
     ; parsing_body= false
     ; preamble_parsed= false }
 
-  let parse_part (reader : reader) : read_result Lwt.t =
-    Lwt.(
+  let parse_part (reader : reader) : read_result promise =
+    Promise.(
       parse ~pos:reader.pos reader.input (part reader)
-      >|= function
+      >>| function
       | Ok (a, pos) ->
           reader.pos <- pos ;
           a

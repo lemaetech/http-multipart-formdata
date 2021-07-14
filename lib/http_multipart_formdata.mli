@@ -36,6 +36,8 @@ module type MULTIPART_PARSER = sig
 
   type 'a t
 
+  type 'a promise
+
   type reader
 
   and read_result =
@@ -49,7 +51,7 @@ module type MULTIPART_PARSER = sig
   (** [reader ?read_body_len boundary input] creates reader. The default value
       for [read_body_len] is 1KB. *)
 
-  val parse_part : reader -> read_result Lwt.t
+  val parse_part : reader -> read_result promise
   (** [parse_part ?read_body_len ~boundary reader] parse http multipart body and
       returns a [read_result].
 
@@ -59,5 +61,8 @@ module type MULTIPART_PARSER = sig
   val pp_read_result : Format.formatter -> read_result -> unit
 end
 
-module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
-  MULTIPART_PARSER with type input = P.input with type 'a t = 'a P.t
+module Make (P : Reparse.PARSER) :
+  MULTIPART_PARSER
+    with type input = P.input
+    with type 'a t = 'a P.t
+    with type 'a promise = 'a P.promise
