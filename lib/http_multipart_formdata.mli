@@ -68,12 +68,9 @@ module type MULTIPART_PARSER = sig
   and read_result =
     [ `End
     | `Header of part_header
-    | `Body of bigstring * int
+    | `Body of Cstruct.t
     | `Body_end
     | `Error of string ]
-
-  and bigstring =
-    (char, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t
 
   val reader : ?read_body_len:int -> boundary -> input -> reader
   (** [reader ?read_body_len boundary input] creates reader. The default value

@@ -155,12 +155,9 @@ module type MULTIPART_PARSER = sig
   and read_result =
     [ `End
     | `Header of part_header
-    | `Body of bigstring * int
+    | `Body of Cstruct.t
     | `Body_end
     | `Error of string ]
-
-  and bigstring =
-    (char, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t
 
   val reader : ?read_body_len:int -> boundary -> input -> reader
 
@@ -310,21 +307,18 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
   and read_result =
     [ `End
     | `Header of part_header
-    | `Body of bigstring * int
+    | `Body of Cstruct.t
     | `Body_end
     | `Error of string ]
-
-  and bigstring =
-    (char, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t
 
   let pp_read_result : Format.formatter -> read_result -> unit =
    fun fmt ->
     let pp fmt = function
       | `End -> Fmt.string fmt "End"
       | `Header header -> Fmt.fmt "Header: %a" fmt pp_part_header header
-      | `Body (buf, len) ->
-          Cstruct.of_bigarray buf |> Cstruct.to_string |> String.escaped
-          |> Fmt.fmt "Body: %d, %s" fmt len
+      | `Body buf ->
+          Fmt.fmt "Body: %d, %s" fmt (Cstruct.length buf)
+            (Cstruct.to_string buf |> String.escaped)
       | `Body_end -> Fmt.string fmt "Body_end"
       | `Error e -> Fmt.fmt "Error %s" fmt e
     in
@@ -389,7 +383,7 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
       in
       end_ <|> part_header <|> part_body <* trim_input_buffer
 
-  and part_body reader =
+  and part_body reader : read_result t =
     let crlf_dash_boundary = string_cs reader.crlf_dash_boundary in
     let buf = Cstruct.create reader.read_body_len in
     let rec read_part_body i =
@@ -402,12 +396,12 @@ module Make (P : Reparse.PARSER with type 'a promise = 'a Lwt.t) :
             return `Body_end )
           else
             let buf' = Cstruct.sub buf 0 i in
-            return @@ `Body (Cstruct.to_bigarray buf', Cstruct.len buf')
+            return @@ `Body buf'
         else
           let* ch = unsafe_any_char in
           Cstruct.set_char buf i ch ;
           (read_part_body [@tailcall]) (i + 1) )
-      else return @@ `Body (Cstruct.to_bigarray buf, reader.read_body_len)
+      else return @@ `Body buf
     in
     read_part_body 0
 
