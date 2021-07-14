@@ -74,20 +74,23 @@ asdfasdfasdfasdfasdfasdf|};
     Header: name: text1;
             content_type: text/plain;
             filename: ;
-            parameters: Body: 12, text default
+            parameters:
+            Body: 12, text default
     Header: name: text2;
             content_type: text/plain;
             filename: ;
-            parameters: Body: 4, a\207\137b
+            parameters:
+            Body: 4, a\207\137b
     Header: name: file1;
             content_type: text/plain;
             filename: a.txt;
-            parameters: Body: 19, Content of a.txt.\r\n
+            parameters:
+            Body: 19, Content of a.txt.\r\n
     Header: name: file2;
             content_type: text/html;
             filename: a.html;
             parameters:
-    Body: 58, <!DOCTYPE html><title>Content of a.html.</title><div>thias
+            Body: 58, <!DOCTYPE html><title>Content of a.html.</title><div>thias
     Body: 58, dasdf asdfiasdf  asdf asdf as df asdf asdf as df asdf asd
     Body: 58, fa sdf asd fas df asdf as df asd fas df asdf as df asdfas
     Body: 58, df asd fa sdf as dfa sdf asdfasdfasdfasdfasdfasdfasdfasdfa
@@ -97,9 +100,11 @@ asdfasdfasdfasdfasdfasdf|};
     Header: name: file3;
             content_type: application/octet-stream;
             filename: binary;
-            parameters: Body: 6, a\207\137b\r\n
+            parameters:
+            Body: 6, a\207\137b\r\n
     Header: name: file3;
             content_type: application/octet-stream;
             filename: binary;
             parameters: (param1, value1); (param2, value2)
+
     Body: 4, a\207\137b |}]
