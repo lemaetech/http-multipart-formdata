@@ -71,27 +71,27 @@ asdfasdfasdfasdfasdfasdf|}
   [%expect
     {|
     Header: name: text1;
+            parameters: ;
             content_type: text/plain;
-            filename: ;
-            parameters:
+            filename:
     Body: 12, text default
     Body_end
     Header: name: text2;
+            parameters: ;
             content_type: text/plain;
-            filename: ;
-            parameters:
+            filename:
     Body: 4, a\207\137b
     Body_end
     Header: name: file1;
+            parameters: ;
             content_type: text/plain;
-            filename: a.txt;
-            parameters:
+            filename: a.txt
     Body: 19, Content of a.txt.\r\n
     Body_end
     Header: name: file2;
+            parameters: ;
             content_type: text/html;
-            filename: a.html;
-            parameters:
+            filename: a.html
     Body: 58, <!DOCTYPE html><title>Content of a.html.</title><div>thias
     Body: 58, dasdf asdfiasdf  asdf asdf as df asdf asdf as df asdf asd
     Body: 58, fa sdf asd fas df asdf as df asd fas df asdf as df asdfas
@@ -101,14 +101,14 @@ asdfasdfasdfasdfasdfasdf|}
     Body: 14, asdfasdfasdf\r\n
     Body_end
     Header: name: file3;
+            parameters: ;
             content_type: application/octet-stream;
-            filename: binary;
-            parameters:
+            filename: binary
     Body: 6, a\207\137b\r\n
     Body_end
     Header: name: file3;
+            parameters: (param1, value1); (param2, value2);
             content_type: application/octet-stream;
-            filename: binary;
-            parameters: (param1, value1); (param2, value2)
+            filename: binary
     Body: 4, a\207\137b
     Body_end |}]

@@ -45,9 +45,9 @@ let equal_part_header (a : part_header) (b : part_header) = compare a b = 0
 let pp_part_header fmt part =
   let fields =
     [ Fmt.field "name" (fun p -> p.name) Fmt.string
+    ; Fmt.field "parameters" (fun p -> p.parameters) (Map.pp Fmt.string)
     ; Fmt.field "content_type" (fun p -> p.content_type) Fmt.string
-    ; Fmt.field "filename" (fun p -> p.filename) Fmt.(option string)
-    ; Fmt.field "parameters" (fun p -> p.parameters) (Map.pp Fmt.string) ]
+    ; Fmt.field "filename" (fun p -> p.filename) Fmt.(option string) ]
   in
   Fmt.record ~sep:Fmt.semi fields fmt part
 
