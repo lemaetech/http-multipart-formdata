@@ -1,6 +1,11 @@
-## v2.0.2 2021-07-10
+## v3.0.0 2021-07-04
 
 - Upgrade to latest reparse version (3.1.0)
+- Flatten module `Part_header` to `part_header`
+- Remove push based parser - `parse_parts`.
+- Implement reader/pull based multipart parser so that is is more composable as a library.
+- Remove dependency on `lwt`, `reparse-lwt`
+- Introduce functor `Make` to make multipart parser
 
 ## v2.0.1 2021-06-27
 
