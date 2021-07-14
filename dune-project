@@ -4,7 +4,7 @@
 
 (generate_opam_files true)
 
-(version 2.0.1)
+(version 3.0.0)
 
 (source
  (github lemaetech/http-mutlipart-formdata))
@@ -27,12 +27,7 @@
    (>= 4.10.0))
   (fmt
    (>= 0.8.9))
-  lwt
   (reparse
-   (>= 3.0.0))
-  (reparse-lwt
-   (>= 3.0.0))
-  (reparse-lwt-unix
-   (>= 3.0.0))
+   (>= 3.1.0))
   (ppx_expect :with-test)
   (ppx_deriving :with-test)))

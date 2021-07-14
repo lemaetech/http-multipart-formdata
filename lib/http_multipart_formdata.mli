@@ -7,58 +7,68 @@
  *
  *-------------------------------------------------------------------------*)
 
-(** {2 Parsing boundary value} *)
+(** {2 Part header} *)
+
+(** Represents a parsed multipart part header data. *)
+type part_header
+
+val name : part_header -> string
+(** [name t] returns the form field name *)
+
+val content_type : part_header -> string
+(** [content_type t] returns the part content-type. *)
+
+val filename : part_header -> string option
+(** [filename t] returns the uploaded filename is the multipart is a file *)
+
+val param_value : string -> part_header -> string option
+(** [param_value name t] returns the multipart parameter value with name [name]. *)
+
+val pp_part_header : Format.formatter -> part_header -> unit
+
+(** {2 Mulipart Boundary parser} *)
 
 (** Represents the multipart boundary value. *)
 type boundary = string
 
-(** [http_body] represents various HTTP POST body stream. *)
-type http_body =
-  [ `Stream of char Lwt_stream.t
-  | `Fd of Lwt_unix.file_descr
-  | `Channel of Lwt_io.input_channel
-  ]
-
-(** Represents a parsed multipart part header data. *)
-type part
-
+val parse_boundary : content_type:string -> (boundary, string) result
 (** [parse_boundary ~content_type] parses [content_type] to extract [boundary]
     value.[content_type] is the HTTP request [Content-Type] header value. *)
-val parse_boundary : content_type:string -> (boundary, string) result
 
-(** [name t] returns the form field name *)
-val name : part -> string
+(** {2 Multipart Parser} *)
 
-(** [content_type t] returns the part content-type. *)
-val content_type : part -> string
+module type MULTIPART_PARSER = sig
+  type input
 
-(** [filename t] returns the uploaded filename is the multipart is a file *)
-val filename : part -> string option
+  type 'a t
 
-(** [param_value name t] returns the multipart parameter value with name [name]. *)
-val param_value : string -> part -> string option
+  type 'a promise
 
-val compare_part : part -> part -> int
+  type reader
 
-val equal_part : part -> part -> bool
+  and read_result =
+    [ `End
+    | `Header of part_header
+    | `Body of Cstruct.t
+    | `Body_end
+    | `Error of string ]
 
-val pp_part : Format.formatter -> part -> unit
+  val reader : ?read_body_len:int -> boundary -> input -> reader
+  (** [reader ?read_body_len boundary input] creates reader. The default value
+      for [read_body_len] is 1KB. *)
 
-(** [parse_parts ?part_stream_chunk_size ~boundary ~on_part http_body] is a push
-    based http multipart/formdata parser.
+  val parse_part : reader -> read_result promise
+  (** [parse_part ?read_body_len ~boundary reader] parse http multipart body and
+      returns a [read_result].
 
-    - [part_stream_chunk_size] is the maximum number of bytes each chunk holds
-      at any time. The default value is [1048576] or [1MB].
+      [read_body_len] determines the size of the multipart body to read in
+      bytes. By default 1KB. *)
 
-    - [boundary] is part boundary value. Use {!parse_boundary} to parse boundary
-      value from [Content-type] header value.
+  val pp_read_result : Format.formatter -> read_result -> unit
+end
 
-    - [on_part] is the part handling function
-
-    - [http_body] is the raw HTTP POST request body content stream. *)
-val parse_parts :
-     ?part_stream_chunk_size:int
-  -> boundary:boundary
-  -> on_part:(part -> part_body_stream:char Lwt_stream.t -> unit Lwt.t)
-  -> http_body
-  -> (unit, string) result Lwt.t
+module Make (P : Reparse.PARSER) :
+  MULTIPART_PARSER
+    with type input = P.input
+    with type 'a t = 'a P.t
+    with type 'a promise = 'a P.promise
