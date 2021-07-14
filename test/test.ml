@@ -59,7 +59,7 @@ asdfasdfasdfasdfasdfasdf|}
       "---------------------------735323031399963166993862150" input
   in
   let rec loop () =
-    P.parse_part reader
+    P.read_part reader
     |> function
     | `End -> ()
     | rr ->

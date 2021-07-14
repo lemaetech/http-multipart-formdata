@@ -60,7 +60,7 @@ module type MULTIPART_PARSER = sig
 
   val reader : ?read_body_len:int -> boundary -> input -> reader
 
-  val parse_part : reader -> read_result promise
+  val read_part : reader -> read_result promise
 
   val pp_read_result : Format.formatter -> read_result -> unit
 end
@@ -326,7 +326,7 @@ module Make (P : Reparse.PARSER) = struct
     ; parsing_body= false
     ; preamble_parsed= false }
 
-  let parse_part (reader : reader) : read_result promise =
+  let read_part (reader : reader) : read_result promise =
     Promise.(
       parse ~pos:reader.pos reader.input (part reader)
       >>| function

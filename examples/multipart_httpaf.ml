@@ -36,7 +36,7 @@ let handle_upload content_type req_body_stream =
   let open Lwt_result in
   let module Multipart = Http_multipart_formdata.Make (Reparse_lwt.Stream) in
   let rec read_parts reader parts =
-    ok (Multipart.parse_part reader)
+    ok (Multipart.read_part reader)
     >>= function
     | `End -> Lwt.return (Ok (Queue.to_seq parts |> List.of_seq))
     | `Header header ->
@@ -48,7 +48,7 @@ let handle_upload content_type req_body_stream =
     | `Error e -> Lwt.return (Error e)
     | _ -> assert false
   and read_body reader buffers =
-    ok (Multipart.parse_part reader)
+    ok (Multipart.read_part reader)
     >>= function
     | `Body_end -> return buffers
     | `Body buf -> read_body reader (buf :: buffers)

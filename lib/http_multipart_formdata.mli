@@ -57,12 +57,9 @@ module type MULTIPART_PARSER = sig
   (** [reader ?read_body_len boundary input] creates reader. The default value
       for [read_body_len] is 1KB. *)
 
-  val parse_part : reader -> read_result promise
-  (** [parse_part ?read_body_len ~boundary reader] parse http multipart body and
-      returns a [read_result].
-
-      [read_body_len] determines the size of the multipart body to read in
-      bytes. By default 1KB. *)
+  val read_part : reader -> read_result promise
+  (** [read_part ?read_body_len ~boundary reader] reads a http multipart body
+      and returns a [read_result]. *)
 
   val pp_read_result : Format.formatter -> read_result -> unit
 end
