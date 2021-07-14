@@ -43,13 +43,13 @@ let pp_part_header fmt part =
   Fmt.record ~sep:Fmt.semi fields fmt part
 
 module type MULTIPART_PARSER = sig
-  type input
-
   type 'a t
 
-  type 'a promise
+  and input
 
-  type reader
+  and 'a promise
+
+  and reader
 
   and read_result =
     [ `End
@@ -70,9 +70,25 @@ module Make (P : Reparse.PARSER) = struct
 
   type input = P.input
 
-  type 'a t = 'a P.t
+  and 'a t = 'a P.t
 
-  type 'a promise = 'a P.promise
+  and 'a promise = 'a P.promise
+
+  and reader =
+    { input: input
+    ; dash_boundary: string t
+    ; crlf_dash_boundary: string t
+    ; read_body_len: int
+    ; mutable pos: int
+    ; mutable parsing_body: bool
+    ; mutable preamble_parsed: bool }
+
+  and read_result =
+    [ `End
+    | `Header of part_header
+    | `Body of Cstruct.t
+    | `Body_end
+    | `Error of string ]
 
   let is_space c = c == '\x20'
 
@@ -203,22 +219,6 @@ module Make (P : Reparse.PARSER) = struct
     let+ params = take param in
     let parameters = params |> List.to_seq |> Map.of_seq in
     Content_type {ty; subtype; parameters}
-
-  type reader =
-    { input: input
-    ; dash_boundary: string t
-    ; crlf_dash_boundary: string t
-    ; read_body_len: int
-    ; mutable pos: int
-    ; mutable parsing_body: bool
-    ; mutable preamble_parsed: bool }
-
-  and read_result =
-    [ `End
-    | `Header of part_header
-    | `Body of Cstruct.t
-    | `Body_end
-    | `Error of string ]
 
   let pp_read_result : Format.formatter -> read_result -> unit =
    fun fmt ->

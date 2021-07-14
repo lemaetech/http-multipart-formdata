@@ -38,13 +38,13 @@ val parse_boundary : content_type:string -> (boundary, string) result
 (** {2 Multipart Parser} *)
 
 module type MULTIPART_PARSER = sig
-  type input
-
   type 'a t
 
-  type 'a promise
+  and input
 
-  type reader
+  and 'a promise
+
+  and reader
 
   and read_result =
     [ `End
