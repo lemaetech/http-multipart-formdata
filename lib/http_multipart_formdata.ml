@@ -68,6 +68,12 @@ end
 module Make (P : Reparse.PARSER) = struct
   open P
 
+  type input = P.input
+
+  type 'a t = 'a P.t
+
+  type 'a promise = 'a P.promise
+
   let is_space c = c == '\x20'
 
   let is_control = function '\x00' .. '\x1F' | '\x7F' -> true | _ -> false
@@ -112,12 +118,6 @@ module Make (P : Reparse.PARSER) = struct
     dquote *> qcontent <* dquote
 
   let param_value = token <|> quoted_string
-
-  type input = P.input
-
-  type 'a t = 'a P.t
-
-  type 'a promise = 'a P.promise
 
   let param =
     let name = skip whitespace *> char ';' *> skip whitespace *> token in
