@@ -1,6 +1,6 @@
 type parse_result =
   ((Http_multipart_formdata.part_header * string) list, string) result
-[@@deriving show, ord]
+[@@deriving show]
 
 let () =
   let body =

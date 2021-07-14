@@ -33,10 +33,6 @@ let filename t = t.filename
 
 let param_value name t = Map.find_opt name t.parameters
 
-let compare_part_header (a : part_header) (b : part_header) = compare a b
-
-let equal_part_header (a : part_header) (b : part_header) = compare a b = 0
-
 let pp_part_header fmt part =
   let fields =
     [ Fmt.field "name" (fun p -> p.name) Fmt.string

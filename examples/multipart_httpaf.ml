@@ -30,7 +30,7 @@ let upload_page =
 
 type parse_result =
   ((Http_multipart_formdata.part_header * string) list, string) result
-[@@deriving show, ord]
+[@@deriving show]
 
 let handle_upload content_type req_body_stream =
   let open Lwt_result in

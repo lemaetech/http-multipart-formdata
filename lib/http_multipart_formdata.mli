@@ -29,10 +29,6 @@ val filename : part_header -> string option
 val param_value : string -> part_header -> string option
 (** [param_value name t] returns the multipart parameter value with name [name]. *)
 
-val compare_part_header : part_header -> part_header -> int
-
-val equal_part_header : part_header -> part_header -> bool
-
 val pp_part_header : Format.formatter -> part_header -> unit
 
 module type MULTIPART_PARSER = sig

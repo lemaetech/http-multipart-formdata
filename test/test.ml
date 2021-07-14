@@ -1,4 +1,4 @@
-type string_result = (string, string) result [@@deriving show, ord]
+type string_result = (string, string) result [@@deriving show]
 
 let%expect_test "parse_boundary" =
   let content_type =
@@ -11,7 +11,7 @@ let%expect_test "parse_boundary" =
 
 type parse_result =
   ((Http_multipart_formdata.part_header * string) list, string) result
-[@@deriving show, ord]
+[@@deriving show]
 
 let%expect_test "parse_parts" =
   let body =
