@@ -7,10 +7,15 @@
  *
  *-------------------------------------------------------------------------*)
 
-(** {2 Part header} *)
+(** {2 Types} *)
 
 (** Represents a parsed multipart part header data. *)
 type part_header
+
+(** Represents the multipart boundary value. *)
+and boundary = string
+
+(** {2 Part header} *)
 
 val name : part_header -> string
 (** [name t] returns the form field name *)
@@ -27,9 +32,6 @@ val param_value : string -> part_header -> string option
 val pp_part_header : Format.formatter -> part_header -> unit
 
 (** {2 Mulipart Boundary parser} *)
-
-(** Represents the multipart boundary value. *)
-type boundary = string
 
 val parse_boundary : content_type:string -> (boundary, string) result
 (** [parse_boundary ~content_type] parses [content_type] to extract [boundary]

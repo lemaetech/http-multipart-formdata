@@ -16,14 +16,14 @@ module Map = struct
     Fmt.seq ~sep:Fmt.semi pp_kv fmt (to_seq t)
 end
 
-(** Represents the multipart boundary value. *)
-type boundary = string
-
 type part_header =
   { name: string
   ; content_type: string
   ; filename: string option
   ; parameters: string Map.t }
+
+(** Represents the multipart boundary value. *)
+and boundary = string
 
 let name t = t.name
 
