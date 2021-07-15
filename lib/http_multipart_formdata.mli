@@ -13,7 +13,7 @@
 type part_header
 
 (** Represents the multipart boundary value. *)
-and boundary = string
+and boundary = Boundary of string [@@unboxed]
 
 (** {2 Part header} *)
 

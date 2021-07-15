@@ -1,4 +1,7 @@
-type string_result = (string, string) result [@@deriving show]
+type boundary = Http_multipart_formdata.boundary = Boundary of string
+[@@unboxed] [@@deriving show {with_path= false}]
+
+type boundary_result = (boundary, string) result [@@deriving show]
 
 let%expect_test "parse_boundary" =
   let content_type =
@@ -6,8 +9,8 @@ let%expect_test "parse_boundary" =
      boundary=---------------------------735323031399963166993862150"
   in
   Http_multipart_formdata.parse_boundary ~content_type
-  |> pp_string_result Format.std_formatter ;
-  [%expect {| (Ok "---------------------------735323031399963166993862150") |}]
+  |> pp_boundary_result Format.std_formatter ;
+  [%expect {| (Ok (Boundary "---------------------------735323031399963166993862150")) |}]
 
 type parse_result =
   ((Http_multipart_formdata.part_header * string) list, string) result
@@ -54,10 +57,10 @@ asdfasdfasdfasdfasdfasdf|}
   in
   let module P = Http_multipart_formdata.Make (Reparse.String) in
   let input = Reparse.String.create_input_from_string body in
-  let reader =
-    P.reader ~read_body_len:10
-      "---------------------------735323031399963166993862150" input
+  let boundary =
+    Boundary "---------------------------735323031399963166993862150"
   in
+  let reader = P.reader ~read_body_len:10 boundary input in
   let rec loop () =
     P.read_part reader
     |> function

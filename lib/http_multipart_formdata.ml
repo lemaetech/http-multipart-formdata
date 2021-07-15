@@ -23,7 +23,7 @@ type part_header =
   ; parameters: string Map.t }
 
 (** Represents the multipart boundary value. *)
-and boundary = string
+and boundary = Boundary of string [@@unboxed]
 
 let name t = t.name
 
@@ -195,7 +195,7 @@ module Make (P : Reparse.PARSER) = struct
     *> skip whitespace *> take param
     >>= fun params ->
     match List.assoc_opt "boundary" params with
-    | Some b -> return b
+    | Some boundary -> return (Boundary boundary)
     | None -> fail "'boundary' parameter not found"
 
   type part_body_header =
@@ -313,7 +313,7 @@ module Make (P : Reparse.PARSER) = struct
     in
     read_part_body 0
 
-  let reader ?(read_body_len = 1024) boundary input =
+  let reader ?(read_body_len = 1024) (Boundary boundary) input =
     let crlf_dash_boundary = Format.sprintf "\r\n--%s" boundary in
     let read_body_len = max read_body_len (String.length crlf_dash_boundary) in
     let crlf_dash_boundary = string_cs crlf_dash_boundary in
