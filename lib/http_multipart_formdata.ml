@@ -26,11 +26,8 @@ type part_header =
 and boundary = Boundary of string [@@unboxed]
 
 let name t = t.name
-
 let content_type t = t.content_type
-
 let filename t = t.filename
-
 let param_value name t = Map.find_opt name t.parameters
 
 let pp_part_header fmt part =
@@ -61,9 +58,7 @@ module type MULTIPART_PARSER = sig
     | `Error of string ]
 
   val reader : ?read_body_len:int -> boundary -> input -> reader
-
   val read_part : reader -> read_result promise
-
   val pp_read_result : Format.formatter -> read_result -> unit
 end
 
@@ -93,7 +88,6 @@ module Make (P : Reparse.PARSER) = struct
     | `Error of string ]
 
   let is_space c = c == '\x20'
-
   let is_control = function '\x00' .. '\x1F' | '\x7F' -> true | _ -> false
 
   let is_alpha_digit = function

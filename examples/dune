@@ -8,13 +8,7 @@
 (executable
  (name multipart_httpaf)
  (modules multipart_httpaf)
- (libraries
-  http-multipart-formdata
-  reparse
-  reparse-lwt
-  lwt
-  lwt.unix
-  httpaf
-  httpaf-lwt-unix)
+ (libraries http-multipart-formdata reparse reparse-lwt lwt lwt.unix httpaf
+   httpaf-lwt-unix)
  (preprocess
   (pps ppx_deriving.show ppx_deriving.ord)))
