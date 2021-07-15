@@ -44,8 +44,6 @@ let pp_part_header fmt part =
 
 let pp_boundary fmt (Boundary boundary) = Fmt.string fmt boundary
 
-let boundary_of_string boundary = Boundary boundary
-
 module type MULTIPART_PARSER = sig
   type 'a t
 

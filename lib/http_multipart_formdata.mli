@@ -37,8 +37,6 @@ val parse_boundary : content_type:string -> (boundary, string) result
 (** [parse_boundary ~content_type] parses [content_type] to extract [boundary]
     value.[content_type] is the HTTP request [Content-Type] header value. *)
 
-val boundary_of_string : string -> boundary
-
 val pp_boundary : Format.formatter -> boundary -> unit
 
 (** {2 Multipart Parser} *)
