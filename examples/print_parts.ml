@@ -1,5 +1,6 @@
-type parse_result =
-  ((Http_multipart_formdata.part_header * string) list, string) result
+module Multipart = Http_multipart_formdata.Make (Reparse_lwt.Stream)
+
+type parse_result = ((Multipart.part_header * string) list, string) result
 [@@deriving show]
 
 let () =
@@ -42,7 +43,6 @@ asdfasdfasdfasdfasdfasdf|}
       ; {|-----------------------------735323031399963166993862150--|} ]
   in
   let open Lwt_result in
-  let module Multipart = Http_multipart_formdata.Make (Reparse_lwt.Stream) in
   let rec read_parts reader parts =
     ok (Multipart.read_part reader)
     >>= function

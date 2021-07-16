@@ -1,6 +1,8 @@
 type boundary_result = (Http_multipart_formdata.boundary, string) result
 [@@deriving show]
 
+module P = Http_multipart_formdata.Make (Reparse.String)
+
 let%expect_test "parse_boundary" =
   let content_type =
     "multipart/form-data; \
@@ -10,8 +12,7 @@ let%expect_test "parse_boundary" =
   |> pp_boundary_result Format.std_formatter ;
   [%expect {| (Ok ---------------------------735323031399963166993862150) |}]
 
-type parse_result =
-  ((Http_multipart_formdata.part_header * string) list, string) result
+type parse_result = ((P.part_header * string) list, string) result
 [@@deriving show]
 
 let%expect_test "parse_parts" =
@@ -53,7 +54,6 @@ asdfasdfasdfasdfasdfasdf|}
       ; {|aωb|}
       ; {|-----------------------------735323031399963166993862150--|} ]
   in
-  let module P = Http_multipart_formdata.Make (Reparse.String) in
   let input = Reparse.String.create_input_from_string body in
   let boundary =
     Http_multipart_formdata.parse_boundary

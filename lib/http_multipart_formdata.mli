@@ -9,27 +9,8 @@
 
 (** {2 Types} *)
 
-(** Represents a parsed multipart part header data. *)
-type part_header
-
 (** Represents the multipart boundary value. *)
-and boundary
-
-(** {2 Part header} *)
-
-val name : part_header -> string
-(** [name t] returns the form field name *)
-
-val content_type : part_header -> string
-(** [content_type t] returns the part content-type. *)
-
-val filename : part_header -> string option
-(** [filename t] returns the uploaded filename is the multipart is a file *)
-
-val param_value : string -> part_header -> string option
-(** [param_value name t] returns the multipart parameter value with name [name]. *)
-
-val pp_part_header : Format.formatter -> part_header -> unit
+type boundary
 
 (** {2 Mulipart Boundary parser} *)
 
@@ -42,6 +23,8 @@ val pp_boundary : Format.formatter -> boundary -> unit
 (** {2 Multipart Parser} *)
 
 module type MULTIPART_PARSER = sig
+  (** {2 Types} *)
+
   type 'a t
 
   and input
@@ -57,6 +40,11 @@ module type MULTIPART_PARSER = sig
     | `Body_end
     | `Error of string ]
 
+  (** Represents a parsed multipart part header data. *)
+  and part_header
+
+  (** {2 Multipart Reader} *)
+
   val reader : ?read_body_len:int -> boundary -> input -> reader
   (** [reader ?read_body_len boundary input] creates reader. The default value
       for [read_body_len] is 1KB. *)
@@ -65,8 +53,28 @@ module type MULTIPART_PARSER = sig
   (** [read_part ?read_body_len ~boundary reader] reads a http multipart body
       and returns a [read_result]. *)
 
+  (** {2 Part header} *)
+
+  val name : part_header -> string
+  (** [name t] returns the form field name *)
+
+  val content_type : part_header -> string
+  (** [content_type t] returns the part content-type. *)
+
+  val filename : part_header -> string option
+  (** [filename t] returns the uploaded filename is the multipart is a file *)
+
+  val header_value : string -> part_header -> string option
+  (** [param_value name t] returns the multipart parameter value with name
+      [name]. *)
+
+  (** {2 Pretty Printers} *)
+
+  val pp_part_header : Format.formatter -> part_header -> unit
   val pp_read_result : Format.formatter -> read_result -> unit
 end
+
+(** {2 Make Multipart Parser} *)
 
 module Make (P : Reparse.PARSER) :
   MULTIPART_PARSER

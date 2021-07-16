@@ -7,37 +7,8 @@
  *
  *-------------------------------------------------------------------------*)
 
-module Map = struct
-  include Map.Make (String)
-
-  let pp pp_value fmt t =
-    let pp_kv = Fmt.pair ~sep:Fmt.comma Fmt.string pp_value in
-    let pp_kv fmt pv = Fmt.pf fmt "@[(%a)@]" pp_kv pv in
-    Fmt.seq ~sep:Fmt.semi pp_kv fmt (to_seq t)
-end
-
-type part_header =
-  { name: string
-  ; content_type: string
-  ; filename: string option
-  ; parameters: string Map.t }
-
 (** Represents the multipart boundary value. *)
-and boundary = Boundary of string [@@unboxed]
-
-let name t = t.name
-let content_type t = t.content_type
-let filename t = t.filename
-let param_value name t = Map.find_opt name t.parameters
-
-let pp_part_header fmt part =
-  let fields =
-    [ Fmt.field "name" (fun p -> p.name) Fmt.string
-    ; Fmt.field "parameters" (fun p -> p.parameters) (Map.pp Fmt.string)
-    ; Fmt.field "content_type" (fun p -> p.content_type) Fmt.string
-    ; Fmt.field "filename" (fun p -> p.filename) Fmt.(option string) ]
-  in
-  Fmt.record ~sep:Fmt.semi fields fmt part
+type boundary = Boundary of string [@@unboxed]
 
 let pp_boundary fmt (Boundary boundary) = Fmt.string fmt boundary
 
@@ -57,9 +28,25 @@ module type MULTIPART_PARSER = sig
     | `Body_end
     | `Error of string ]
 
+  and part_header
+
   val reader : ?read_body_len:int -> boundary -> input -> reader
   val read_part : reader -> read_result promise
+  val name : part_header -> string
+  val content_type : part_header -> string
+  val filename : part_header -> string option
+  val header_value : string -> part_header -> string option
+  val pp_part_header : Format.formatter -> part_header -> unit
   val pp_read_result : Format.formatter -> read_result -> unit
+end
+
+module Map = struct
+  include Map.Make (String)
+
+  let pp pp_value fmt t =
+    let pp_kv = Fmt.pair ~sep:Fmt.comma Fmt.string pp_value in
+    let pp_kv fmt pv = Fmt.pf fmt "@[(%a)@]" pp_kv pv in
+    Fmt.seq ~sep:Fmt.semi pp_kv fmt (to_seq t)
 end
 
 module Make (P : Reparse.PARSER) = struct
@@ -86,6 +73,26 @@ module Make (P : Reparse.PARSER) = struct
     | `Body of Cstruct.t
     | `Body_end
     | `Error of string ]
+
+  and part_header =
+    { name: string
+    ; content_type: string
+    ; filename: string option
+    ; parameters: string Map.t }
+
+  let name (p : part_header) = p.name
+  let content_type p = p.content_type
+  let filename p = p.filename
+  let header_value name p = Map.find_opt name p.parameters
+
+  let pp_part_header fmt part =
+    let fields =
+      [ Fmt.field "name" (fun p -> p.name) Fmt.string
+      ; Fmt.field "parameters" (fun p -> p.parameters) (Map.pp Fmt.string)
+      ; Fmt.field "content_type" (fun p -> p.content_type) Fmt.string
+      ; Fmt.field "filename" (fun p -> p.filename) Fmt.(option string) ]
+    in
+    Fmt.record ~sep:Fmt.semi fields fmt part
 
   let is_space c = c == '\x20'
   let is_control = function '\x00' .. '\x1F' | '\x7F' -> true | _ -> false
@@ -206,7 +213,7 @@ module Make (P : Reparse.PARSER) = struct
     let params = List.to_seq params |> Map.of_seq in
     Content_disposition params
 
-  let content_type parse_header_name =
+  let content_type_p parse_header_name =
     let* ty =
       (if parse_header_name then string_cs "Content-Type:" *> unit else unit)
       *> skip whitespace *> p_restricted_name
@@ -238,7 +245,7 @@ module Make (P : Reparse.PARSER) = struct
     *> reader.dash_boundary *> trim_input_buffer
 
   let part_header =
-    take ~at_least:1 (crlf *> any [content_disposition; content_type true])
+    take ~at_least:1 (crlf *> any [content_disposition; content_type_p true])
     >>= fun headers ->
     let name, content_type, filename, parameters =
       List.fold_left
