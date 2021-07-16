@@ -25,9 +25,7 @@ val pp_boundary : Format.formatter -> boundary -> unit
 module type MULTIPART_PARSER = sig
   (** {2 Types} *)
 
-  type 'a t
-
-  and input
+  type input
 
   and 'a promise
 
@@ -77,7 +75,4 @@ end
 (** {2 Make Multipart Parser} *)
 
 module Make (P : Reparse.PARSER) :
-  MULTIPART_PARSER
-    with type input = P.input
-    with type 'a t = 'a P.t
-    with type 'a promise = 'a P.promise
+  MULTIPART_PARSER with type input = P.input with type 'a promise = 'a P.promise

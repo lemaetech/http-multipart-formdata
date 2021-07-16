@@ -13,9 +13,7 @@ type boundary = Boundary of string [@@unboxed]
 let pp_boundary fmt (Boundary boundary) = Fmt.string fmt boundary
 
 module type MULTIPART_PARSER = sig
-  type 'a t
-
-  and input
+  type input
 
   and 'a promise
 
@@ -53,8 +51,6 @@ module Make (P : Reparse.PARSER) = struct
   open P
 
   type input = P.input
-
-  and 'a t = 'a P.t
 
   and 'a promise = 'a P.promise
 
