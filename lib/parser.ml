@@ -306,4 +306,4 @@ let reader ?(read_body_len = 1024) (Boundary boundary) input =
   ; preamble_parsed= false }
 
 let parse_boundary ~content_type =
-  parse_string ~consume:Consume.All content_type
+  parse_string ~consume:Consume.All boundary content_type
