@@ -86,7 +86,7 @@ let is_qtext = function
 
 let whitespace = satisfy (function ' ' | '\t' -> true | _ -> false)
 let vchar = satisfy (function '\x21' .. '\x7E' -> true | _ -> false)
-let dquote = satisfy (function '"' -> true | _ -> false)
+let dquote = char '"'
 
 (* https://tools.ietf.org/html/rfc5322#section-3.2.1 quoted-pair = ('\' (VCHAR /
    WSP)) / obs-qp *)
