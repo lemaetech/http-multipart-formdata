@@ -14,11 +14,9 @@ type boundary = Boundary of string [@@unboxed]
 type input = string
 
 and reader =
-  { input: input
-  ; dash_boundary: string
+  { dash_boundary: string
   ; crlf_dash_boundary: string
   ; read_body_len: int
-  ; mutable pos: int
   ; mutable parsing_body: bool
   ; mutable preamble_parsed: bool }
 
@@ -122,7 +120,7 @@ let restricted_name =
 
 let optional x = option None (x >>| Option.some)
 
-let boundary =
+let boundary ~content_type =
   let boundary_param_value =
     let is_bcharnospace = function
       | '\'' | '(' | ')' | '+' | '_' | ',' | '-' | '.' | '/' | ':' | '=' | '?'
@@ -161,13 +159,16 @@ let boundary =
     in
     (attribute, value)
   in
-  skip_many whitespace
-  *> (string_ci "multipart/form-data" <?> "Not multipart formdata header")
-  *> skip_many whitespace *> many param
-  >>= fun params ->
-  match List.assoc_opt "boundary" params with
-  | Some boundary -> return (Boundary boundary)
-  | None -> fail "'boundary' parameter not found"
+  let p =
+    skip_many whitespace
+    *> (string_ci "multipart/form-data" <?> "Not multipart formdata header")
+    *> skip_many whitespace *> many param
+    >>= fun params ->
+    match List.assoc_opt "boundary" params with
+    | Some boundary -> return (Boundary boundary)
+    | None -> fail "'boundary' parameter not found"
+  in
+  parse_string ~consume:Consume.All p content_type
 
 let content_disposition =
   let+ params =
@@ -292,18 +293,15 @@ and part_body reader : read_result t =
   in
   read_part_body 0
 
-let reader ?(read_body_len = 1024) (Boundary boundary) input =
+let reader ?(read_body_len = 1024) (Boundary boundary) =
   let crlf_dash_boundary = Format.sprintf "\r\n--%s" boundary in
   let read_body_len = max read_body_len (String.length crlf_dash_boundary) in
   let crlf_dash_boundary = crlf_dash_boundary in
   let dash_boundary = Format.sprintf "--%s" boundary in
-  { input
-  ; pos= 0
-  ; read_body_len
+  { read_body_len
   ; dash_boundary
   ; crlf_dash_boundary
   ; parsing_body= false
   ; preamble_parsed= false }
 
-let parse_boundary ~content_type =
-  parse_string ~consume:Consume.All boundary content_type
+let read_part (reader : reader) = Buffered.parse (part reader)
