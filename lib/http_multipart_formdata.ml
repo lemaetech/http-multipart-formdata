@@ -183,16 +183,6 @@ let content_disposition =
 
 let unit = return ()
 
-let content_type_p parse_header_name =
-  let* ty =
-    (if parse_header_name then string_ci "Content-Type:" *> unit else unit)
-    *> skip_many whitespace *> restricted_name
-  in
-  let* subtype = char '/' *> restricted_name in
-  let+ params = many param in
-  let parameters = params |> List.to_seq |> Map.of_seq in
-  Content_type {ty; subtype; parameters}
-
 let pp_read_result : Format.formatter -> read_result -> unit =
  fun fmt ->
   let pp fmt = function
@@ -220,7 +210,16 @@ let preamble dash_boundary =
 let crlf = string_ci "\r\n" <?> "[crlf]"
 
 let part_header =
-  many1 (crlf *> choice [content_disposition; content_type_p true])
+  let content_type =
+    let* ty =
+      string_ci "Content-Type:" *> skip_many whitespace *> restricted_name
+    in
+    let* subtype = char '/' *> restricted_name in
+    let+ params = many param in
+    let parameters = params |> List.to_seq |> Map.of_seq in
+    Content_type {ty; subtype; parameters}
+  in
+  many1 (crlf *> choice [content_disposition; content_type])
   >>= fun headers ->
   let name, content_type, filename, parameters =
     List.fold_left
