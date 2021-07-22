@@ -45,7 +45,7 @@ type part_body_header =
 let name (p : part_header) = p.name
 let content_type p = p.content_type
 let filename p = p.filename
-let header_value name p = Map.find_opt name p.parameters
+let find name p = Map.find_opt name p.parameters
 
 let pp_part_header fmt part =
   let fields =

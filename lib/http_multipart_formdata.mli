@@ -55,7 +55,7 @@ val content_type : part_header -> string
 val filename : part_header -> string option
 (** [filename t] returns the uploaded filename is the multipart is a file *)
 
-val header_value : string -> part_header -> string option
+val find : string -> part_header -> string option
 (** [param_value name t] returns the multipart parameter value with name [name]. *)
 
 (** {2 Pretty Printers} *)
