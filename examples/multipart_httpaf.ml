@@ -1,7 +1,6 @@
 open Httpaf
 open Httpaf_lwt_unix
 open Lwt.Infix
-module Multipart = Http_multipart_formdata.Make (Reparse_lwt.Stream)
 
 let upload_page =
   {|<!DOCTYPE html>
@@ -29,48 +28,42 @@ let upload_page =
     </body>
     </html>|}
 
-type parse_result = ((Multipart.part_header * string) list, string) result
+type parse_result =
+  ((Http_multipart_formdata.part_header * string) list, string) result
 [@@deriving show]
 
-let handle_upload content_type req_body_stream =
-  let open Lwt_result in
+let handle_upload content_type body =
   let rec read_parts reader parts =
-    ok (Multipart.read_part reader)
-    >>= function
-    | `End -> Lwt.return (Ok (Queue.to_seq parts |> List.of_seq))
+    Http_multipart_formdata.read_part reader
+    |> function
+    | `End -> Ok (Queue.to_seq parts |> List.of_seq)
     | `Header header ->
-        read_body reader []
-        >>= fun body ->
-        let body = List.rev body |> Cstruct.concat |> Cstruct.to_string in
+        let body = Cstruct.(read_body reader empty |> to_string) in
         Queue.push (header, body) parts ;
         read_parts reader parts
-    | `Error e -> Lwt.return (Error e)
+    | `Error e -> Error e
     | _ -> assert false
-  and read_body reader buffers =
-    ok (Multipart.read_part reader)
-    >>= function
-    | `Body_end -> return buffers
-    | `Body buf -> read_body reader (buf :: buffers)
-    | `Error e -> fail e
+  and read_body reader body =
+    Http_multipart_formdata.read_part reader
+    |> function
+    | `Body_end -> body
+    | `Body buf -> read_body reader (Cstruct.append body buf)
+    | `Error e -> failwith e
     | _ -> assert false
   in
-  lift (Http_multipart_formdata.parse_boundary ~content_type)
-  >>= fun boundary ->
-  let input = Reparse_lwt.Stream.create_input req_body_stream in
-  let reader = Multipart.reader ~read_body_len:10 boundary input in
-  read_parts reader (Queue.create ())
+  Result.bind (Http_multipart_formdata.boundary ~content_type) (fun boundary ->
+      let reader =
+        Http_multipart_formdata.reader ~read_body_len:10 boundary (`Cstruct body)
+      in
+      read_parts reader (Queue.create ()) )
 
 let request_handler (_ : Unix.sockaddr) reqd =
-  let req_body_stream, push = Lwt_stream.create () in
   let request = Reqd.request reqd in
   let request_body = Reqd.request_body reqd in
-  Body.schedule_read request_body
-    ~on_eof:(fun () -> push None)
-    ~on_read:(fun bs ~off ~len ->
-      for i = 0 to len - off - 1 do
-        let c = Bigstringaf.get bs i in
-        push (Some c)
-      done ) ;
+  let body = ref Cstruct.empty in
+  Body.schedule_read request_body ~on_eof:Fun.id ~on_read:(fun bs ~off ~len ->
+      let b = Cstruct.of_bigarray ~off ~len bs in
+      body := Cstruct.append !body b ) ;
   Body.close_reader request_body ;
   Lwt.async (fun () ->
       match (request.meth, request.target) with
@@ -86,8 +79,7 @@ let request_handler (_ : Unix.sockaddr) reqd =
           Lwt.return_unit
       | `POST, "/upload" ->
           let content_type = Headers.get_exn request.headers "content-type" in
-          handle_upload content_type req_body_stream
-          >>= fun parts ->
+          let parts = handle_upload content_type !body in
           Lwt.return (show_parse_result parts)
           >|= fun s ->
           let headers =
