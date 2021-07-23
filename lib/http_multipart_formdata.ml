@@ -21,8 +21,9 @@ type boundary = Boundary of string [@@unboxed]
 
 and reader =
   { state: state
-  ; mutable parser_state: read_result Angstrom.Buffered.state
-  ; mutable last_unconsumed: Cstruct.t }
+  ; mutable input: input
+  ; mutable last_unconsumed: Cstruct.t
+  ; mutable parser_state: read_result Angstrom.Buffered.state }
 
 and state =
   { dash_boundary: string
@@ -39,13 +40,13 @@ and read_result =
   | `Awaiting_input of [`Cstruct of Cstruct.t | `Eof] -> read_result
   | `Error of string ]
 
+and input = [`Cstruct of Cstruct.t | `Incremental]
+
 and part_header =
   { name: string
   ; content_type: string
   ; filename: string option
   ; parameters: string Map.t }
-
-and bigstring = Bigstringaf.t
 
 type part_body_header =
   | Content_type of {ty: string; subtype: string; parameters: string Map.t}
@@ -303,7 +304,7 @@ and part_body state : read_result t =
   in
   read_part_body 0
 
-let reader ?(read_body_len = 1024) (Boundary boundary) =
+let reader ?(read_body_len = 1024) (Boundary boundary) input =
   let crlf_dash_boundary = Format.sprintf "\r\n--%s" boundary in
   let read_body_len = max read_body_len (String.length crlf_dash_boundary) in
   let crlf_dash_boundary = crlf_dash_boundary in
@@ -317,31 +318,42 @@ let reader ?(read_body_len = 1024) (Boundary boundary) =
   in
   let last_unconsumed = Cstruct.empty in
   let parser_state = Buffered.parse (part state) in
-  {parser_state; state; last_unconsumed}
+  {input; parser_state; state; last_unconsumed}
 
 let rec read_part (reader : reader) =
   match reader.parser_state with
-  | Buffered.Partial k ->
-      let continue (input : [`Cstruct of Cstruct.t | `Eof]) =
-        let input' =
-          match input with
-          | `Cstruct s ->
-              `Bigstring
-                Cstruct.(append reader.last_unconsumed s |> to_bigarray)
-          | `Eof -> `Eof
+  | Buffered.Partial k -> (
+    match reader.input with
+    | `Incremental ->
+        let continue (input : [`Cstruct of Cstruct.t | `Eof]) =
+          let input' =
+            match input with
+            | `Cstruct s ->
+                `Bigstring
+                  Cstruct.(append reader.last_unconsumed s |> to_bigarray)
+            | `Eof -> `Eof
+          in
+          reader.parser_state <- k input' ;
+          read_part reader
         in
-        let parser_state = k input' in
-        reader.parser_state <- parser_state ;
-        read_part reader
-      in
-      `Awaiting_input continue
+        `Awaiting_input continue
+    | `Cstruct i ->
+        reader.parser_state <- k (`Bigstring (Cstruct.to_bigarray i)) ;
+        read_part reader )
   | Buffered.Done (buf, x) -> (
     match x with
     | `End -> `End
-    | x ->
-        reader.last_unconsumed <-
-          Cstruct.of_bigarray ~off:buf.off ~len:buf.len buf.buf ;
-        x )
+    | x -> (
+      match reader.input with
+      | `Cstruct _x ->
+          reader.input <-
+            `Cstruct (Cstruct.of_bigarray ~off:buf.off ~len:buf.len buf.buf) ;
+          reader.parser_state <- Buffered.parse (part reader.state) ;
+          x
+      | `Incremental ->
+          reader.last_unconsumed <-
+            Cstruct.of_bigarray ~off:buf.off ~len:buf.len buf.buf ;
+          x ) )
   | Buffered.Fail (_, _, e) -> `Error e
 
 let state ?(read_body_len = 1024) (Boundary boundary) =

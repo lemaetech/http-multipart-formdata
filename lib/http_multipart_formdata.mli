@@ -19,7 +19,7 @@ and read_result =
   | `Awaiting_input of [`Cstruct of Cstruct.t | `Eof] -> read_result
   | `Error of string ]
 
-and bigstring = Bigstringaf.t
+and input = [`Cstruct of Cstruct.t | `Incremental]
 
 (** Represents a parsed multipart part header data. *)
 and part_header
@@ -35,7 +35,7 @@ val boundary : content_type:string -> (boundary, string) result
 
 (** {2 Multipart Reader} *)
 
-val reader : ?read_body_len:int -> boundary -> reader
+val reader : ?read_body_len:int -> boundary -> input -> reader
 (** [reader ?read_body_len boundary input] creates reader. The default value for
     [read_body_len] is 1KB. *)
 

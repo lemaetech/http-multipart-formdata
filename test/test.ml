@@ -52,6 +52,7 @@ asdfasdfasdfasdfasdfasdf|}
       ; {||}
       ; {|aωb|}
       ; {|-----------------------------735323031399963166993862150--|} ]
+    |> Cstruct.of_string
   in
   let boundary =
     Http_multipart_formdata.boundary
@@ -60,13 +61,15 @@ asdfasdfasdfasdfasdfasdf|}
          boundary=---------------------------735323031399963166993862150"
     |> Result.get_ok
   in
-  let reader = Http_multipart_formdata.reader ~read_body_len:10 boundary in
+  let reader =
+    Http_multipart_formdata.reader ~read_body_len:10 boundary (`Cstruct body)
+  in
   let rec loop () =
-    P.read_part reader
+    Http_multipart_formdata.read_part reader
     |> function
     | `End -> ()
     | rr ->
-        P.pp_read_result Format.std_formatter rr ;
+        Http_multipart_formdata.pp_read_result Format.std_formatter rr ;
         loop ()
   in
   loop () ;
