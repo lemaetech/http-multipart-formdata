@@ -313,7 +313,10 @@ let rec read_part (reader : reader) =
         in
         `Awaiting_input continue
     | `Cstruct i ->
-        reader.parser_state <- k (`Bigstring (Cstruct.to_bigarray i)) ;
+        let input' =
+          if Cstruct.len i = 0 then `Eof else `Bigstring (Cstruct.to_bigarray i)
+        in
+        reader.parser_state <- k input' ;
         read_part reader )
   | Buffered.Done (buf, x) -> (
     match x with
@@ -332,7 +335,10 @@ let rec read_part (reader : reader) =
           reader.last_unconsumed <-
             Cstruct.of_bigarray ~off:buf.off ~len:buf.len buf.buf ;
           x ) )
-  | Buffered.Fail (_, _, e) -> `Error e
+  | Buffered.Fail (buf, marks, err) ->
+      reader.last_unconsumed <-
+        Cstruct.of_bigarray ~off:buf.off ~len:buf.len buf.buf ;
+      `Error (String.concat " > " marks ^ ": " ^ err)
 
 let unconsumed reader = reader.last_unconsumed
 
