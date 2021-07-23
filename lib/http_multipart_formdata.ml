@@ -28,7 +28,7 @@ and reader =
 and state =
   { dash_boundary: string
   ; crlf_dash_boundary: string
-  ; read_body_len: int
+  ; read_buffer_size: int
   ; mutable parsing_body: bool
   ; mutable preamble_parsed: bool }
 
@@ -255,9 +255,9 @@ let rec part state =
     end_ <|> part_header <|> part_body <* commit
 
 and part_body state : read_result t =
-  let buf = Cstruct.create state.read_body_len in
+  let buf = Cstruct.create state.read_buffer_size in
   let rec read_part_body i =
-    if i < state.read_body_len then (
+    if i < state.read_buffer_size then (
       let* is_boundary =
         let len = String.length state.crlf_dash_boundary in
         let+ crlf_dash_boundary' = peek_string len in
@@ -279,13 +279,15 @@ and part_body state : read_result t =
   in
   read_part_body 0
 
-let reader ?(read_body_len = 1024) (Boundary boundary) input =
+let reader ?(read_buffer_size = 1024) (Boundary boundary) input =
   let crlf_dash_boundary = Format.sprintf "\r\n--%s" boundary in
-  let read_body_len = max read_body_len (String.length crlf_dash_boundary) in
+  let read_buffer_size =
+    max read_buffer_size (String.length crlf_dash_boundary)
+  in
   let crlf_dash_boundary = crlf_dash_boundary in
   let dash_boundary = Format.sprintf "--%s" boundary in
   let state =
-    { read_body_len
+    { read_buffer_size
     ; dash_boundary
     ; crlf_dash_boundary
     ; parsing_body= false

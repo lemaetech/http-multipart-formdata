@@ -53,7 +53,8 @@ let handle_upload content_type body =
   in
   Result.bind (Http_multipart_formdata.boundary ~content_type) (fun boundary ->
       let reader =
-        Http_multipart_formdata.reader ~read_body_len:10 boundary (`Cstruct body)
+        Http_multipart_formdata.reader ~read_buffer_size:10 boundary
+          (`Cstruct body)
       in
       read_parts reader (Queue.create ()) )
 

@@ -35,9 +35,9 @@ val boundary : content_type:string -> (boundary, string) result
 
 (** {2 Multipart Reader} *)
 
-val reader : ?read_body_len:int -> boundary -> input -> reader
-(** [reader ?read_body_len boundary input] creates reader. The default value for
-    [read_body_len] is 1KB. *)
+val reader : ?read_buffer_size:int -> boundary -> input -> reader
+(** [reader ?read_buffer_size boundary input] creates reader. The default value
+    for [read_buffer_size] is 1KB. *)
 
 val read_part : reader -> read_result
 (** [read_part ?read_body_len ~boundary reader] reads a http multipart body and
