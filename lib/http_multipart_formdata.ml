@@ -355,15 +355,3 @@ let rec read_part (reader : reader) =
             Cstruct.of_bigarray ~off:buf.off ~len:buf.len buf.buf ;
           x ) )
   | Buffered.Fail (_, _, e) -> `Error e
-
-let state ?(read_body_len = 1024) (Boundary boundary) =
-  let crlf_dash_boundary = Format.sprintf "\r\n--%s" boundary in
-  let read_body_len = max read_body_len (String.length crlf_dash_boundary) in
-  let crlf_dash_boundary = crlf_dash_boundary in
-  let dash_boundary = Format.sprintf "--%s" boundary in
-  { read_body_len
-  ; dash_boundary
-  ; crlf_dash_boundary
-  ; parsing_body= false
-  ; preamble_parsed= false }
-  [@@warning "-32"]
