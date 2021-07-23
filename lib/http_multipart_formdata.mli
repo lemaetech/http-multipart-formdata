@@ -43,6 +43,8 @@ val read_part : reader -> read_result
 (** [read_part ?read_body_len ~boundary reader] reads a http multipart body and
     returns a [read_result]. *)
 
+val unconsumed : reader -> Cstruct.t
+
 (** {2 Part header} *)
 
 val name : part_header -> string

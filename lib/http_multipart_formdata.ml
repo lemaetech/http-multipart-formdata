@@ -317,7 +317,10 @@ let rec read_part (reader : reader) =
         read_part reader )
   | Buffered.Done (buf, x) -> (
     match x with
-    | `End -> `End
+    | `End ->
+        reader.last_unconsumed <-
+          Cstruct.of_bigarray ~off:buf.off ~len:buf.len buf.buf ;
+        `End
     | x -> (
       match reader.input with
       | `Cstruct _x ->
@@ -331,7 +334,10 @@ let rec read_part (reader : reader) =
           x ) )
   | Buffered.Fail (_, _, e) -> `Error e
 
+let unconsumed reader = reader.last_unconsumed
+
 (* Pretty Printers *)
+
 let pp_boundary fmt (Boundary boundary) = Fmt.string fmt boundary
 
 let pp_part_header fmt part =
