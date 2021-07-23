@@ -56,17 +56,6 @@ let name (p : part_header) = p.name
 let content_type p = p.content_type
 let filename p = p.filename
 let find name p = Map.find_opt name p.parameters
-
-let pp_part_header fmt part =
-  let fields =
-    [ Fmt.field "name" (fun p -> p.name) Fmt.string
-    ; Fmt.field "parameters" (fun p -> p.parameters) (Map.pp Fmt.string)
-    ; Fmt.field "content_type" (fun p -> p.content_type) Fmt.string
-    ; Fmt.field "filename" (fun p -> p.filename) Fmt.(option string) ]
-  in
-  Fmt.record ~sep:Fmt.semi fields fmt part
-
-let pp_boundary fmt (Boundary boundary) = Fmt.string fmt boundary
 let is_space c = c == '\x20'
 let is_control = function '\x00' .. '\x1F' | '\x7F' -> true | _ -> false
 
@@ -192,20 +181,6 @@ let content_disposition =
   Content_disposition params
 
 let unit = return ()
-
-let pp_read_result : Format.formatter -> read_result -> unit =
- fun fmt ->
-  let pp fmt = function
-    | `End -> Fmt.string fmt "End"
-    | `Header header -> Fmt.fmt "Header: %a" fmt pp_part_header header
-    | `Body buf ->
-        Fmt.fmt "Body: %d, %s" fmt (Cstruct.length buf)
-          (Cstruct.to_string buf |> String.escaped)
-    | `Body_end -> Fmt.string fmt "Body_end"
-    | `Awaiting_input _ -> Fmt.string fmt "Awaiting_input"
-    | `Error e -> Fmt.fmt "Error %s" fmt e
-  in
-  Fmt.(vbox (pp ++ cut)) fmt
 
 (* ignore all text before first boundary value. *)
 let preamble dash_boundary =
@@ -355,3 +330,29 @@ let rec read_part (reader : reader) =
             Cstruct.of_bigarray ~off:buf.off ~len:buf.len buf.buf ;
           x ) )
   | Buffered.Fail (_, _, e) -> `Error e
+
+(* Pretty Printers *)
+let pp_boundary fmt (Boundary boundary) = Fmt.string fmt boundary
+
+let pp_part_header fmt part =
+  let fields =
+    [ Fmt.field "name" (fun p -> p.name) Fmt.string
+    ; Fmt.field "parameters" (fun p -> p.parameters) (Map.pp Fmt.string)
+    ; Fmt.field "content_type" (fun p -> p.content_type) Fmt.string
+    ; Fmt.field "filename" (fun p -> p.filename) Fmt.(option string) ]
+  in
+  Fmt.record ~sep:Fmt.semi fields fmt part
+
+let pp_read_result : Format.formatter -> read_result -> unit =
+ fun fmt ->
+  let pp fmt = function
+    | `End -> Fmt.string fmt "End"
+    | `Header header -> Fmt.fmt "Header: %a" fmt pp_part_header header
+    | `Body buf ->
+        Fmt.fmt "Body: %d, %s" fmt (Cstruct.length buf)
+          (Cstruct.to_string buf |> String.escaped)
+    | `Body_end -> Fmt.string fmt "Body_end"
+    | `Awaiting_input _ -> Fmt.string fmt "Awaiting_input"
+    | `Error e -> Fmt.fmt "Error %s" fmt e
+  in
+  Fmt.(vbox (pp ++ cut)) fmt
