@@ -51,7 +51,7 @@ let handle_upload content_type body =
     | `Error e -> failwith e
     | _ -> assert false
   in
-  Result.bind (Http_multipart_formdata.boundary ~content_type) (fun boundary ->
+  Result.bind (Http_multipart_formdata.boundary content_type) (fun boundary ->
       let reader =
         Http_multipart_formdata.reader ~read_buffer_size:10 boundary
           (`Cstruct body)

@@ -122,7 +122,7 @@ let restricted_name =
 
 let optional x = option None (x >>| Option.some)
 
-let boundary ~content_type =
+let boundary content_type =
   let boundary_param_value =
     let is_bcharnospace = function
       | '\'' | '(' | ')' | '+' | '_' | ',' | '-' | '.' | '/' | ':' | '=' | '?'

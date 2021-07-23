@@ -29,9 +29,9 @@ and boundary
 
 (** {2 Mulipart Boundary parser} *)
 
-val boundary : content_type:string -> (boundary, string) result
-(** [parse_boundary ~content_type] parses [content_type] to extract [boundary]
-    value.[content_type] is the HTTP request [Content-Type] header value. *)
+val boundary : string -> (boundary, string) result
+(** [boundary content_type] parses [content_type] to extract [boundary] value.
+    [content_type] is the HTTP request [Content-Type] header value. *)
 
 (** {2 Multipart Reader} *)
 
