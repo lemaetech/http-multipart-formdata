@@ -29,7 +29,7 @@
    (>= 0.8.9))
   (cstruct
    (>= 6.0.0))
-  (reparse
-   (>= 3.1.0))
+  (angstrom
+   (>= 0.15.0))
   (ppx_expect :with-test)
   (ppx_deriving :with-test)))

@@ -16,8 +16,7 @@ and read_result =
   | `Header of part_header
   | `Body of Cstruct.t
   | `Body_end
-  | `Awaiting_input of
-    [`String of string | `Bigstring of bigstring | `Eof] -> read_result
+  | `Awaiting_input of [`Cstruct of Cstruct.t | `Eof] -> read_result
   | `Error of string ]
 
 and bigstring = Bigstringaf.t

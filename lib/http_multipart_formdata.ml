@@ -1,5 +1,13 @@
 open Angstrom
 
+let _debug k =
+  k (fun fmt ->
+      Printf.kfprintf (fun oc -> Printf.fprintf oc "\n%!") stdout fmt )
+
+let _peek_dbg n =
+  let+ s = peek_string n in
+  _debug (fun k -> k "peek(%d): %s\n%!" n s)
+
 module Map = struct
   include Map.Make (String)
 
@@ -12,7 +20,9 @@ end
 type boundary = Boundary of string [@@unboxed]
 
 and reader =
-  {mutable parser_state: read_result Angstrom.Buffered.state; state: state}
+  { state: state
+  ; mutable parser_state: read_result Angstrom.Buffered.state
+  ; mutable last_unconsumed: Cstruct.t }
 
 and state =
   { dash_boundary: string
@@ -26,8 +36,7 @@ and read_result =
   | `Header of part_header
   | `Body of Cstruct.t
   | `Body_end
-  | `Awaiting_input of
-    [`String of string | `Bigstring of bigstring | `Eof] -> read_result
+  | `Awaiting_input of [`Cstruct of Cstruct.t | `Eof] -> read_result
   | `Error of string ]
 
 and part_header =
@@ -192,7 +201,7 @@ let pp_read_result : Format.formatter -> read_result -> unit =
         Fmt.fmt "Body: %d, %s" fmt (Cstruct.length buf)
           (Cstruct.to_string buf |> String.escaped)
     | `Body_end -> Fmt.string fmt "Body_end"
-    | `Awaiting_input _ -> ()
+    | `Awaiting_input _ -> Fmt.string fmt "Awaiting_input"
     | `Error e -> Fmt.fmt "Error %s" fmt e
   in
   Fmt.(vbox (pp ++ cut)) fmt
@@ -205,7 +214,7 @@ let preamble dash_boundary =
     >>= fun dash_boudary' ->
     if String.equal dash_boundary dash_boudary' then fail "" else any_char
   in
-  p *> advance len *> commit
+  many p *> advance len *> commit
 
 let crlf = string_ci "\r\n" <?> "[crlf]"
 
@@ -306,17 +315,43 @@ let reader ?(read_body_len = 1024) (Boundary boundary) =
     ; parsing_body= false
     ; preamble_parsed= false }
   in
+  let last_unconsumed = Cstruct.empty in
   let parser_state = Buffered.parse (part state) in
-  {parser_state; state}
+  {parser_state; state; last_unconsumed}
 
 let rec read_part (reader : reader) =
   match reader.parser_state with
   | Buffered.Partial k ->
-      let continue input =
-        let parser_state = k input in
+      let continue (input : [`Cstruct of Cstruct.t | `Eof]) =
+        let input' =
+          match input with
+          | `Cstruct s ->
+              `Bigstring
+                Cstruct.(append reader.last_unconsumed s |> to_bigarray)
+          | `Eof -> `Eof
+        in
+        let parser_state = k input' in
         reader.parser_state <- parser_state ;
         read_part reader
       in
       `Awaiting_input continue
-  | Buffered.Done (_, a) -> a
+  | Buffered.Done (buf, x) -> (
+    match x with
+    | `End -> `End
+    | x ->
+        reader.last_unconsumed <-
+          Cstruct.of_bigarray ~off:buf.off ~len:buf.len buf.buf ;
+        x )
   | Buffered.Fail (_, _, e) -> `Error e
+
+let state ?(read_body_len = 1024) (Boundary boundary) =
+  let crlf_dash_boundary = Format.sprintf "\r\n--%s" boundary in
+  let read_body_len = max read_body_len (String.length crlf_dash_boundary) in
+  let crlf_dash_boundary = crlf_dash_boundary in
+  let dash_boundary = Format.sprintf "--%s" boundary in
+  { read_body_len
+  ; dash_boundary
+  ; crlf_dash_boundary
+  ; parsing_body= false
+  ; preamble_parsed= false }
+  [@@warning "-32"]

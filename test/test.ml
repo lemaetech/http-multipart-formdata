@@ -6,7 +6,7 @@ let%expect_test "parse_boundary" =
     "multipart/form-data; \
      boundary=---------------------------735323031399963166993862150"
   in
-  Http_multipart_formdata.parse_boundary ~content_type
+  Http_multipart_formdata.boundary ~content_type
   |> pp_boundary_result Format.std_formatter ;
   [%expect {| (Ok ---------------------------735323031399963166993862150) |}]
 
@@ -54,7 +54,7 @@ asdfasdfasdfasdfasdfasdf|}
       ; {|-----------------------------735323031399963166993862150--|} ]
   in
   let boundary =
-    Http_multipart_formdata.parse_boundary
+    Http_multipart_formdata.boundary
       ~content_type:
         "multipart/form-data; \
          boundary=---------------------------735323031399963166993862150"
