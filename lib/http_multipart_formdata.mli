@@ -7,11 +7,12 @@
  *
  *-------------------------------------------------------------------------*)
 
-(** [Http_multipart_formdata] is a non-blocking, streaming HTTP multipart
-    formdata parser. Its design is based on two main ideas:
+(** [Http_multipart_formdata] is a non-blocking, streaming HTTP
+    [multipart/formdata] parser. Its design is based on two main ideas:
 
     - The parser should stream the results as soon as possible in a
       non-buffered, non-backtracking manner; and
+
     - The parser input must be non-blocking and incremental in nature.
 
     The parser implements HTTP [multipart/form-data] standard as defined in
@@ -66,26 +67,25 @@ val reader : ?read_buffer_size:int -> boundary -> input -> reader
     for [read_buffer_size] is 1KB. *)
 
 val read : reader -> read
-(** [read_part ?read_body_len ~boundary reader] reads a http multipart body and
-    returns a {!type:read} value. *)
+(** [read reader] returns data read by [reader]. *)
 
 val unconsumed : reader -> Cstruct.t
-(** [uncoonsumed rader] returns any leftover data still remaining after
+(** [unconsumed reader] returns any leftover data still remaining after
     {!type:reader} returns [`End]. *)
 
 (** {2 Part header} *)
 
 val name : part_header -> string
-(** [name t] returns the form field name *)
+(** [name t] returns the form field name. *)
 
 val content_type : part_header -> string
 (** [content_type t] returns the part content-type. *)
 
 val filename : part_header -> string option
-(** [filename t] returns the uploaded filename is the multipart is a file *)
+(** [filename t] returns the uploaded filename if the multipart is a file. *)
 
 val find : string -> part_header -> string option
-(** [param_value name t] returns the multipart parameter value with name [name]. *)
+(** [find name t] returns the multipart parameter value associated with [name]. *)
 
 (** {2 Pretty Printers} *)
 
