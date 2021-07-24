@@ -10,7 +10,7 @@
 (** [Http_multipart_formdata] is a non-blocking, streaming HTTP multipart
     formdata parser. Its design is based on two main ideas:
 
-    - The parser should streaming the results as soon as possible in a
+    - The parser should stream the results as soon as possible in a
       non-buffered, non-backtracking manner; and
     - The parser input must be non-blocking and incremental in nature.
 
