@@ -19,7 +19,7 @@
 (** [reader] represents a HTTP multipart formdata reader. *)
 type reader
 
-(** [read] represents both the current state and data read by a {!reader}. *)
+(** [read] represents both the current state and data read by a {!type:reader}. *)
 and read =
   [ `End  (** The reader has completed reading. *)
   | `Header of part_header  (** Multipart part header data. *)
@@ -31,7 +31,11 @@ and read =
   | `Error of string ]
 (** Represents an error in {!input} data. *)
 
-and input = [`Cstruct of Cstruct.t | `Incremental]
+and input =
+  [ `Cstruct of Cstruct.t  (** A bigstring input. *)
+  | `Incremental
+    (** The caller of the library periodically provides input to the parser. *)
+  ]
 
 (** Represents a parsed multipart part header data. *)
 and part_header
@@ -42,8 +46,8 @@ and boundary
 (** {2 Mulipart Boundary parser} *)
 
 val boundary : string -> (boundary, string) result
-(** [boundary content_type] parses [content_type] to extract [boundary] value.
-    [content_type] is the HTTP request [Content-Type] header value.
+(** [boundary content_type] parses [content_type] to extract {!type:boundary}
+    value. [content_type] is the HTTP request [Content-Type] header value.
 
     {[
       let content_type =
@@ -61,11 +65,11 @@ val reader : ?read_buffer_size:int -> boundary -> input -> reader
 
 val read : reader -> read
 (** [read_part ?read_body_len ~boundary reader] reads a http multipart body and
-    returns a [read_result]. *)
+    returns a {!type:read} value. *)
 
 val unconsumed : reader -> Cstruct.t
-(** [uncoonsumed rader] returns any leftover data still remaining after [reader]
-    returns [`End]. *)
+(** [uncoonsumed rader] returns any leftover data still remaining after
+    {!type:reader} returns [`End]. *)
 
 (** {2 Part header} *)
 
