@@ -1,5 +1,7 @@
 open Angstrom
 
+(* Debug functions *)
+
 let _debug k =
   k (fun fmt ->
       Printf.kfprintf (fun oc -> Printf.fprintf oc "\n%!") stdout fmt )
@@ -77,19 +79,18 @@ let is_token_char c =
   && (not (is_control c))
   && not (is_tspecial c)
 
-let token = take_while1 is_token_char <?> "[token]"
-
 let is_qtext = function
   | '\x21' | '\x23' .. '\x5B' | '\x5D' .. '\x7E' -> true
   | _ -> false
 
-let whitespace = satisfy (function ' ' | '\t' -> true | _ -> false)
+let ws = satisfy (function ' ' | '\t' -> true | _ -> false)
 let vchar = satisfy (function '\x21' .. '\x7E' -> true | _ -> false)
 let dquote = char '"'
+let token = take_while1 is_token_char <?> "[token]"
 
 (* https://tools.ietf.org/html/rfc5322#section-3.2.1 quoted-pair = ('\' (VCHAR /
    WSP)) / obs-qp *)
-let quoted_pair = String.make 1 <$> char '\\' *> (whitespace <|> vchar)
+let quoted_pair = String.make 1 <$> char '\\' *> (ws <|> vchar)
 
 let quoted_string =
   let qtext = String.make 1 <$> satisfy is_qtext in
@@ -99,14 +100,12 @@ let quoted_string =
 let param_value = token <|> quoted_string
 
 let param =
-  let name =
-    skip_many whitespace *> char ';' *> skip_many whitespace *> token
-  in
+  let name = skip_many ws *> char ';' *> skip_many ws *> token in
   let value = char '=' *> param_value in
   lift2 (fun name value -> (name, value)) name value
 
 let restricted_name =
-  let restricted_name_chars = function
+  let restricted_chars = function
     | '!' | '#' | '$' | '&' | '-' | '^' | '_' | '.' | '+' -> true
     | c when is_alpha_digit c -> true
     | _ -> false
@@ -115,7 +114,7 @@ let restricted_name =
   let count = ref 0 in
   let+ restricted_name =
     take_while (fun c ->
-        if !count < 126 && restricted_name_chars c then (incr count ; true)
+        if !count < 126 && restricted_chars c then (incr count ; true)
         else false )
   in
   Format.sprintf "%c%s" first_ch restricted_name
@@ -152,9 +151,7 @@ let boundary content_type =
     optional dquote *> boundary_val <* optional dquote <|> token
   in
   let param =
-    let* attribute =
-      skip_many whitespace *> char ';' *> skip_many whitespace *> token
-    in
+    let* attribute = skip_many ws *> char ';' *> skip_many ws *> token in
     let+ value =
       char '='
       *> if attribute = "boundary" then boundary_param_value else param_value
@@ -162,10 +159,11 @@ let boundary content_type =
     (attribute, value)
   in
   let p =
-    skip_many whitespace
-    *> (string_ci "multipart/form-data" <?> "Not multipart formdata header")
-    *> skip_many whitespace *> many param
-    >>= fun params ->
+    let* params =
+      skip_many ws
+      *> (string_ci "multipart/form-data" <?> "Not multipart formdata header")
+      *> skip_many ws *> many param
+    in
     match List.assoc_opt "boundary" params with
     | Some boundary -> return (Boundary boundary)
     | None -> fail "'boundary' parameter not found"
@@ -175,7 +173,7 @@ let boundary content_type =
 let content_disposition =
   let+ params =
     string_ci "Content-Disposition:"
-    *> skip_many whitespace *> string_ci "form-data" *> many param
+    *> skip_many ws *> string_ci "form-data" *> many param
   in
   let params = List.to_seq params |> Map.of_seq in
   Content_disposition params
@@ -185,27 +183,22 @@ let unit = return ()
 (* ignore all text before first boundary value. *)
 let preamble dash_boundary =
   let len = String.length dash_boundary in
-  let p =
-    peek_string len
-    >>= fun dash_boudary' ->
-    if String.equal dash_boundary dash_boudary' then fail "" else any_char
-  in
-  many p *> advance len *> commit
+  many
+    (let* dash_boundary' = peek_string len in
+     if String.equal dash_boundary dash_boundary' then fail "" else any_char )
+  *> advance len *> commit
 
 let crlf = string_ci "\r\n" <?> "[crlf]"
 
 let part_header =
   let content_type =
-    let* ty =
-      string_ci "Content-Type:" *> skip_many whitespace *> restricted_name
-    in
+    let* ty = string_ci "Content-Type:" *> skip_many ws *> restricted_name in
     let* subtype = char '/' *> restricted_name in
     let+ params = many param in
     let parameters = params |> List.to_seq |> Map.of_seq in
     Content_type {ty; subtype; parameters}
   in
-  many1 (crlf *> choice [content_disposition; content_type])
-  >>= fun headers ->
+  let* headers = many1 (crlf *> choice [content_disposition; content_type]) in
   let name, content_type, filename, parameters =
     List.fold_left
       (fun (name, ct, filename, params) header ->
