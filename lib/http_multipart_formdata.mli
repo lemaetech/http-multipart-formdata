@@ -31,8 +31,7 @@ and read =
   | `Awaiting_input of [`Cstruct of Cstruct.t | `Eof] -> read
     (** The reader is waiting for it to be provided with input data. This is
         only returned when [`Incremental] is chosen as {!input}. *)
-  | `Error of string ]
-(** Represents an error in {!input} data. *)
+  | `Error of string  (** Represents an error in {!input} data. *) ]
 
 and input =
   [ `Cstruct of Cstruct.t  (** A bigstring input. *)
