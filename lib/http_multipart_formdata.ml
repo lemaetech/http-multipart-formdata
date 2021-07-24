@@ -24,7 +24,7 @@ type boundary = Boundary of string [@@unboxed]
 and reader =
   { state: state
   ; mutable input: input
-  ; mutable last_unconsumed: Cstruct.t
+  ; mutable unconsumed: Cstruct.t
   ; mutable parser_state: read_result Angstrom.Buffered.state }
 
 and state =
@@ -286,9 +286,11 @@ let reader ?(read_buffer_size = 1024) (Boundary boundary) input =
     ; parsing_body= false
     ; preamble_parsed= false }
   in
-  let last_unconsumed = Cstruct.empty in
+  let unconsumed = Cstruct.empty in
   let parser_state = Buffered.parse (part state) in
-  {input; parser_state; state; last_unconsumed}
+  {input; parser_state; state; unconsumed}
+
+let of_bigarray = Cstruct.of_bigarray
 
 let rec read_part (reader : reader) =
   match reader.parser_state with
@@ -299,8 +301,7 @@ let rec read_part (reader : reader) =
           let input' =
             match input with
             | `Cstruct s ->
-                `Bigstring
-                  Cstruct.(append reader.last_unconsumed s |> to_bigarray)
+                `Bigstring Cstruct.(append reader.unconsumed s |> to_bigarray)
             | `Eof -> `Eof
           in
           reader.parser_state <- k input' ;
@@ -316,26 +317,23 @@ let rec read_part (reader : reader) =
   | Buffered.Done (buf, x) -> (
     match x with
     | `End ->
-        reader.last_unconsumed <-
-          Cstruct.of_bigarray ~off:buf.off ~len:buf.len buf.buf ;
+        reader.unconsumed <- of_bigarray ~off:buf.off ~len:buf.len buf.buf ;
         `End
     | x -> (
       match reader.input with
       | `Cstruct _x ->
           reader.input <-
-            `Cstruct (Cstruct.of_bigarray ~off:buf.off ~len:buf.len buf.buf) ;
+            `Cstruct (of_bigarray ~off:buf.off ~len:buf.len buf.buf) ;
           reader.parser_state <- Buffered.parse (part reader.state) ;
           x
       | `Incremental ->
-          reader.last_unconsumed <-
-            Cstruct.of_bigarray ~off:buf.off ~len:buf.len buf.buf ;
+          reader.unconsumed <- of_bigarray ~off:buf.off ~len:buf.len buf.buf ;
           x ) )
   | Buffered.Fail (buf, marks, err) ->
-      reader.last_unconsumed <-
-        Cstruct.of_bigarray ~off:buf.off ~len:buf.len buf.buf ;
+      reader.unconsumed <- of_bigarray ~off:buf.off ~len:buf.len buf.buf ;
       `Error (String.concat " > " marks ^ ": " ^ err)
 
-let unconsumed reader = reader.last_unconsumed
+let unconsumed reader = reader.unconsumed
 
 (* Pretty Printers *)
 
