@@ -12,7 +12,10 @@
 
     - The parser should streaming the results as soon as possible in a
       non-buffered, non-backtracking manner; and
-    - The parser input must be non-blocking and incremental in nature. *)
+    - The parser input must be non-blocking and incremental in nature.
+
+    The parser implements HTTP [multipart/form-data] standard as defined in
+    {{:https://tools.ietf.org/html/rfc7578} RFC 7578}. *)
 
 (** {2 Types} *)
 
