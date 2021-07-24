@@ -34,7 +34,7 @@ type parse_result =
 
 let handle_upload content_type body =
   let rec read_parts reader parts =
-    Http_multipart_formdata.read_part reader
+    Http_multipart_formdata.read reader
     |> function
     | `End -> Ok (Queue.to_seq parts |> List.of_seq)
     | `Header header ->
@@ -44,7 +44,7 @@ let handle_upload content_type body =
     | `Error e -> Error e
     | _ -> assert false
   and read_body reader body =
-    Http_multipart_formdata.read_part reader
+    Http_multipart_formdata.read reader
     |> function
     | `Body_end -> body
     | `Body buf -> read_body reader (Cstruct.append body buf)

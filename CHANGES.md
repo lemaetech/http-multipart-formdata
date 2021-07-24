@@ -1,4 +1,8 @@
-## v3.0.0 2021-07-04
+## v3.0.1 2021-07-24
+
+- Improve documentation, fix some typos in code. Rename `read_result` to `read` and `read_part` to `read 
+
+## v3.0.0 2021-07-23
 
 This release contains breaking change, therefore the version is incremented to
 v3.0.0

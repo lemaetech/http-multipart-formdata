@@ -4,7 +4,7 @@
 
 (generate_opam_files true)
 
-(version 3.0.0)
+(version 3.0.1)
 
 (source
  (github lemaetech/http-mutlipart-formdata))

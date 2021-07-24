@@ -62,7 +62,7 @@ asdfasdfasdfasdfasdfasdf|}
     Http_multipart_formdata.reader ~read_buffer_size:10 boundary (`Cstruct body)
   in
   let rec loop () =
-    Http_multipart_formdata.read_part reader
+    Http_multipart_formdata.read reader
     |> function
     | `End -> ()
     | rr ->

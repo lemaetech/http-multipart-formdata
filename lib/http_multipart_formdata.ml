@@ -25,7 +25,7 @@ and reader =
   { state: state
   ; mutable input: input
   ; mutable unconsumed: Cstruct.t
-  ; mutable parser_state: read_result Angstrom.Buffered.state }
+  ; mutable parser_state: read Angstrom.Buffered.state }
 
 and state =
   { dash_boundary: string
@@ -34,12 +34,12 @@ and state =
   ; mutable parsing_body: bool
   ; mutable preamble_parsed: bool }
 
-and read_result =
+and read =
   [ `End
   | `Header of part_header
   | `Body of Cstruct.t
   | `Body_end
-  | `Awaiting_input of [`Cstruct of Cstruct.t | `Eof] -> read_result
+  | `Awaiting_input of [`Cstruct of Cstruct.t | `Eof] -> read
   | `Error of string ]
 
 and input = [`Cstruct of Cstruct.t | `Incremental]
@@ -247,7 +247,7 @@ let rec part state =
     in
     end_ <|> part_header <|> part_body <* commit
 
-and part_body state : read_result t =
+and part_body state : read t =
   let buf = Cstruct.create state.read_buffer_size in
   let rec read_part_body i =
     if i < state.read_buffer_size then (
@@ -292,7 +292,7 @@ let reader ?(read_buffer_size = 1024) (Boundary boundary) input =
 
 let of_bigarray = Cstruct.of_bigarray
 
-let rec read_part (reader : reader) =
+let rec read (reader : reader) =
   match reader.parser_state with
   | Buffered.Partial k -> (
     match reader.input with
@@ -305,7 +305,7 @@ let rec read_part (reader : reader) =
             | `Eof -> `Eof
           in
           reader.parser_state <- k input' ;
-          read_part reader
+          read reader
         in
         `Awaiting_input continue
     | `Cstruct i ->
@@ -313,7 +313,7 @@ let rec read_part (reader : reader) =
           if Cstruct.len i = 0 then `Eof else `Bigstring (Cstruct.to_bigarray i)
         in
         reader.parser_state <- k input' ;
-        read_part reader )
+        read reader )
   | Buffered.Done (buf, x) -> (
     match x with
     | `End ->
@@ -348,7 +348,7 @@ let pp_part_header fmt part =
   in
   Fmt.record ~sep:Fmt.semi fields fmt part
 
-let pp_read_result : Format.formatter -> read_result -> unit =
+let pp_read_result : Format.formatter -> read -> unit =
  fun fmt ->
   let pp fmt = function
     | `End -> Fmt.string fmt "End"

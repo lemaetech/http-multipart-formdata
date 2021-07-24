@@ -7,17 +7,29 @@
  *
  *-------------------------------------------------------------------------*)
 
+(** [Http_multipart_formdata] is a non-blocking, streaming HTTP multipart
+    formdata parser. Its design is based on two main ideas:
+
+    - The parser should streaming the results as soon as possible in a
+      non-buffered, non-backtracking manner; and
+    - The parser input must be non-blocking and incremental in nature. *)
+
 (** {2 Types} *)
 
+(** [reader] represents a HTTP multipart formdata reader. *)
 type reader
 
-and read_result =
-  [ `End
-  | `Header of part_header
-  | `Body of Cstruct.t
-  | `Body_end
-  | `Awaiting_input of [`Cstruct of Cstruct.t | `Eof] -> read_result
+(** [read] represents both the current state and data read by a {!reader}. *)
+and read =
+  [ `End  (** The reader has completed reading. *)
+  | `Header of part_header  (** Multipart part header data. *)
+  | `Body of Cstruct.t  (** Multipart part body data. *)
+  | `Body_end  (** [reader] has completed reading the Multipart body data. *)
+  | `Awaiting_input of [`Cstruct of Cstruct.t | `Eof] -> read
+    (** The reader is waiting for it to be provided with input data. This is
+        only returned when [`Incremental] is chosen as {!input}. *)
   | `Error of string ]
+(** Represents an error in {!input} data. *)
 
 and input = [`Cstruct of Cstruct.t | `Incremental]
 
@@ -31,7 +43,15 @@ and boundary
 
 val boundary : string -> (boundary, string) result
 (** [boundary content_type] parses [content_type] to extract [boundary] value.
-    [content_type] is the HTTP request [Content-Type] header value. *)
+    [content_type] is the HTTP request [Content-Type] header value.
+
+    {[
+      let content_type =
+        "multipart/form-data; \
+         boundary=---------------------------735323031399963166993862150"
+      in
+      Http_multipart_formdata.boundary content_type
+    ]} *)
 
 (** {2 Multipart Reader} *)
 
@@ -39,11 +59,13 @@ val reader : ?read_buffer_size:int -> boundary -> input -> reader
 (** [reader ?read_buffer_size boundary input] creates reader. The default value
     for [read_buffer_size] is 1KB. *)
 
-val read_part : reader -> read_result
+val read : reader -> read
 (** [read_part ?read_body_len ~boundary reader] reads a http multipart body and
     returns a [read_result]. *)
 
 val unconsumed : reader -> Cstruct.t
+(** [uncoonsumed rader] returns any leftover data still remaining after [reader]
+    returns [`End]. *)
 
 (** {2 Part header} *)
 
@@ -62,5 +84,5 @@ val find : string -> part_header -> string option
 (** {2 Pretty Printers} *)
 
 val pp_part_header : Format.formatter -> part_header -> unit
-val pp_read_result : Format.formatter -> read_result -> unit
+val pp_read_result : Format.formatter -> read -> unit
 val pp_boundary : Format.formatter -> boundary -> unit
