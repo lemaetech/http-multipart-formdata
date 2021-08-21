@@ -50,6 +50,10 @@ and part_header =
   ; filename: string option
   ; parameters: string Map.t }
 
+and field_name = string
+
+and part_body = string
+
 type part_body_header =
   | Content_type of {ty: string; subtype: string; parameters: string Map.t}
   | Content_disposition of string Map.t
@@ -162,7 +166,8 @@ let boundary content_type =
     let* params =
       skip_many ws
       *> (string_ci "multipart/form-data" <?> "Not multipart formdata header")
-      *> skip_many ws *> many param
+      *> skip_many ws
+      *> many param
     in
     match List.assoc_opt "boundary" params with
     | Some boundary -> return (Boundary boundary)
@@ -173,7 +178,9 @@ let boundary content_type =
 let content_disposition =
   let+ params =
     string_ci "Content-Disposition:"
-    *> skip_many ws *> string_ci "form-data" *> many param
+    *> skip_many ws
+    *> string_ci "form-data"
+    *> many param
   in
   let params = List.to_seq params |> Map.of_seq in
   Content_disposition params
@@ -186,7 +193,8 @@ let preamble dash_boundary =
   many
     (let* dash_boundary' = peek_string len in
      if String.equal dash_boundary dash_boundary' then fail "" else any_char )
-  *> advance len *> commit
+  *> advance len
+  *> commit
 
 let crlf = string_ci "\r\n" <?> "[crlf]"
 
@@ -294,7 +302,7 @@ let of_bigarray = Cstruct.of_bigarray
 
 let rec read (reader : reader) =
   match reader.parser_state with
-  | Buffered.Partial k -> (
+  | Buffered.Partial k -> begin
     match reader.input with
     | `Incremental ->
         let continue (input : [`Cstruct of Cstruct.t | `Eof]) =
@@ -310,11 +318,13 @@ let rec read (reader : reader) =
         `Awaiting_input continue
     | `Cstruct i ->
         let input' =
-          if Cstruct.len i = 0 then `Eof else `Bigstring (Cstruct.to_bigarray i)
+          if Cstruct.length i = 0 then `Eof
+          else `Bigstring (Cstruct.to_bigarray i)
         in
         reader.parser_state <- k input' ;
-        read reader )
-  | Buffered.Done (buf, x) -> (
+        read reader
+  end
+  | Buffered.Done (buf, x) -> begin
     match x with
     | `End ->
         reader.unconsumed <- of_bigarray ~off:buf.off ~len:buf.len buf.buf ;
@@ -328,12 +338,45 @@ let rec read (reader : reader) =
           x
       | `Incremental ->
           reader.unconsumed <- of_bigarray ~off:buf.off ~len:buf.len buf.buf ;
-          x ) )
+          x )
+  end
   | Buffered.Fail (buf, marks, err) ->
       reader.unconsumed <- of_bigarray ~off:buf.off ~len:buf.len buf.buf ;
       `Error (String.concat " > " marks ^ ": " ^ err)
 
 let unconsumed reader = reader.unconsumed
+
+(* Non streaming *)
+
+let parts boundary body =
+  let rec read_parts reader parts =
+    read reader
+    |> function
+    | `End ->
+        Queue.to_seq parts
+        |> List.of_seq
+        |> List.map (fun (header, body) ->
+               let field_name = name header in
+               (field_name, (header, body)) )
+        |> Result.ok
+    | `Header header ->
+        let body = Cstruct.(read_body reader empty |> to_string) in
+        Queue.push (header, body) parts ;
+        read_parts reader parts
+    | `Error e -> Error e
+    | _ -> assert false
+  and read_body reader body =
+    read reader
+    |> function
+    | `Body_end -> body
+    | `Body buf -> read_body reader (Cstruct.append body buf)
+    | `Error e -> failwith e
+    | _ -> assert false
+  in
+  let reader =
+    reader ~read_buffer_size:10 boundary (`Cstruct (Cstruct.of_string body))
+  in
+  read_parts reader (Queue.create ())
 
 (* Pretty Printers *)
 

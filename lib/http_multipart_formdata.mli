@@ -18,7 +18,7 @@
     The parser implements HTTP [multipart/form-data] standard as defined in
     {{:https://tools.ietf.org/html/rfc7578} RFC 7578}. *)
 
-(** {2 Types} *)
+(** {1 Types} *)
 
 (** [reader] represents a HTTP multipart formdata reader. *)
 type reader
@@ -46,7 +46,13 @@ and part_header
 (** Represents the multipart boundary value. *)
 and boundary
 
-(** {2 Mulipart Boundary parser} *)
+(** A form field name *)
+and field_name = string
+
+(** A Multipart body *)
+and part_body = string
+
+(** {1 Mulipart Boundary parser} *)
 
 val boundary : string -> (boundary, string) result
 (** [boundary content_type] parses [content_type] to extract {!type:boundary}
@@ -60,7 +66,11 @@ val boundary : string -> (boundary, string) result
       Http_multipart_formdata.boundary content_type
     ]} *)
 
-(** {2 Multipart Reader} *)
+(** {1 Streaming Multipart}
+
+    API to stream multipart parts. Use these functions when you have to handle
+    HTTP form submissions which has large file uploads and at the same time be
+    memory efficient. *)
 
 val reader : ?read_buffer_size:int -> boundary -> input -> reader
 (** [reader ?read_buffer_size boundary input] creates reader. The default value
@@ -73,7 +83,28 @@ val unconsumed : reader -> Cstruct.t
 (** [unconsumed reader] returns any leftover data still remaining after
     {!type:reader} returns [`End]. *)
 
-(** {2 Part header} *)
+(** {1 Non-Streaming Multipart}
+
+    Use these functions if the HTTP form submission is of a relatively small
+    size. *)
+
+val parts :
+     boundary
+  -> string
+  -> ((field_name * (part_header * part_body)) list, string) result
+(** [parts boundary http_body] returns a list of HTTP multipart parts parsed in
+    [http_body].
+
+    The returned parts list is keyed to a form field name so that one can do:
+
+    {[
+      let parts_kv = parts boundary http_body in
+      match List.assoc_opt "field1" parts_vk with
+      | Some v -> ...
+      | None -> ..
+    ]} *)
+
+(** {1 Part header} *)
 
 val name : part_header -> string
 (** [name t] returns the form field name. *)
@@ -87,7 +118,7 @@ val filename : part_header -> string option
 val find : string -> part_header -> string option
 (** [find name t] returns the multipart parameter value associated with [name]. *)
 
-(** {2 Pretty Printers} *)
+(** {3 Pretty Printers} *)
 
 val pp_part_header : Format.formatter -> part_header -> unit
 val pp_read_result : Format.formatter -> read -> unit

@@ -1,3 +1,7 @@
+## v3.1.0 2021-08-21 
+
+- Add `parts` function to allow non-streaming parsing of multiparts.
+
 ## v3.0.1 2021-07-24
 
 - Improve documentation, fix some typos in code. Rename `read_result` to `read` and `read_part` to `read 

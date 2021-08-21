@@ -114,3 +114,91 @@ asdfasdfasdfasdfasdfasdf|}
             filename: binary
     Body: 4, a\207\137b
     Body_end |}]
+
+type parts_result =
+  ( (string * (Http_multipart_formdata.part_header * string)) list
+  , string )
+  result
+[@@deriving show]
+
+let%expect_test "parse_parts" =
+  let body =
+    String.concat "\r\n"
+      [ {||}
+      ; {| this is a preamble text.  |}
+      ; {|-----------------------------735323031399963166993862150|}
+      ; {|Content-Disposition: form-data; name="text1"|}
+      ; {||}
+      ; {|text default|}
+      ; {|-----------------------------735323031399963166993862150|}
+      ; {|Content-Disposition: form-data; name="text2"|}
+      ; {||}
+      ; {|aωb|}
+      ; {|-----------------------------735323031399963166993862150|}
+      ; {|Content-Disposition: form-data; name="file1"; filename="a.txt"|}
+      ; {|Content-Type: text/plain|}
+      ; {||}
+      ; {|Content of a.txt.|}
+      ; {||}
+      ; {|-----------------------------735323031399963166993862150|}
+      ; {|Content-Disposition: form-data; name="file2"; filename="a.html"|}
+      ; {|Content-Type: text/html|}
+      ; {||}
+      ; {|<!DOCTYPE html><title>Content of a.html.</title><div>thiasdasdf asdfiasdf  asdf asdf as df asdf asdf as df asdf asd fa sdf asd fas df asdf as df asd fas df asdf as df asdfas df asd fa sdf as dfa sdf asdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfsadfsadfasdfasdfasdfasdfasdfsadfasdfasdfasdfasdfasdfsadfasdfasdfasdfasdfasdfasdfasdfasdfasdf
+asdfasdfasdfasdfasdfasdf|}
+      ; {||}
+      ; {|-----------------------------735323031399963166993862150|}
+      ; {|Content-Disposition: form-data; name="file3"; filename="binary"|}
+      ; {|Content-Type: application/octet-stream|}
+      ; {||}
+      ; {|aωb|}
+      ; {||}
+      ; {|-----------------------------735323031399963166993862150|}
+      ; {|Content-Disposition: form-data; name="file3"; filename="binary"; param1=value1; param2=value2|}
+      ; {|Content-Type: application/octet-stream|}
+      ; {||}
+      ; {|aωb|}
+      ; {|-----------------------------735323031399963166993862150--|} ]
+  in
+  let boundary =
+    Http_multipart_formdata.boundary
+      "multipart/form-data; \
+       boundary=---------------------------735323031399963166993862150"
+    |> Result.get_ok
+  in
+  let parts = Http_multipart_formdata.parts boundary body in
+  pp_parts_result Format.std_formatter parts ;
+  [%expect
+    {|
+    (Ok [("text1",
+          (name: text1;
+           parameters: ;
+           content_type: text/plain;
+           filename: , "text default"));
+          ("text2",
+           (name: text2;
+            parameters: ;
+            content_type: text/plain;
+            filename: , "a\207\137b"));
+          ("file1",
+           (name: file1;
+            parameters: ;
+            content_type: text/plain;
+            filename: a.txt, "Content of a.txt.\r\n"));
+          ("file2",
+           (name: file2;
+            parameters: ;
+            content_type: text/html;
+            filename: a.html,
+            "<!DOCTYPE html><title>Content of a.html.</title><div>thiasdasdf asdfiasdf  asdf asdf as df asdf asdf as df asdf asd fa sdf asd fas df asdf as df asd fas df asdf as df asdfas df asd fa sdf as dfa sdf asdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfsadfsadfasdfasdfasdfasdfasdfsadfasdfasdfasdfasdfasdfsadfasdfasdfasdfasdfasdfasdfasdfasdfasdf\nasdfasdfasdfasdfasdfasdf\r\n"));
+          ("file3",
+           (name: file3;
+            parameters: ;
+            content_type: application/octet-stream;
+            filename: binary, "a\207\137b\r\n"));
+          ("file3",
+           (name: file3;
+            parameters: (param1, value1); (param2, value2);
+            content_type: application/octet-stream;
+            filename: binary, "a\207\137b"))
+          ]) |}]
